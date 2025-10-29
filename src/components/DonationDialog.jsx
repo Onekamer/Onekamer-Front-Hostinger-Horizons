@@ -17,9 +17,10 @@
     import { useToast } from '@/components/ui/use-toast';
     import { Coins, Loader2 } from 'lucide-react';
     import { motion } from 'framer-motion';
+    import { notifyDonationReceived } from '@/services/oneSignalNotifications';
 
     const DonationDialog = ({ receiverId, receiverName, children }) => {
-      const { user, balance, refreshBalance } = useAuth();
+      const { user, balance, refreshBalance, profile } = useAuth();
       const { toast } = useToast();
       const [amount, setAmount] = useState('');
       const [message, setMessage] = useState('');
@@ -59,6 +60,15 @@
             title: 'Don effectué !',
             description: `Vous avez envoyé ${donationAmount} pièces à ${receiverName}.`,
           });
+          try {
+            await notifyDonationReceived({
+              receiverId,
+              senderName: profile?.username || user?.email || 'Un membre OneKamer',
+              amount: donationAmount,
+            });
+          } catch (notificationError) {
+            console.error('Erreur notification OneSignal (don dialogue):', notificationError);
+          }
           refreshBalance();
           setAmount('');
           setMessage('');

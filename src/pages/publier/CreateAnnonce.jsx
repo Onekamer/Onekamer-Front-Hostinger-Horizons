@@ -10,12 +10,13 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { ArrowLeft, Image as ImageIcon, Tag, Euro, MapPin, Loader2, X, Globe, Phone, Mail } from 'lucide-react';
     import { toast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
-    import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { notifyNewAnnonce } from '@/services/oneSignalNotifications';
     import imageCompression from 'browser-image-compression';
 
     const CreateAnnonce = () => {
       const navigate = useNavigate();
-      const { user } = useAuth();
+      const { user, profile } = useAuth();
       const [formData, setFormData] = useState({ 
         titre: '', 
         categorie_id: '', 
@@ -156,23 +157,42 @@ import React, { useState, useEffect, useCallback } from 'react';
             mediaType = mediaFile.type.startsWith('video') ? 'video' : 'image';
           }
 
-          const { error } = await supabase.from('annonces').insert([{ 
-            titre: formData.titre,
-            categorie_id: formData.categorie_id,
-            prix: formData.prix ? parseFloat(formData.prix) : null,
-            devise_id: formData.devise_id,
-            pays_id: formData.pays_id,
-            ville_id: formData.ville_id,
-            telephone: formData.telephone,
-            email: formData.email,
-            description: formData.description,
-            user_id: user.id,
-            author_id: user.id,
-            media_url: mediaUrl,
-            media_type: mediaType,
-          }]);
-          
+          const { data: newAnnonce, error } = await supabase
+            .from('annonces')
+            .insert([
+              {
+                titre: formData.titre,
+                categorie_id: formData.categorie_id,
+                prix: formData.prix ? parseFloat(formData.prix) : null,
+                devise_id: formData.devise_id,
+                pays_id: formData.pays_id,
+                ville_id: formData.ville_id,
+                telephone: formData.telephone,
+                email: formData.email,
+                description: formData.description,
+                user_id: user.id,
+                author_id: user.id,
+                media_url: mediaUrl,
+                media_type: mediaType,
+              },
+            ])
+            .select()
+            .single();
+
           if (error) throw error;
+
+          if (newAnnonce) {
+            try {
+              await notifyNewAnnonce({
+                annonceId: newAnnonce.id,
+                title: newAnnonce.titre,
+                authorName: profile?.username || user?.email || 'Un membre OneKamer',
+                price: newAnnonce.prix,
+              });
+            } catch (notificationError) {
+              console.error('Erreur notification OneSignal (annonce):', notificationError);
+            }
+          }
           
           toast({ title: 'Succès !', description: 'Votre annonce a été publiée.' });
           navigate('/annonces');

@@ -10,6 +10,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import MediaDisplay from '@/components/MediaDisplay';
 import { useToast } from '@/components/ui/use-toast';
+import { notifyRencontreMessage } from '@/services/oneSignalNotifications';
 
 const ConversationDetail = () => {
   const { conversationId: matchId } = useParams();
@@ -20,6 +21,7 @@ const ConversationDetail = () => {
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState(null);
   const [myRencontreId, setMyRencontreId] = useState(null);
+  const [myRencontreProfile, setMyRencontreProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
 
@@ -31,9 +33,14 @@ const ConversationDetail = () => {
     if (!user || !matchId) return;
     setLoading(true);
 
-    const { data: myProfileData } = await supabase.from('rencontres').select('id').eq('user_id', user.id).single();
+    const { data: myProfileData } = await supabase
+      .from('rencontres')
+      .select('id, user_id, name')
+      .eq('user_id', user.id)
+      .single();
     if (myProfileData) {
       setMyRencontreId(myProfileData.id);
+      setMyRencontreProfile(myProfileData);
     }
 
     const { data: matchData, error: matchError } = await supabase
@@ -98,20 +105,31 @@ const ConversationDetail = () => {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (newMessage.trim() && user && otherUser && myRencontreId) {
+    const trimmed = newMessage.trim();
+    if (trimmed && user && otherUser && myRencontreId) {
       const message = {
         match_id: matchId,
         sender_id: myRencontreId,
         receiver_id: otherUser.id,
-        content: newMessage.trim(),
+        content: trimmed,
       };
-      
+
       setNewMessage('');
 
       const { error } = await supabase.from('messages_rencontres').insert(message);
       if (error) {
         console.error("Error sending message:", error);
         setNewMessage(message.content); // Restore message on error
+      } else {
+        try {
+          await notifyRencontreMessage({
+            recipientId: otherUser.user_id,
+            senderName: myRencontreProfile?.name || user?.user_metadata?.full_name || user?.email || 'Un membre OneKamer',
+            message: trimmed,
+          });
+        } catch (notificationError) {
+          console.error('Erreur notification OneSignal (message rencontre):', notificationError);
+        }
       }
     }
   };
