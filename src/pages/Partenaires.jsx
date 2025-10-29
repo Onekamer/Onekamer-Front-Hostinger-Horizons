@@ -108,14 +108,15 @@ const Partenaires = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPartenaire, setSelectedPartenaire] = useState(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [canCreate, setCanCreate] = useState(false);
 
   // 🟢 Vérifie automatiquement les droits d'accès à la page "Partenaires"
   useEffect(() => {
+    if (authLoading) return;
     applyAutoAccessProtection(user, navigate, window.location.pathname);
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   // 🟢 Vérifie si l'utilisateur peut créer un partenaire
   useEffect(() => {
