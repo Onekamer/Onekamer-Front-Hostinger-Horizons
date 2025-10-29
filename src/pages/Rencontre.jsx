@@ -144,7 +144,7 @@ const ArrayDetailItem = ({ icon: Icon, label, values }) => (
 
 
 const Rencontre = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -160,23 +160,22 @@ const Rencontre = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [canInteract, setCanInteract] = useState(false);
-  const [canView, setCanView] = useState(false); // ✅ nouveau
+  const [canView, setCanView] = useState(null); // ✅ nouveau
 
   const { toast } = useToast();
 
   // ✅ 1. Vérification de l'authentification
   useEffect(() => {
-    (async () => {
-      try {
-        await requireAuth(navigate);
-      } catch {
-        return;
-      }
-    })();
-  }, []);
+    if (authLoading) return;
+    if (!user) {
+      navigate('/auth');
+    }
+  }, [authLoading, user, navigate]);
 
   // ✅ 2. Vérifications des accès selon le plan Supabase
 useEffect(() => {
+  if (authLoading) return;
+
   const checkAccess = async () => {
     setCanView(null); // ✅ ajout ici
 
@@ -200,7 +199,7 @@ useEffect(() => {
   };
 
   checkAccess();
-}, [user]);
+}, [user, authLoading]);
 
 
   const fetchMyProfile = useCallback(async () => {
@@ -345,13 +344,21 @@ useEffect(() => {
     return existing;
   })() : [];
   
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+      </div>
+    );
+  }
+
   if (loading) {
-  return (
-    <div className="flex justify-center items-center h-64">
-      <Loader2 className="h-8 w-8 animate-spin text-green-500" />
-    </div>
-  );
-}
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+      </div>
+    );
+  }
 
 if (!user) {
   return <div className="text-center p-8">Veuillez vous connecter pour accéder aux rencontres.</div>;
