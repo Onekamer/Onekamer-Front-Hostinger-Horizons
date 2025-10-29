@@ -205,14 +205,15 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [selectedAnnonce, setSelectedAnnonce] = useState(null);
   const [searchTerm, setSearchTerm] = useState(''); // ✅ Correction ici
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [canCreateAd, setCanCreateAd] = useState(false);
 
   // 🟢 Vérifie automatiquement les droits d'accès à la page "Annonces"
   useEffect(() => {
+    if (authLoading) return;
     applyAutoAccessProtection(user, navigate, window.location.pathname);
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   // Vérifie si l'utilisateur peut créer une annonce
   useEffect(() => {
