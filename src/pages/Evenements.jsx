@@ -217,14 +217,15 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [canCreateEvent, setCanCreateEvent] = useState(false);
 
   // 🟢 Vérifie automatiquement les droits d'accès (Supabase)
   useEffect(() => {
+    if (authLoading) return;
     applyAutoAccessProtection(user, navigate, window.location.pathname);
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   // 🟢 Vérifie si l'utilisateur peut créer un événement
   useEffect(() => {
