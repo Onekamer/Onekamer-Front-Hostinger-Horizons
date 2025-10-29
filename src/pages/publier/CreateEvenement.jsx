@@ -10,7 +10,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
     import { ArrowLeft, Clock, Euro, MapPin, Image as ImageIcon, Loader2, X, Tag, Phone, Mail, Globe, User } from 'lucide-react';
     import { toast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
-    import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { notifyNewEvenement } from '@/services/oneSignalNotifications';
     import imageCompression from 'browser-image-compression';
     import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
     
@@ -29,7 +30,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
     
     const CreateEvenement = () => {
       const navigate = useNavigate();
-      const { user } = useAuth();
+      const { user, profile } = useAuth();
       const [formData, setFormData] = useState({ title: '', date: '', time: '', location: '', price: '', description: '', type_id: '', telephone: '', email: '', site_web: '', organisateur: '', latitude: null, longitude: null, devise_id: '' });
       const [types, setTypes] = useState([]);
       const [devises, setDevises] = useState([]);
@@ -149,10 +150,27 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
           }
     
           const submissionData = { ...formData, user_id: user.id, author_id: user.id, media_url: mediaUrl, media_type: mediaType, price: parseFloat(formData.price) || 0 };
-    
-          const { error } = await supabase.from('evenements').insert([submissionData]);
-          
+
+          const { data: newEvent, error } = await supabase
+            .from('evenements')
+            .insert([submissionData])
+            .select()
+            .single();
+
           if (error) throw error;
+
+          if (newEvent) {
+            try {
+              await notifyNewEvenement({
+                eventId: newEvent.id,
+                title: newEvent.title,
+                date: newEvent.date,
+                authorName: profile?.username || user?.email || 'Un membre OneKamer',
+              });
+            } catch (notificationError) {
+              console.error('Erreur notification OneSignal (événement):', notificationError);
+            }
+          }
           
           toast({ title: 'Succès !', description: 'Votre événement a été publié.' });
           navigate('/evenements');

@@ -11,6 +11,7 @@ import { ArrowLeft, Building, Phone, MapPin, Tag, Globe, Image as ImageIcon, Loa
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { notifyNewPartenaire } from '@/services/oneSignalNotifications';
 import imageCompression from 'browser-image-compression';
 import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
@@ -29,7 +30,7 @@ const libraries = ['places'];
 
 const ProposerPartenaire = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({ name: '', category_id: '', address: '', phone: '', website: '', email: '', description: '', recommandation: '' });
   const [categories, setCategories] = useState([]);
   const [mediaFile, setMediaFile] = useState(null);
@@ -136,14 +137,31 @@ const ProposerPartenaire = () => {
         mediaType = mediaFile.type.startsWith('video') ? 'video' : 'image';
       }
 
-      const { error } = await supabase.from('partenaires').insert([{ 
-        ...formData, 
-        user_id: user.id,
-        media_url: mediaUrl,
-        media_type: mediaType,
-      }]);
-      
+      const { data: newPartner, error } = await supabase
+        .from('partenaires')
+        .insert([{
+          ...formData,
+          user_id: user.id,
+          media_url: mediaUrl,
+          media_type: mediaType,
+        }])
+        .select()
+        .single();
+
       if (error) throw error;
+
+      if (newPartner) {
+        try {
+          await notifyNewPartenaire({
+            partnerId: newPartner.id,
+            name: newPartner.name,
+            city: newPartner.city,
+            authorName: profile?.username || user?.email || 'Un membre OneKamer',
+          });
+        } catch (notificationError) {
+          console.error('Erreur notification OneSignal (partenaire):', notificationError);
+        }
+      }
       
       toast({ title: 'Succès !', description: 'Votre partenaire a été proposé.' });
       navigate('/partenaires');

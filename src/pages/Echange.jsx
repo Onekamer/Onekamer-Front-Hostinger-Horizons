@@ -26,6 +26,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { getInitials } from '@/lib/utils';
 import { uploadAudioFile, ensurePublicAudioUrl } from '@/utils/audioStorage';
+import { notifyDonationReceived } from '@/services/oneSignalNotifications';
 
 const normalizeAudioEntry = (entry) => {
   if (!entry || !entry.audio_url) return entry;
@@ -104,6 +105,17 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
       });
 
       toast({ title: "Don envoyé !", description: `Vous avez envoyé ${donationAmount} pièces.` });
+      if (post?.user_id) {
+        try {
+          await notifyDonationReceived({
+            receiverId: post.user_id,
+            senderName: profile?.username || user?.email || 'Un membre OneKamer',
+            amount: donationAmount,
+          });
+        } catch (notificationError) {
+          console.error('Erreur notification OneSignal (don):', notificationError);
+        }
+      }
       await refreshBalance();
       setOpen(false);
       setAmount('');

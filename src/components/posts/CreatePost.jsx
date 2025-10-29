@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { uploadAudioFile } from '@/utils/audioStorage';
+import { notifyMentions } from '@/services/oneSignalNotifications';
+import { extractUniqueMentions } from '@/utils/mentions';
 
 const AudioPlayer = ({ src, onCanPlay }) => {
     const audioRef = useRef(null);
@@ -420,6 +422,19 @@ const CreatePost = () => {
   const handlePublish = async () => {
     await highlightExistingMentions();
     const currentPostText = editableDivRef.current.innerText;
+    const mentionUsernames = extractUniqueMentions(currentPostText);
+    let mentionProfiles = [];
+
+    if (mentionUsernames.length) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('username', mentionUsernames);
+
+      if (!profilesError && profilesData) {
+        mentionProfiles = profilesData;
+      }
+    }
 
     if (!currentPostText.trim() && !mediaFile && !audioBlob) {
       if (!recorderPromiseRef.current) {
@@ -458,16 +473,33 @@ const CreatePost = () => {
           const { publicUrl: audioUrl } = await uploadAudioFile(audioFile, 'comments_audio');
 
           const normalizedDuration = Math.max(1, Math.round(audioDuration || recordingTime || 1));
-          const { error: insertError } = await supabase.from("comments").insert({
-            type: "audio",
-            audio_url: audioUrl,
-            user_id: user?.id,
-            content_type: "echange",
-            content: currentPostText || "",
-            created_at: new Date(),
-            audio_duration: normalizedDuration,
-          });
+          const { data: insertedComment, error: insertError } = await supabase
+            .from("comments")
+            .insert({
+              type: "audio",
+              audio_url: audioUrl,
+              user_id: user?.id,
+              content_type: "echange",
+              content: currentPostText || "",
+              created_at: new Date(),
+              audio_duration: normalizedDuration,
+            })
+            .select()
+            .single();
           if (insertError) throw insertError;
+
+          if (mentionProfiles.length) {
+            try {
+              await notifyMentions({
+                mentionedUserIds: mentionProfiles.map((m) => m.id),
+                authorName: profile?.username || user?.email || 'Un membre OneKamer',
+                excerpt: currentPostText,
+                postId: insertedComment?.id,
+              });
+            } catch (notificationError) {
+              console.error('Erreur notification OneSignal (commentaire audio):', notificationError);
+            }
+          }
       } else { 
           let postData = {
             user_id: user.id,
@@ -486,8 +518,25 @@ const CreatePost = () => {
             }
           }
           
-          const { error: insertError } = await supabase.from('posts').insert([postData]);
+          const { data: insertedPost, error: insertError } = await supabase
+            .from('posts')
+            .insert([postData])
+            .select()
+            .single();
           if (insertError) throw insertError;
+
+          if (insertedPost && mentionProfiles.length) {
+            try {
+              await notifyMentions({
+                mentionedUserIds: mentionProfiles.map((m) => m.id),
+                authorName: profile?.username || user?.email || 'Un membre OneKamer',
+                excerpt: currentPostText,
+                postId: insertedPost.id,
+              });
+            } catch (notificationError) {
+              console.error('Erreur notification OneSignal (mentions):', notificationError);
+            }
+          }
       }
 
       toast({

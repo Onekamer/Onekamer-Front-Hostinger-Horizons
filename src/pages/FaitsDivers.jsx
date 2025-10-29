@@ -25,6 +25,8 @@ import imageCompression from 'browser-image-compression';
 import MediaDisplay from '@/components/MediaDisplay';
 import FavoriteButton from '@/components/FavoriteButton';
 import { canUserAccess } from '@/lib/accessControl';
+import { notifyNewFaitDivers, notifyMentionInComment } from '@/services/oneSignalNotifications';
+import { extractUniqueMentions } from '@/utils/mentions';
 
 
 const AddNewsForm = ({ categories, onArticleAdded }) => {
@@ -131,6 +133,15 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
       });
     } else {
       toast({ title: 'Article publié !' });
+      try {
+        await notifyNewFaitDivers({
+          articleId: newArticle.id,
+          title: newArticle.title,
+          authorName: newArticle.author?.username || user?.email || 'Un membre OneKamer',
+        });
+      } catch (notificationError) {
+        console.error('Erreur notification OneSignal (fait divers):', notificationError);
+      }
       setFormData({
         title: '',
         category_id: '',
@@ -231,7 +242,7 @@ const CommentAvatar = ({ avatarPath, username }) => {
 };
 
 const CommentSection = ({ articleId }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -279,13 +290,41 @@ const CommentSection = ({ articleId }) => {
     }
     setIsPostingComment(true);
     try {
-      const { error } = await supabase.from('faits_divers_comments').insert([{
-        fait_divers_id: articleId,
-        user_id: user.id,
-        content: newComment,
-      }]);
+      const mentionUsernames = extractUniqueMentions(newComment);
+      let mentionTargets = [];
+
+      if (mentionUsernames.length) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .in('username', mentionUsernames);
+
+        if (!profilesError && profilesData) {
+          mentionTargets = profilesData;
+        }
+      }
+
+      const { error } = await supabase
+        .from('faits_divers_comments')
+        .insert([{ 
+          fait_divers_id: articleId,
+          user_id: user.id,
+          content: newComment,
+        }]);
       if (error) throw error;
       setNewComment('');
+
+      if (mentionTargets.length) {
+        try {
+          await notifyMentionInComment({
+            mentionedUserIds: mentionTargets.map((target) => target.id),
+            authorName: profile?.username || user?.email || 'Un membre OneKamer',
+            articleId,
+          });
+        } catch (notificationError) {
+          console.error('Erreur notification OneSignal (mention commentaire):', notificationError);
+        }
+      }
     } catch (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     } finally {

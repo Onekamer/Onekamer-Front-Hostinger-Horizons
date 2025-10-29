@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { notifyRencontreMatch } from '@/services/oneSignalNotifications';
 import { Slider } from "@/components/ui/slider"
 import RencontreProfil from './rencontre/RencontreProfil';
 import { canUserAccess } from '@/lib/accessControl';
@@ -161,6 +162,7 @@ const Rencontre = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [canInteract, setCanInteract] = useState(false);
   const [canView, setCanView] = useState(null); // ✅ nouveau
+  const processedMatchesRef = useRef(new Set());
 
   const { toast } = useToast();
 
@@ -319,13 +321,39 @@ useEffect(() => {
         event: 'INSERT',
         schema: 'public',
         table: 'rencontres_matches',
-      }, (payload) => {
+      }, async (payload) => {
         const match = payload.new;
+        if (!match) return;
+
+        if (processedMatchesRef.current.has(match.id)) {
+          return;
+        }
+        processedMatchesRef.current.add(match.id);
+
         if (match.user1_id === myProfile.id || match.user2_id === myProfile.id) {
           toast({
             title: "C’est un match ! 💚",
             description: "Vous avez un nouveau match. Consultez vos messages."
           });
+
+          try {
+            const { data: participants, error } = await supabase
+              .from('rencontres')
+              .select('id, user_id, name')
+              .in('id', [match.user1_id, match.user2_id]);
+
+            if (!error && participants?.length) {
+              const userIds = participants.map((p) => p.user_id).filter(Boolean);
+              const names = participants.map((p) => p.name).filter(Boolean);
+              await notifyRencontreMatch({
+                userIds,
+                names,
+                matchId: match.id,
+              });
+            }
+          } catch (notificationError) {
+            console.error('Erreur notification OneSignal (match rencontre):', notificationError);
+          }
         }
       })
       .subscribe();
