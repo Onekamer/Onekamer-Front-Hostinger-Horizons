@@ -44,6 +44,24 @@ const SupportCenter = () => {
 
   const debouncedSearchQuery = useDebounce(searchQuery, 400);
 
+  const handleSearch = useCallback((event) => {
+    event?.preventDefault();
+    setOpen((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery('');
+      setSearchResults([]);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (requestType !== 'report') {
+      setOpen(false);
+    }
+  }, [requestType]);
+
   const handleSelectUser = useCallback((user) => {
     if (!user) return;
     setSelectedUser(user);
@@ -150,34 +168,86 @@ const SupportCenter = () => {
               Utilisateur à signaler <span className="text-red-500">*</span>
             </label>
 
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="w-full justify-between"
-              onClick={handleSearch}
-            >
-              {selectedUser ? (
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={selectedUser.avatar_url} alt={selectedUser.username} />
-                    <AvatarFallback>{selectedUser.username?.[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  {selectedUser.username || selectedUser.full_name}
-                </div>
-              ) : (
-                "Rechercher un utilisateur..."
-              )}
-              <Loader2
-                className={cn(
-                  "ml-2 h-4 w-4 shrink-0 opacity-50",
-                  !searchLoading && "hidden"
+            <div className="relative">
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full justify-between"
+                onClick={handleSearch}
+              >
+                {selectedUser ? (
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={selectedUser.avatar_url} alt={selectedUser.username} />
+                      <AvatarFallback>{selectedUser.username?.[0]?.toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    {selectedUser.username || selectedUser.full_name}
+                  </div>
+                ) : (
+                  "Rechercher un utilisateur..."
                 )}
-              />
-            </Button>
+                <Loader2
+                  className={cn(
+                    "ml-2 h-4 w-4 shrink-0 opacity-50",
+                    !searchLoading && "hidden"
+                  )}
+                />
+              </Button>
+
+              {open && (
+                <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-xl">
+                  <Command>
+                    <CommandInput
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                      placeholder="Tape le nom d’un utilisateur"
+                      autoFocus
+                    />
+                    <CommandList>
+                      {searchLoading ? (
+                        <div className="flex items-center gap-2 px-3 py-4 text-sm text-gray-500">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Recherche en cours...
+                        </div>
+                      ) : (
+                        <>
+                          <CommandEmpty>Aucun utilisateur trouvé.</CommandEmpty>
+                          <CommandGroup heading="Utilisateurs">
+                            {searchResults.map((result) => (
+                              <CommandItem
+                                key={result.id}
+                                onSelect={() => handleSelectUser(result)}
+                                className="flex items-center gap-2"
+                              >
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={result.avatar_url} alt={result.username} />
+                                  <AvatarFallback>
+                                    {result.username?.[0]?.toUpperCase() || result.full_name?.[0]?.toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {result.username || result.full_name}
+                                  </span>
+                                  {result.username && result.full_name && result.username !== result.full_name && (
+                                    <span className="text-xs text-gray-500">{result.full_name}</span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </>
+                      )}
+                    </CommandList>
+                  </Command>
+                </div>
+              )}
+            </div>
 
             <div className="mt-2 text-sm text-gray-500">
-              (Recherche temporairement désactivée)
+              Tape au moins deux caractères pour lancer une recherche.
             </div>
           </div>
 
