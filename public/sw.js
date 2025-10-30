@@ -1,10 +1,10 @@
+
 /* eslint-env serviceworker */
 /* eslint-disable no-restricted-globals */
 
 // ============================================================
 // ✅ OneKamer — Service Worker fusionné (PWA + OneSignal officiel)
-// Gère cache + push notification (avec titre, message et lien)
-// Compatible Android / Chrome / PWA Hostinger & Render
+// Version finale avec affichage du vrai message OneSignal (Render)
 // ============================================================
 
 // 1️⃣ Import du SDK OneSignal
@@ -43,10 +43,11 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================================
-// 4️⃣ OneSignal Notification Handling (fusionné + corrigé)
+// 4️⃣ OneSignal Notification Handling (fusionné + ultra-compatible)
 // ============================================================
 self.addEventListener('push', (event) => {
   if (!event.data) return;
+
   let payload = {};
   try {
     payload = event.data.json();
@@ -57,22 +58,27 @@ self.addEventListener('push', (event) => {
 
   console.log('📩 Notification OneSignal reçue:', payload);
 
-  // ✅ Compatibilité avec OneSignal V16+
+  // 🔍 On tente de récupérer le titre et le message depuis toutes les clés possibles
   const title =
     payload.title ||
     payload.headings?.en ||
     payload.notification?.title ||
+    payload.data?.title ||
     'OneKamer.co';
+
   const body =
     payload.body ||
     payload.contents?.en ||
     payload.notification?.body ||
+    payload.data?.message || // ✅ C’est cette clé que Render envoie !
     'Nouvelle notification disponible';
+
   const icon = '/ok_logo.png';
   const url =
     payload.url ||
     payload.launchURL ||
     payload.notification?.data?.url ||
+    payload.data?.url ||
     'https://onekamer.co';
 
   const options = {
@@ -101,4 +107,4 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-console.log('✅ OneKamer SW fusionné (PWA + OneSignal + preview) prêt.');
+console.log('✅ OneKamer SW fusionné (PWA + OneSignal + vrai body) prêt.');
