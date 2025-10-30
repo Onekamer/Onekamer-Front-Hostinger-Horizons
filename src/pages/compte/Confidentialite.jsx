@@ -1,26 +1,23 @@
+
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, FileText, FileSignature, Gavel } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ChartePopup from '@/components/ChartePopup';
+import { Link } from 'react-router-dom';
+import DeleteAccountSection from '@/pages/DeleteAccountSection';
+
 
 const Confidentialite = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { toast } = useToast();
   const [showCharte, setShowCharte] = useState(false);
-
-  const showToast = () => {
-    toast({
-      title: "Fonctionnalité en cours de développement",
-      description: "🚧 Cette fonctionnalité n'est pas encore implémentée—mais vous pouvez la demander dans votre prochain prompt ! 🚀",
-    });
-  };
 
   return (
     <>
@@ -72,17 +69,45 @@ const Confidentialite = () => {
           
           <Card>
             <CardHeader>
-              <CardTitle>Contrôlez vos informations</CardTitle>
+              <CardTitle>Règlement Général sur la Protection des Données (RGPD)</CardTitle>
+              <CardDescription>Découvrez comment OneKamer protège vos données personnelles.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-gray-600">
-                Nous construisons cette section pour vous donner un contrôle total sur vos données. Vous pourrez bientôt gérer la visibilité de votre profil, télécharger vos données, et plus encore.
-              </p>
-              <Button onClick={showToast} className="w-full bg-[#2BA84A] hover:bg-[#248a3b]">
-                Explorer les options (bientôt)
-              </Button>
+            <CardContent>
+              <Link to="/rgpd" className="text-[#2BA84A] font-semibold hover:underline flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
+                Voir le règlement RGPD
+              </Link>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Conditions Générales d’Utilisation (CGU)</CardTitle>
+              <CardDescription>Nos règles pour l'utilisation de la plateforme.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/cgu" className="text-[#2BA84A] font-semibold hover:underline flex items-center">
+                <FileSignature className="h-4 w-4 mr-2" />
+                Lire les CGU
+              </Link>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Mentions légales</CardTitle>
+              <CardDescription>Informations légales sur l'éditeur et l'hébergeur.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/mentions-legales" className="text-[#2BA84A] font-semibold hover:underline flex items-center">
+                <Gavel className="h-4 w-4 mr-2" />
+                Consulter les mentions légales
+              </Link>
+            </CardContent>
+          </Card>
+
+          <DeleteAccountSection />
+          
         </motion.div>
       </div>
       <ChartePopup show={showCharte} onClose={() => setShowCharte(false)} readOnly={true} />
