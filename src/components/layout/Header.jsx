@@ -112,6 +112,9 @@ const Header = ({ deferredPrompt }) => {
                   <DropdownMenuItem onClick={() => navigate('/forfaits')}>
                     💳 Forfaits
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/aide')}>
+                    🆘 Centre d'aide
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/compte/notifications')}>
                     ⚙️ Paramètres
                   </DropdownMenuItem>
