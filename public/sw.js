@@ -1,37 +1,30 @@
-
 /* eslint-env serviceworker */
 /* eslint-disable no-restricted-globals */
 
 // ============================================================
-// ✅ OneKamer — Service Worker fusionné (PWA + OneSignal officiel)
-// Version finale avec affichage du vrai message OneSignal (Render)
+// ✅ OneKamer — Service Worker fusionné (PWA + OneSignal enrichi)
+// Version finale : vrai message + image + son + vibration + actions
 // ============================================================
 
 // 1️⃣ Import du SDK OneSignal
 importScripts('https://cdn.onesignal.com/sdks/OneSignalSDK.js');
-console.log('📡 SDK OneSignal chargé dans le SW fusionné');
+console.log('📡 SDK OneSignal enrichi chargé');
 
 // 2️⃣ Gestion du cache PWA
-const CACHE_NAME = 'onekamer-cache-v1';
+const CACHE_NAME = 'onekamer-cache-v2';
 const urlsToCache = ['/', '/index.html', '/offline.html', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {
-  console.log('✅ Service Worker fusionné installé');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
-  );
+  console.log('✅ Service Worker enrichi installé');
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache)));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('✅ Service Worker fusionné activé');
+  console.log('✅ Service Worker enrichi activé');
   event.waitUntil(
     caches.keys().then((cacheNames) =>
-      Promise.all(
-        cacheNames.map((name) => {
-          if (name !== CACHE_NAME) return caches.delete(name);
-        })
-      )
+      Promise.all(cacheNames.map((name) => (name !== CACHE_NAME ? caches.delete(name) : null)))
     )
   );
   self.clients.claim();
@@ -43,7 +36,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================================
-// 4️⃣ OneSignal Notification Handling (fusionné + ultra-compatible)
+// 4️⃣ OneSignal Notification Handling (fusionné + enrichi)
 // ============================================================
 self.addEventListener('push', (event) => {
   if (!event.data) return;
@@ -56,9 +49,9 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  console.log('📩 Notification OneSignal reçue:', payload);
+  console.log('📩 Notification OneSignal reçue (enrichie):', payload);
 
-  // 🔍 On tente de récupérer le titre et le message depuis toutes les clés possibles
+  // 🔍 Extraction multi-source (titre, message, image, lien…)
   const title =
     payload.title ||
     payload.headings?.en ||
@@ -70,8 +63,8 @@ self.addEventListener('push', (event) => {
     payload.body ||
     payload.contents?.en ||
     payload.notification?.body ||
-    payload.data?.message || // ✅ C’est cette clé que Render envoie !
-    'Nouvelle notification disponible';
+    payload.data?.message ||
+    'Nouvelle notification disponible sur OneKamer';
 
   const icon = '/ok_logo.png';
   const url =
@@ -81,11 +74,31 @@ self.addEventListener('push', (event) => {
     payload.data?.url ||
     'https://onekamer.co';
 
+  // 🖼️ Image enrichie (si fournie par le serveur Render)
+  const image =
+    payload.data?.image ||
+    payload.big_picture ||
+    payload.notification?.big_picture ||
+    null;
+
+  // 🔊 Son et vibration personnalisés
+  const sound = payload.data?.sound || 'default';
+  const vibration = [200, 100, 200, 100, 200];
+
+  // ✅ Construction finale de la notification enrichie
   const options = {
     body,
     icon,
     badge: icon,
+    image,
+    sound,
+    vibrate: vibration,
+    requireInteraction: true,
     data: { url },
+    actions: [
+      { action: 'open', title: 'Ouvrir', icon: '/icons/open.png' },
+      { action: 'close', title: 'Fermer', icon: '/icons/close.png' },
+    ],
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -94,17 +107,15 @@ self.addEventListener('push', (event) => {
 // 5️⃣ Clic sur la notification
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const target = event.notification.data?.url || 'https://onekamer.co';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      const target = event.notification.data?.url || 'https://onekamer.co';
       for (const client of clientList) {
-        if (client.url === target && 'focus' in client) {
-          return client.focus();
-        }
+        if (client.url === target && 'focus' in client) return client.focus();
       }
       if (clients.openWindow) return clients.openWindow(target);
     })
   );
 });
 
-console.log('✅ OneKamer SW fusionné (PWA + OneSignal + vrai body) prêt.');
+console.log('✅ OneKamer SW enrichi (image + vibration + son + actions) prêt 🎨');
