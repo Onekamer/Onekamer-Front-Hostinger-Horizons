@@ -8,16 +8,19 @@ import iframeRouteRestorationPlugin from './plugins/vite-plugin-iframe-route-res
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-const httpsConfig = (() => {
-  try {
-    const key = fs.readFileSync('./localhost+1-key.pem');
-    const cert = fs.readFileSync('./localhost+1.pem');
-    return { key, cert };
-  } catch (err) {
-    console.warn('⚠️ Certificats HTTPS non trouvés, Vite démarrera en HTTP.');
-    return false;
-  }
-})();
+// Only resolve local HTTPS certs in development to avoid noisy logs in production builds
+const httpsConfig = isDev
+  ? (() => {
+      try {
+        const key = fs.readFileSync('./localhost+1-key.pem');
+        const cert = fs.readFileSync('./localhost+1.pem');
+        return { key, cert };
+      } catch (err) {
+        // Silent in dev if missing: Vite will fall back to HTTP
+        return false;
+      }
+    })()
+  : false;
 
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
@@ -259,7 +262,7 @@ export default defineConfig({
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
 		allowedHosts: true,
-		https: httpsConfig || false,
+		https: isDev && (httpsConfig || false),
 		host: true,
 		port: 5173,
 	},
