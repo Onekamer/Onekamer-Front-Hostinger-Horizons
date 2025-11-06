@@ -109,6 +109,7 @@ const CreatePost = () => {
   const timerRef = useRef(null);
   const mimeRef = useRef({ ext: "webm", type: "audio/webm" });
   const recorderPromiseRef = useRef(null);
+  
 
   const [mentionQuery, setMentionQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -276,13 +277,40 @@ const CreatePost = () => {
   };
 
   const pickSupportedMime = () => {
-    if (window.MediaRecorder?.isTypeSupported("audio/webm;codecs=opus"))
+    const ua = navigator.userAgent.toLowerCase();
+
+    // iOS / Safari (incl. in-app/PWA) -> utiliser MP4/AAC
+    if (ua.includes("iphone") || ua.includes("ipad") || ua.includes("safari")) {
+      if (window.MediaRecorder?.isTypeSupported?.("audio/mp4;codecs=mp4a.40.2")) {
+        return { type: "audio/mp4;codecs=mp4a.40.2", ext: "m4a" };
+      }
+      return { type: "audio/mp4", ext: "m4a" };
+    }
+
+    // Android (Chrome/Edge) -> préférer webm/opus, sinon mp4/aac
+    if (ua.includes("android")) {
+      if (window.MediaRecorder?.isTypeSupported?.("audio/webm;codecs=opus")) {
+        return { type: "audio/webm;codecs=opus", ext: "webm" };
+      }
+      if (window.MediaRecorder?.isTypeSupported?.("audio/mp4;codecs=mp4a.40.2")) {
+        return { type: "audio/mp4;codecs=mp4a.40.2", ext: "m4a" };
+      }
+      return { type: "audio/mp4", ext: "m4a" };
+    }
+
+    // Desktop: webm (Chrome/Edge), ogg (Firefox), sinon mp4
+    if (window.MediaRecorder?.isTypeSupported?.("audio/webm;codecs=opus")) {
       return { type: "audio/webm;codecs=opus", ext: "webm" };
-    if (window.MediaRecorder?.isTypeSupported("audio/ogg;codecs=opus"))
+    }
+    if (window.MediaRecorder?.isTypeSupported?.("audio/ogg;codecs=opus")) {
       return { type: "audio/ogg;codecs=opus", ext: "ogg" };
-    if (window.MediaRecorder?.isTypeSupported("audio/mp4;codecs=mp4a.40.2"))
+    }
+    if (window.MediaRecorder?.isTypeSupported?.("audio/mp4;codecs=mp4a.40.2")) {
       return { type: "audio/mp4;codecs=mp4a.40.2", ext: "m4a" };
-    return { type: "audio/webm", ext: "webm" };
+    }
+
+    // Fallback universel
+    return { type: "audio/mp4", ext: "m4a" };
   };
 
   const startRecording = async () => {
@@ -307,12 +335,19 @@ const CreatePost = () => {
       recorderPromiseRef.current = recordingDone;
 
       const chosen = pickSupportedMime();
-      mimeRef.current = chosen;
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: chosen.type,
-        bitsPerSecond: 128000,
-      });
+      // Vérifie le support réel du type choisi; si non supporté, laisse le navigateur décider
+      const supportedMimeType = window.MediaRecorder?.isTypeSupported?.(chosen.type)
+        ? chosen.type
+        : undefined;
+
+      // Conserver dans mimeRef le type effectivement utilisé si connu
+      mimeRef.current = { type: supportedMimeType || chosen.type, ext: chosen.ext };
+
+      // Instancie le MediaRecorder sans bitsPerSecond (plus fiable sur mobile)
+      const mediaRecorder = supportedMimeType
+        ? new MediaRecorder(stream, { mimeType: supportedMimeType })
+        : new MediaRecorder(stream);
 
       chunksRef.current = [];
       mediaRecorder.ondataavailable = (e) => {
@@ -344,7 +379,12 @@ const CreatePost = () => {
       };
 
       mediaRecorder.ignoreMutedMedia = true;
-      mediaRecorder.start(1000);
+
+      // Petit délai pour fiabiliser sur mobile (initialisation des pistes)
+      await new Promise((r) => setTimeout(r, 300));
+
+      // Démarre sans timeslice pour éviter les chunks vides sur iOS/Android
+      mediaRecorder.start();
 
       setRecording(true);
       setRecorder(mediaRecorder);

@@ -1,11 +1,23 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { createLogger, defineConfig } from 'vite';
+import fs from 'fs';
 import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-editor.js';
 import editModeDevPlugin from './plugins/visual-editor/vite-plugin-edit-mode.js';
 import iframeRouteRestorationPlugin from './plugins/vite-plugin-iframe-route-restoration.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+const httpsConfig = (() => {
+  try {
+    const key = fs.readFileSync('./localhost+1-key.pem');
+    const cert = fs.readFileSync('./localhost+1.pem');
+    return { key, cert };
+  } catch (err) {
+    console.warn('⚠️ Certificats HTTPS non trouvés, Vite démarrera en HTTP.');
+    return false;
+  }
+})();
 
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
@@ -232,6 +244,8 @@ logger.error = (msg, options) => {
 	loggerError(msg, options);
 }
 
+console.warn = () => {};
+
 export default defineConfig({
 	customLogger: logger,
 	plugins: [
@@ -245,6 +259,9 @@ export default defineConfig({
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
 		allowedHosts: true,
+		https: httpsConfig || false,
+		host: true,
+		port: 5173,
 	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],
