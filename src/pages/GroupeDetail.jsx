@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { useParams, useNavigate } from 'react-router-dom';
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
-    import { ArrowLeft, Send, Loader2, Heart } from 'lucide-react';
+    import { ArrowLeft, Send, Loader2, Heart, Mic, Square, X, Image as ImageIcon } from 'lucide-react';
     import { Textarea } from '@/components/ui/textarea';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
@@ -17,6 +17,63 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
     import GroupMembers from '@/pages/groupes/GroupMembers';
     import GroupAdmin from '@/pages/groupes/GroupAdmin';
+    import { uploadAudioFile } from '@/utils/audioStorage';
+
+    const AudioPlayer = ({ src, initialDuration = 0 }) => {
+      const audioRef = useRef(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [duration, setDuration] = useState(initialDuration);
+      const [currentTime, setCurrentTime] = useState(0);
+      const [isLoading, setIsLoading] = useState(true);
+
+      const togglePlayPause = () => {
+        if (!audioRef.current) return;
+        if (isPlaying) audioRef.current.pause(); else audioRef.current.play();
+        setIsPlaying(!isPlaying);
+      };
+
+      useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        const setAudioData = () => {
+          if (isFinite(audio.duration)) setDuration(audio.duration);
+          setCurrentTime(audio.currentTime);
+          setIsLoading(false);
+        };
+        const setAudioTime = () => setCurrentTime(audio.currentTime);
+        audio.addEventListener('loadeddata', setAudioData);
+        audio.addEventListener('timeupdate', setAudioTime);
+        audio.addEventListener('ended', () => setIsPlaying(false));
+        audio.addEventListener('canplaythrough', () => setIsLoading(false));
+        if (audio.readyState >= 2) setAudioData();
+        return () => {
+          audio.removeEventListener('loadeddata', setAudioData);
+          audio.removeEventListener('timeupdate', setAudioTime);
+          audio.removeEventListener('ended', () => setIsPlaying(false));
+          audio.removeEventListener('canplaythrough', () => setIsLoading(false));
+        };
+      }, [src]);
+
+      const formatTime = (t) => {
+        if (isNaN(t) || t === Infinity) return '0:00';
+        const m = Math.floor(t / 60);
+        const s = Math.floor(t % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+      };
+
+      return (
+        <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2">
+          <audio ref={audioRef} src={src} preload="metadata"></audio>
+          <Button onClick={togglePlayPause} size="icon" className="rounded-full w-8 h-8" disabled={isLoading}>
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : (isPlaying ? '❚❚' : '▶')}
+          </Button>
+          <div className="w-full bg-gray-300 rounded-full h-1.5">
+            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${(currentTime / duration) * 100 || 0}%` }}></div>
+          </div>
+          <span className="text-xs text-gray-600 w-20 text-center">{formatTime(currentTime)} / {formatTime(duration)}</span>
+        </div>
+      );
+    };
 
     const MessageItem = ({ msg, currentUserId, groupId, onActionComplete }) => {
       const { user } = useAuth();
@@ -70,16 +127,25 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       }
 
       const renderContent = () => {
-        try {
-          const isMedia = msg.message_contenu && msg.message_contenu.includes('/');
-          if (isMedia) {
-             return <MediaDisplay bucket="groupes" path={msg.message_contenu} alt="Média partagé" className="rounded-lg max-h-80 cursor-pointer" />;
-          }
-        } catch(e) {
-          // not a media path
+        const c = msg.message_contenu || '';
+        const isHttp = /^https?:\/\//i.test(c);
+        const isAudio = /(\.webm|\.ogg|\.m4a|\.mp3|\.mp4)(\?|$)/i.test(c);
+        const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif)(\?|$)/i.test(c);
+        const isVideo = /(\.mp4|\.webm|\.ogg|\.mov)(\?|$)/i.test(c);
+        if (isHttp) {
+          if (isAudio) return <AudioPlayer src={c} initialDuration={msg.audio_duration || 0} />;
+          if (isImage) return <img src={c} alt="Média partagé" className="rounded-lg max-h-80" />;
+          if (isVideo) return <video src={c} controls className="rounded-lg max-h-80" />;
         }
-        return <p className="text-gray-800">{msg.message_contenu}</p>;
-      }
+        // Legacy path in Supabase storage
+        try {
+          const isMediaPath = c && c.includes('/');
+          if (isMediaPath) {
+            return <MediaDisplay bucket="groupes" path={c} alt="Média partagé" className="rounded-lg max-h-80 cursor-pointer" />;
+          }
+        } catch (e) {}
+        return <p className="text-gray-800">{c}</p>;
+      };
 
       const isMyMessage = msg.sender_id === currentUserId;
 
@@ -130,6 +196,19 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const [loading, setLoading] = useState(true);
       const [newMessage, setNewMessage] = useState('');
       const [joinRequestStatus, setJoinRequestStatus] = useState('idle');
+      // Media attach state
+      const [mediaFile, setMediaFile] = useState(null);
+      const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
+      const mediaInputRef = useRef(null);
+      // Audio recording state
+      const [isRecording, setIsRecording] = useState(false);
+      const [audioBlob, setAudioBlob] = useState(null);
+      const [recordingTime, setRecordingTime] = useState(0);
+      const mediaRecorderRef = useRef(null);
+      const audioChunksRef = useRef([]);
+      const recorderPromiseRef = useRef(null);
+      const mimeRef = useRef(null);
+      const recordingIntervalRef = useRef(null);
       const messagesEndRef = useRef(null);
     
       const fetchGroupData = useCallback(async () => {
@@ -237,8 +316,160 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, [messages]);
 
+      const pickSupportedMime = useCallback(() => {
+        const ua = navigator.userAgent.toLowerCase();
+        if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('safari')) {
+          return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+        }
+        if (ua.includes('android')) {
+          return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+        }
+        if (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) {
+          return { type: 'audio/webm;codecs=opus', ext: 'webm' };
+        }
+        if (window.MediaRecorder?.isTypeSupported?.('audio/ogg;codecs=opus')) {
+          return { type: 'audio/ogg;codecs=opus', ext: 'ogg' };
+        }
+        return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+      }, []);
+
+      const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          setMediaFile(file);
+          setMediaPreviewUrl(URL.createObjectURL(file));
+          // reset audio if any
+          setAudioBlob(null);
+          setRecordingTime(0);
+          recorderPromiseRef.current = null;
+          mimeRef.current = null;
+        }
+      };
+
+      const handleRemoveMedia = () => {
+        setMediaFile(null);
+        setMediaPreviewUrl(null);
+        if (mediaInputRef.current) mediaInputRef.current.value = '';
+      };
+
+      const uploadToBunny = async (file, folder) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', folder);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData });
+        const text = await response.text();
+        let data = null;
+        if (text) {
+          try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); }
+        }
+        if (!response.ok || !data?.success) {
+          const message = data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`;
+          throw new Error(message);
+        }
+        return data.url;
+      };
+
+      const startRecording = async () => {
+        try {
+          setAudioBlob(null);
+          setRecordingTime(0);
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const chosenMime = pickSupportedMime();
+          mimeRef.current = chosenMime;
+          let resolveRecording;
+          const recordingDone = new Promise((resolve) => (resolveRecording = resolve));
+          recorderPromiseRef.current = recordingDone;
+          const supportedMimeType = window.MediaRecorder?.isTypeSupported?.(chosenMime.type) ? chosenMime.type : undefined;
+          const recorder = supportedMimeType ? new MediaRecorder(stream, { mimeType: supportedMimeType }) : new MediaRecorder(stream);
+          audioChunksRef.current = [];
+          recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
+          recorder.onerror = (e) => { console.error('MediaRecorder error', e); resolveRecording(null); };
+          recorder.onstop = async () => {
+            clearInterval(recordingIntervalRef.current);
+            stream.getTracks().forEach((t) => t.stop());
+            await new Promise((r) => setTimeout(r, 300));
+            const finalType = (mimeRef.current?.type || 'audio/webm').split(';')[0];
+            const blob = new Blob(audioChunksRef.current, { type: finalType });
+            setAudioBlob(blob);
+            setIsRecording(false);
+            mediaRecorderRef.current = null;
+            resolveRecording(blob);
+          };
+          await new Promise((r) => setTimeout(r, 300));
+          recorder.start();
+          mediaRecorderRef.current = recorder;
+          setIsRecording(true);
+          recordingIntervalRef.current = setInterval(() => setRecordingTime((t) => t + 1), 1000);
+          setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 120000);
+        } catch (err) {
+          console.error('Erreur microphone:', err);
+          toast({ title: "Erreur microphone", description: "Veuillez autoriser le micro.", variant: "destructive" });
+        }
+      };
+
+      const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.requestData?.();
+          setTimeout(() => { if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') mediaRecorderRef.current.stop(); }, 300);
+          clearInterval(recordingIntervalRef.current);
+        }
+      };
+
+      const handleRemoveAudio = () => {
+        setAudioBlob(null);
+        setRecordingTime(0);
+        recorderPromiseRef.current = null;
+        mimeRef.current = null;
+      };
+
       const handleSendMessage = async () => {
-        if (!newMessage.trim() || !user) return;
+        if (!user) return;
+        // If audio present (or pending), upload audio and send URL
+        let finalBlob = audioBlob;
+        if (!finalBlob && recorderPromiseRef.current) finalBlob = await recorderPromiseRef.current;
+
+        if (finalBlob) {
+          if (!finalBlob || finalBlob.size < 2000) {
+            toast({ title: 'Erreur audio', description: "Audio vide ou trop court.", variant: 'destructive' });
+            return;
+          }
+          const { ext, type } = mimeRef.current || { ext: 'webm', type: finalBlob.type || 'audio/webm' };
+          const file = new File([finalBlob], `group-audio-${user.id}-${Date.now()}.${ext}`, { type });
+          try {
+            // Align to same bucket/folder as échange communautaire
+            const { publicUrl } = await uploadAudioFile(file, 'comments_audio');
+            const { error } = await supabase.from('messages_groupes').insert({
+              groupe_id: groupId,
+              sender_id: user.id,
+              contenu: publicUrl,
+            });
+            if (error) throw error;
+            handleRemoveAudio();
+          } catch (e) {
+            toast({ title: 'Erreur', description: e.message || 'Envoi audio impossible.', variant: 'destructive' });
+          }
+          return;
+        }
+
+        // Media file (image/video)
+        if (mediaFile) {
+          try {
+            const url = await uploadToBunny(mediaFile, 'comments');
+            const { error } = await supabase.from('messages_groupes').insert({
+              groupe_id: groupId,
+              sender_id: user.id,
+              contenu: url,
+            });
+            if (error) throw error;
+            handleRemoveMedia();
+            setNewMessage('');
+          } catch (e) {
+            toast({ title: 'Erreur', description: e.message || 'Envoi média impossible.', variant: 'destructive' });
+          }
+          return;
+        }
+
+        if (!newMessage.trim()) return;
         const { error } = await supabase.from('messages_groupes').insert({
           groupe_id: groupId,
           sender_id: user.id,
@@ -356,22 +587,63 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               <TabsContent value="messages" className="flex-grow flex flex-col overflow-hidden">
                 {isMember && (
                   <div className="flex-shrink-0 p-3 border-b bg-gray-50">
-                      <div className="flex items-center gap-2">
-                          <Textarea 
-                              value={newMessage} 
-                              onChange={(e) => setNewMessage(e.target.value)} 
-                              placeholder="Votre message..." 
-                              className="flex-1 bg-white" 
-                              rows={1}
-                              onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                      e.preventDefault();
-                                      handleSendMessage();
-                                  }
-                              }}
-                          />
-                          <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0"><Send className="h-5 w-5" /></Button>
+                    <div className="flex items-center gap-2">
+                      {isRecording ? (
+                        <div className="flex items-center gap-2 w-full bg-gray-100 p-2 rounded-lg">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-sm text-red-500 font-mono">{`${Math.floor(recordingTime/60)}:${String(recordingTime%60).padStart(2,'0')}`}</span>
+                        </div>
+                      ) : (
+                        <Textarea
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          placeholder="Votre message..."
+                          className="flex-1 bg-white"
+                          rows={1}
+                          disabled={!!audioBlob}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }
+                          }}
+                        />
+                      )}
+                      <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={!newMessage.trim() && !audioBlob && !recorderPromiseRef.current && !mediaFile}><Send className="h-5 w-5" /></Button>
+                    </div>
+                    {(mediaPreviewUrl || audioBlob) && (
+                      <div className="relative p-2 bg-gray-100 rounded-lg mt-2">
+                        {mediaPreviewUrl && mediaFile?.type?.startsWith('image') ? (
+                          <img src={mediaPreviewUrl} alt="preview" className="w-24 h-24 rounded object-cover" />
+                        ) : mediaPreviewUrl ? (
+                          <video src={mediaPreviewUrl} controls className="w-full rounded object-cover" />
+                        ) : audioBlob ? (
+                          <AudioPlayer src={URL.createObjectURL(audioBlob)} />
+                        ) : null}
+                        <Button size="icon" variant="destructive" onClick={mediaPreviewUrl ? handleRemoveMedia : handleRemoveAudio} className="absolute -top-1 -right-1 h-5 w-5 rounded-full"><X className="h-3 w-3" /></Button>
                       </div>
+                    )}
+                    <div className="flex gap-2 mt-2">
+                      {!isRecording && !audioBlob && (
+                        <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={!!audioBlob}>
+                          <ImageIcon className="h-4 w-4 mr-2" /> Image/Vidéo
+                        </Button>
+                      )}
+                      <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob} />
+                      {!mediaFile && (
+                        !isRecording ? (
+                          !audioBlob && (
+                            <Button size="sm" type="button" variant="ghost" onClick={startRecording}>
+                              <Mic className="h-4 w-4 mr-2" /> Audio
+                            </Button>
+                          )
+                        ) : (
+                          <Button size="sm" type="button" variant="destructive" onClick={stopRecording}>
+                            <Square className="h-4 w-4 mr-2" /> Stop
+                          </Button>
+                        )
+                      )}
+                    </div>
                   </div>
                 )}
                 <div className="flex-grow overflow-y-auto p-4 space-y-2">
@@ -396,3 +668,4 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     };
     
     export default GroupeDetail;
+
