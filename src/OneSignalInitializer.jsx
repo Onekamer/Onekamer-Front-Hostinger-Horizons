@@ -15,6 +15,26 @@ const OneSignalInitializer = () => {
   useEffect(() => {
     const initOneSignal = async () => {
       if (initialized) return;
+
+      // ✅ Protection domaine: n'initialise OneSignal que sur les hôtes autorisés
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isAllowedHost =
+        host === 'onekamer.co' ||
+        host === 'www.onekamer.co';
+
+      if (!isAllowedHost) {
+        console.warn('ℹ️ OneSignal ignoré sur cet hôte:', host);
+        setInitialized(true);
+        return;
+      }
+
+      // ✅ Prévention double init si le SDK a déjà été initialisé
+      if (OneSignal?.User?.PushSubscription) {
+        console.warn('ℹ️ OneSignal déjà initialisé, on ignore.');
+        setInitialized(true);
+        return;
+      }
+
       setInitialized(true);
 
       try {
@@ -42,6 +62,11 @@ const OneSignalInitializer = () => {
   useEffect(() => {
     const linkUser = async () => {
       if (!user || !OneSignal) return;
+
+      // 🛡️ Si OneSignal n'est pas initialisé (host non autorisé), on n'essaie pas de lier
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isAllowedHost = host === 'onekamer.co' || host === 'www.onekamer.co';
+      if (!isAllowedHost) return;
   
       try {
         console.log('🔗 Tentative de liaison OneSignal pour user:', user.id);
