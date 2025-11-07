@@ -100,7 +100,27 @@ const RencontreProfil = () => {
       setProfile(p => ({ ...p, image_url: userProfile?.avatar_url, name: userProfile?.username, user_id: user.id }))
     } else if (data) {
       setProfile(prev => ({...prev, ...data, photos: Array.isArray(data.photos) ? data.photos : []}));
-      setImagePreview(data.image_url);
+      // 🧩 Génère une URL signée si image_url est un chemin de stockage
+      try {
+        if (data.image_url && typeof data.image_url === 'string') {
+          if (data.image_url.startsWith('http')) {
+            setImagePreview(data.image_url);
+          } else {
+            const { data: signed, error: signErr } = await supabase.storage
+              .from('rencontres')
+              .createSignedUrl(data.image_url, 3600);
+            if (!signErr && signed?.signedUrl) {
+              setImagePreview(signed.signedUrl);
+            } else {
+              setImagePreview(null);
+            }
+          }
+        } else {
+          setImagePreview(null);
+        }
+      } catch {
+        setImagePreview(null);
+      }
       setHasProfile(true);
     } else if (error) {
        toast({ title: 'Erreur', description: 'Impossible de charger votre profil Rencontre.', variant: 'destructive' });
@@ -247,12 +267,15 @@ const RencontreProfil = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) return;
-    setSaving(true);
-
+  e.preventDefault();
+  if (!user) return;
+  setSaving(true);
+  try {
     let imageUrl = profile.image_url;
+
+    // 📸 Upload de la photo principale via serveur LAB (BunnyCDN)
     if (imageFile) {
+      try {
         const formData = new FormData();
         const safeFile = new File(
           [imageFile],
@@ -261,47 +284,69 @@ const RencontreProfil = () => {
         );
         formData.append("file", safeFile);
         formData.append("type", "rencontres");
-        formData.append("recordId", user.id);
+        formData.append("user_id", user.id); // ✅ sous-dossier utilisateur
 
-        const res = await fetch("https://onekamer-server.onrender.com/api/upload-media", {
-            method: "POST",
-            body: formData,
+        const res = await fetch("https://onekamer-server-lab.onrender.com/api/upload", {
+          method: "POST",
+          body: formData,
         });
 
         if (!res.ok) {
-            toast({ title: 'Erreur d\'upload', description: 'La mise à jour de l\'image a échoué', variant: 'destructive' });
-            setSaving(false);
-            return;
+          console.error("Erreur d'upload principale :", await res.text());
+          toast({
+            title: "Erreur d'upload",
+            description: "La mise à jour de l'image a échoué.",
+            variant: "destructive",
+          });
+          return;
         }
 
         const data = await res.json();
-        imageUrl = data.url;
-    }
-
-    const uploadedGalleryUrls = [];
-    for (const item of galleryFiles) {
-      const formData = new FormData();
-      const fileName = item.file.name || `gallery_${Date.now()}.jpg`;
-      const safeFile = new File([item.file], fileName, { type: item.file.type || 'image/jpeg' });
-      formData.append('file', safeFile);
-      formData.append('type', 'rencontres');
-      formData.append('recordId', user.id);
-
-      const res = await fetch('https://onekamer-server.onrender.com/api/upload-media', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        toast({ title: "Erreur d'upload", description: "L'envoi d'une photo a échoué.", variant: 'destructive' });
-        setSaving(false);
+        // ✅ Utilise le chemin de stockage Supabase pour un affichage fiable
+        if (data.path) imageUrl = data.path;
+      } catch (err) {
+        console.error("Network/upload error (main):", err);
+        toast({ title: "Erreur réseau", description: "Échec de l'upload de la photo principale.", variant: "destructive" });
         return;
       }
-
-      const data = await res.json();
-      uploadedGalleryUrls.push(data.url);
     }
 
+    // 🖼️ Upload des images de la galerie
+    const uploadedGalleryUrls = [];
+    for (const item of galleryFiles) {
+      try {
+        const formData = new FormData();
+        const safeFile = new File(
+          [item.file],
+          item.file.name || `gallery_${Date.now()}.jpg`,
+          { type: item.file.type || "image/jpeg" }
+        );
+        formData.append("file", safeFile);
+        formData.append("type", "rencontres");
+        formData.append("user_id", user.id);
+
+        const res = await fetch("https://onekamer-server-lab.onrender.com/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          console.error("Erreur d’upload galerie :", await res.text());
+          toast({ title: "Erreur d'upload", description: "L'envoi d'une photo a échoué.", variant: "destructive" });
+          return;
+        }
+
+        const data = await res.json();
+        // ✅ Stocke le chemin Supabase dans la galerie
+        if (data.path) uploadedGalleryUrls.push(data.path);
+      } catch (err) {
+        console.error("Network/upload error (gallery):", err);
+        toast({ title: "Erreur réseau", description: "Échec de l'upload d'une photo de la galerie.", variant: "destructive" });
+        return;
+      }
+    }
+
+    // 🔗 Fusion des anciennes et nouvelles images
     const finalGallery = [...(profile.photos || []), ...uploadedGalleryUrls];
     const coverImage = imageUrl || finalGallery[0] || null;
 
@@ -315,30 +360,36 @@ const RencontreProfil = () => {
       updated_at: new Date(),
     };
 
-    if (updateData.enfant === 'Oui' && (!updateData.nombre_enfant || updateData.nombre_enfant <= 0)) {
-        toast({ title: 'Information manquante', description: 'Veuillez indiquer le nombre d\'enfants.', variant: 'destructive' });
-        setSaving(false);
-        return;
+    if (
+      updateData.enfant === "Oui" &&
+      (!updateData.nombre_enfant || updateData.nombre_enfant <= 0)
+    ) {
+      toast({ title: "Information manquante", description: "Veuillez indiquer le nombre d'enfants.", variant: "destructive" });
+      return;
     }
 
-    const { error } = await supabase.from('rencontres').upsert(updateData, { onConflict: 'user_id', defaultToNull: false });
+    const { error } = await supabase
+      .from("rencontres")
+      .upsert(updateData, { onConflict: "user_id", defaultToNull: false });
 
     if (error) {
       console.error("Supabase upsert error:", error);
-      toast({ title: 'Erreur', description: `La mise à jour a échoué: ${error.message}`, variant: 'destructive' });
+      toast({ title: "Erreur", description: `La mise à jour a échoué: ${error.message}` , variant: "destructive" });
     } else {
-      toast({ title: 'Succès', description: 'Votre profil a été mis à jour !' });
+      toast({ title: "Succès", description: "Votre profil a été mis à jour !" });
       await refreshProfile();
       await fetchProfile();
       setIsEditing(false);
-      galleryFiles.forEach(item => item.preview && URL.revokeObjectURL(item.preview));
+      galleryFiles.forEach((item) => item.preview && URL.revokeObjectURL(item.preview));
       setGalleryFiles([]);
       if (!imageFile) {
         setImagePreview(coverImage);
       }
     }
+  } finally {
     setSaving(false);
-  };
+  }
+};
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-green-500" /></div>;
@@ -378,16 +429,65 @@ const RencontreProfil = () => {
                     {galleryPhotos.length > 0 && (
                       <div className="mt-6 space-y-3">
                         <h3 className="font-semibold text-gray-800">Mes photos</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {galleryPhotos.slice(0, 6).map((photo, index) => (
-                            <div key={`${photo}-${index}`} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
-                              <MediaDisplay bucket="rencontres" path={photo} alt={`${profile.name} - Photo ${index + 1}`} className="w-full h-full object-cover" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+  {(() => {
+    const normalizePhotoPath = (photo) => {
+      if (!photo) return null;
+      console.log("🧩 Chemin brut :", photo);
+
+      // Si déjà une URL complète (Supabase signée, BunnyCDN, etc.)
+      if (photo.startsWith("http")) {
+        console.log("✅ URL complète :", photo);
+        return photo;
+      }
+
+      // Si doublon "rencontres/rencontres/"
+      if (photo.startsWith("rencontres/rencontres/")) {
+        const cleaned = photo.replace(/^rencontres\//, "");
+        console.log("🧹 Nettoyage doublon ->", cleaned);
+        return cleaned;
+      }
+
+      // Si commence par "rencontres/"
+      if (photo.startsWith("rencontres/")) {
+        console.log("✅ Chemin correct :", photo);
+        return photo;
+      }
+
+      // Sinon on préfixe proprement
+      const prefixed = `rencontres/${photo}`;
+      console.log("📦 Préfixé automatiquement ->", prefixed);
+      return prefixed;
+    };
+
+    console.log("🖼️ Liste complète des photos galerie :", galleryPhotos);
+
+    return galleryPhotos.slice(0, 6).map((photo, index) => {
+      const normalizedPath = normalizePhotoPath(photo);
+      if (!normalizedPath) {
+        console.warn("⚠️ Photo ignorée (chemin vide ou invalide) :", photo);
+        return null;
+      }
+
+      return (
+        <div
+          key={`${photo}-${index}`}
+          className="aspect-square rounded-lg overflow-hidden border border-gray-200"
+        >
+          <MediaDisplay
+            bucket="rencontres"
+            path={normalizedPath}
+            alt={`${profile.name} - Photo ${index + 1}`}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      );
+    });
+  })()}
+</div>
+</div>
+)}
+</div>
 
                 <div className="space-y-2">
                     {profile.bio && (
@@ -652,3 +752,4 @@ const RencontreProfil = () => {
 };
 
 export default RencontreProfil;
+
