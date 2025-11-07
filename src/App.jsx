@@ -25,16 +25,6 @@ import React, { useState, useEffect } from 'react';
     import ModifierProfil from '@/pages/compte/ModifierProfil';
     import Notifications from '@/pages/compte/Notifications';
     import Confidentialite from '@/pages/compte/Confidentialite';
-    import Favoris from '@/pages/compte/Favoris';
-    import CreateAnnonce from '@/pages/publier/CreateAnnonce';
-    import CreateEvenement from '@/pages/publier/CreateEvenement';
-    import ProposerPartenaire from '@/pages/publier/ProposerPartenaire';
-    import UserProfile from '@/pages/UserProfile';
-    import RencontreMessages from '@/pages/rencontre/RencontreMessages';
-    import ConversationDetail from '@/pages/rencontre/ConversationDetail';
-    import RencontreProfil from '@/pages/rencontre/RencontreProfil';
-    import AuthPage from '@/pages/Auth';
-    import PaiementSuccess from '@/pages/PaiementSuccess';
 
 const AppLayout = () => {
   const { profile } = useAuth();
