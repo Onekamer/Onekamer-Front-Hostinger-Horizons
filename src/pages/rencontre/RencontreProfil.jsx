@@ -286,7 +286,7 @@ const RencontreProfil = () => {
         formData.append("type", "rencontres");
         formData.append("user_id", user.id); // ✅ sous-dossier utilisateur
 
-        const res = await fetch("https://onekamer-server-lab.onrender.com/api/upload", {
+        const res = await fetch("https://onekamer-server.onrender.com/api/upload", {
           method: "POST",
           body: formData,
         });
@@ -325,7 +325,7 @@ const RencontreProfil = () => {
         formData.append("type", "rencontres");
         formData.append("user_id", user.id);
 
-        const res = await fetch("https://onekamer-server-lab.onrender.com/api/upload", {
+        const res = await fetch("https://onekamer-server.onrender.com/api/upload", {
           method: "POST",
           body: formData,
         });
