@@ -17,6 +17,41 @@ import imageCompression from 'browser-image-compression';
 import MediaDisplay from '@/components/MediaDisplay';
 import { Switch } from "@/components/ui/switch";
 
+async function normalizeToJpeg(file, maxSide = 1600) {
+  const src = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = src;
+    });
+    const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * ratio));
+    const h = Math.max(1, Math.round(img.height * ratio));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    const out = new File([blob], (file.name || 'upload').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+    return out;
+  } finally {
+    URL.revokeObjectURL(src);
+  }
+}
+
+async function processImageFile(inputFile) {
+  try {
+    const options = { maxSizeMB: 1, maxWidthOrHeight: 1600, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.85 };
+    const out = await imageCompression(inputFile, options);
+    return out;
+  } catch (_e) {
+    return await normalizeToJpeg(inputFile, 1600);
+  }
+}
+
 const ChoiceButton = ({ value, selectedValue, onSelect, children }) => (
     <Button
       type="button"
@@ -85,6 +120,8 @@ const RencontreProfil = () => {
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [hasProfile, setHasProfile] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxPath, setLightboxPath] = useState(null);
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -191,11 +228,10 @@ const RencontreProfil = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const options = { maxSizeMB: 1, maxWidthOrHeight: 800, useWebWorker: true };
     try {
-      const compressedFile = await imageCompression(file, options);
-      setImageFile(compressedFile);
-      setImagePreview(URL.createObjectURL(compressedFile));
+      const processed = await processImageFile(file);
+      setImageFile(processed);
+      setImagePreview(URL.createObjectURL(processed));
     } catch (error) {
       toast({ title: "Erreur d'image", description: error.message, variant: "destructive" });
     }
@@ -217,14 +253,12 @@ const RencontreProfil = () => {
     return;
   }
 
-  // 🔧 Compression
   const filesToProcess = files.slice(0, remainingSlots);
-  const options = { maxSizeMB: 1, maxWidthOrHeight: 800, useWebWorker: true };
 
   const newGalleryItems = [];
   for (const file of filesToProcess) {
     try {
-      const compressedFile = await imageCompression(file, options);
+      const compressedFile = await processImageFile(file);
       newGalleryItems.push({
         id: `${Date.now()}-${Math.random()}`,
         file: compressedFile,
@@ -418,7 +452,7 @@ const RencontreProfil = () => {
             </div>
             <Card className="p-4 md:p-6 space-y-6">
                 <div className="text-center">
-                    <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-green-200">
+                    <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-green-200 cursor-pointer" onClick={() => { if (profile.image_url) { setLightboxPath(profile.image_url); setLightboxOpen(true); } }}>
                       <MediaDisplay bucket="rencontres" path={profile.image_url} alt={profile.name} className="w-full h-full object-cover" />
                     </div>
                     <h2 className="text-3xl font-bold text-gray-800">{profile.name?.split(' ')[0]}, {profile.age}</h2>
@@ -470,9 +504,9 @@ const RencontreProfil = () => {
       }
 
       return (
-        <div
+        <div onClick={() => { setLightboxPath(normalizedPath); setLightboxOpen(true); }}
           key={`${photo}-${index}`}
-          className="aspect-square rounded-lg overflow-hidden border border-gray-200"
+          className="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer"
         >
           <MediaDisplay
             bucket="rencontres"
@@ -523,6 +557,16 @@ const RencontreProfil = () => {
                 </div>
             </Card>
         </motion.div>
+        {lightboxOpen && (
+          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={() => setLightboxOpen(false)}>
+            <div className="max-w-[95vw] max-h-[95vh] p-2" onClick={(e) => e.stopPropagation()}>
+              <MediaDisplay bucket="rencontres" path={lightboxPath} alt="media" className="max-h-[90vh] max-w-[90vw] object-contain" />
+            </div>
+            <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white" onClick={() => setLightboxOpen(false)} aria-label="Fermer">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+        )}
       </>
     );
   }

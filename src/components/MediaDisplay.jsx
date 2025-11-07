@@ -8,6 +8,7 @@ const defaultImages = {
   partenaires: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/fbbe30b8a750bf10ddf4da2c7de7bfd3.png',
   groupes: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/0d1b14eb0b6bbb002d83d44342b4afd2.png',
   faits_divers: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/3426b67577181940ee97b83de9829d6d.png',
+  rencontres: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/deafb02734097cfca203ab9aad10f6ba.png',
 };
 
 const MediaDisplay = ({ bucket, path, alt, className }) => {
@@ -41,22 +42,31 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
       }
 
       try {
-        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600); // 1 hour expiry
+        // Normalisation de chemin pour Supabase
+        let p = (path || '').replace(/^\/+/, '');
+        if (!p.startsWith('http') && bucket && !p.startsWith(`${bucket}/`)) {
+          p = `${bucket}/${p}`;
+        }
+        if (bucket && p.startsWith(`${bucket}/${bucket}/`)) {
+          p = p.replace(new RegExp(`^${bucket}/`), '');
+        }
+        if (p.startsWith('rencontres/rencontres/')) {
+          p = p.replace(/^rencontres\//, '');
+        }
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(p, 3600); // 1 hour expiry
 
         if (error) {
           if (error.message.includes('not found')) {
             console.warn(`Media not found in bucket "${bucket}" at path "${path}", using default.`);
             setMediaUrl(defaultImages[bucket] || null);
             setMediaType('image');
-             if (!defaultImages[bucket]) {
-               setErrorState(true);
-             }
+            // ne pas marquer en erreur pour afficher le fallback
           } else {
             throw error;
           }
         } else if (data && data.signedUrl) {
           setMediaUrl(data.signedUrl);
-          const fileExt = path.split('.').pop().toLowerCase();
+          const fileExt = p.split('.').pop().toLowerCase();
           if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(fileExt)) {
             setMediaType('video');
           } else {
@@ -69,9 +79,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         console.error(`Error fetching signed media URL for path "${path}" in bucket "${bucket}":`, error.message);
         setMediaUrl(defaultImages[bucket] || null);
         setMediaType('image');
-        if (!defaultImages[bucket]) {
-          setErrorState(true);
-        }
+        // ne pas marquer en erreur pour afficher le fallback
       } finally {
         setLoading(false);
       }
