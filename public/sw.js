@@ -11,7 +11,7 @@ importScripts('https://cdn.onesignal.com/sdks/OneSignalSDK.js');
 console.log('📡 SDK OneSignal enrichi chargé');
 
 // 2️⃣ Gestion du cache PWA
-const CACHE_NAME = 'onekamer-cache-v2';
+const CACHE_NAME = 'onekamer-cache-v3';
 const urlsToCache = ['/', '/index.html', '/offline.html', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {

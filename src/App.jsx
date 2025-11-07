@@ -4,19 +4,6 @@ import React, { useState, useEffect } from 'react';
     import { Toaster } from '@/components/ui/toaster';
     import Header from '@/components/layout/Header';
     import BottomNav from '@/components/layout/BottomNav';
-    import Home from '@/pages/Home';
-    import Annonces from '@/pages/Annonces';
-    import Partenaires from '@/pages/Partenaires';
-    import Echange from '@/pages/Echange';
-    import Evenements from '@/pages/Evenements';
-    import Rencontre from '@/pages/Rencontre';
-    import FaitsDivers from '@/pages/FaitsDivers';
-    import Groupes from '@/pages/Groupes';
-    import GroupeDetail from '@/pages/GroupeDetail';
-    import CreateGroupe from '@/pages/groupes/CreateGroupe';
-    import GroupInvitations from '@/pages/groupes/GroupInvitations';
-    import OKCoins from '@/pages/OKCoins';
-    import Forfaits from '@/pages/Forfaits';
     import Compte from '@/pages/Compte';
     import Publier from '@/pages/Publier';
     import Rechercher from '@/pages/Rechercher';
@@ -118,9 +105,6 @@ function App() {
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#2BA84A" />
         </Helmet>
-        
-        <OneSignalInitializer />
-
         <div className="min-h-screen bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5] pb-20">
           <AppContent />
         </div>
