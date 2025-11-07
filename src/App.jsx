@@ -46,6 +46,7 @@ import SupportCenter from '@/pages/SupportCenter';
 import CguPage from '@/pages/Cgu';
 import RgpdPage from '@/pages/Rgpd';
 import MentionsLegalesPage from '@/pages/MentionLegales';
+import Landing from '@/pages/Landing';
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -63,6 +64,9 @@ const AppLayout = () => {
 
 const AppContent = () => {
   const { showCharte, acceptCharte } = useCharteValidation();
+  const { session } = useAuth();
+  const location = useLocation();
+  const isLanding = !session && location.pathname === '/';
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   useEffect(() => {
@@ -76,8 +80,14 @@ const AppContent = () => {
 
   return (
     <>
-      <Header deferredPrompt={deferredPrompt} />
+      {!isLanding && <Header deferredPrompt={deferredPrompt} />}
       <AppLayout />
+      {isLanding ? (
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      ) : (
       <main className="container mx-auto px-4 pt-20 pb-4">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -122,9 +132,10 @@ const AppContent = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      )}
 
       <ChartePopup show={showCharte} onAccept={acceptCharte} />
-      <BottomNav />
+      {!isLanding && <BottomNav />}
     </>
   );
 }
