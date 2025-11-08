@@ -9,9 +9,9 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-white text-black">
       <Helmet>
-        <title>OneKamer – La communauté de la diaspora camerounaise</title>
+        <title>OneKamer.co – Le premier repère de la communauté camerounaise</title>
         <meta name="description" content="Rejoignez OneKamer, la plateforme où actualités, rencontres, événements et opportunités se rencontrent." />
-        <meta property="og:title" content="OneKamer – La communauté de la diaspora camerounaise" />
+        <meta property="og:title" content="OneKamer.co – Le premier repère de la communauté camerounaise" />
         <meta property="og:description" content="Actualités, rencontres, événements et opportunités de la diaspora camerounaise." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={window.location.origin} />
