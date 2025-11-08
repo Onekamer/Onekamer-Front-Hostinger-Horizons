@@ -16,17 +16,12 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
   const [loading, setLoading] = useState(true);
   const [mediaType, setMediaType] = useState(null);
   const [errorState, setErrorState] = useState(false);
-  const [backupUrl, setBackupUrl] = useState(null); // legacy single-backup usage (kept for compatibility)
-  const [cdnCandidates, setCdnCandidates] = useState([]);
-  const [cdnIndex, setCdnIndex] = useState(0);
 
   useEffect(() => {
     const fetchMedia = async () => {
       setLoading(true);
       setErrorState(false);
       setMediaUrl(null);
-      setCdnCandidates([]);
-      setCdnIndex(0);
 
       if (!path) {
         setMediaUrl(defaultImages[bucket] || null);
@@ -39,126 +34,52 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
       }
       
       if (path.startsWith('http') || path.startsWith('blob:')) {
-        const normalized = (() => {
-          if (path.startsWith('blob:')) return path;
-          // minimal normalization: enforce https and collapse duplicate slashes
-          let u = path.replace(/^http:\/\//i, 'https://');
-          u = u.replace(/(?<!:)\/\/+/, '/');
-          return u;
-        })();
-        try {
-          const u = new URL(normalized);
-          // legacy Supabase signed URL -> regenerate fresh signed URL
-          if (/\/storage\/v1\/object\/sign\//.test(u.pathname)) {
-            const signedPath = u.pathname.replace(/\/storage\/v1\/object\/sign\//, '');
-            const [bkt, ...restParts] = signedPath.split('/');
-            let rel = restParts.join('/');
-            if (rel.startsWith(`${bkt}/`)) rel = rel.slice(bkt.length + 1);
-            try {
-              const { data, error } = await supabase.storage.from(bkt).createSignedUrl(rel, 3600);
-              if (!error && data?.signedUrl) {
-                setMediaUrl(data.signedUrl);
-                const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
-                setMediaType(isVideo ? 'video' : 'image');
-                setLoading(false);
-                return;
-              }
-            } catch (e) {
-              // fallback to CDN if regeneration fails
-              const cdnPath = rel.startsWith(`${bkt}/`) ? rel : `${bkt}/${rel}`;
-              const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${cdnPath}`.replace(/(?<!:)\/\/+/, '/');
-              console.log('🛰️ CDN (legacy-signed fallback) →', cdnUrl);
-              setMediaUrl(cdnUrl);
-              const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
-              setMediaType(isVideo ? 'video' : 'image');
-              setLoading(false);
-              return;
-            }
-          }
-        } catch {}
-        setBackupUrl(null);
-        setMediaUrl(normalized);
-        const isVideo = normalized.startsWith('blob:video') || /\.(mp4|webm|ogg|mov)$/i.test(normalized);
+        setMediaUrl(path);
+        const isVideo = path.startsWith('blob:video') || path.endsWith('.mp4') || path.endsWith('.webm') || path.endsWith('.ogg');
         setMediaType(isVideo ? 'video' : 'image');
         setLoading(false);
         return;
       }
 
       try {
-        // Normalisation du chemin interne
+        // Normalisation de chemin pour Supabase
         let p = (path || '').replace(/^\/+/, '');
+        if (!p.startsWith('http') && bucket && !p.startsWith(`${bucket}/`)) {
+          p = `${bucket}/${p}`;
+        }
         if (bucket && p.startsWith(`${bucket}/${bucket}/`)) {
           p = p.replace(new RegExp(`^${bucket}/`), '');
         }
-        if (bucket && p.startsWith(`${bucket}/`)) {
-          p = p.slice(bucket.length + 1);
+        if (p.startsWith('rencontres/rencontres/')) {
+          p = p.replace(/^rencontres\//, '');
         }
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(p, 3600); // 1 hour expiry
 
-        // Pour 'rencontres', tenter Supabase signé d'abord (couverture des anciens profils encore en storage)
-        if (bucket === 'rencontres') {
-          try {
-            const { data, error } = await supabase.storage.from(bucket).createSignedUrl(p, 3600);
-            if (!error && data?.signedUrl) {
-              setBackupUrl(null);
-              setCdnCandidates([]);
-              setCdnIndex(0);
-              setMediaUrl(data.signedUrl);
-              const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(p);
-              setMediaType(isVideo ? 'video' : 'image');
-              setLoading(false);
-              return;
-            }
-            console.warn('ℹ️ Supabase signé indisponible pour rencontres, on tente CDN');
-          } catch (e) {
-            console.warn('ℹ️ Supabase createSignedUrl a échoué, on tente CDN', e?.message || e);
-          }
-          const candidates = [
-            `https://onekamer-media-cdn.b-cdn.net/${bucket}/${p}`,
-            `https://onekamer-media-cdn.b-cdn.net/${p}`,
-            `https://onekamer-media-cdn.b-cdn.net/${bucket}/${bucket}/${p}`,
-          ].map(u => u.replace(/(?<!:)\/\/+/, '/'));
-          console.log('🛰️ CDN (prioritaire) rencontres → candidates', candidates);
-          setCdnCandidates(candidates);
-          setCdnIndex(0);
-          setMediaUrl(candidates[0]);
-          const isVideoCdn = /\.(mp4|webm|ogg|mov)$/i.test(p);
-          setMediaType(isVideoCdn ? 'video' : 'image');
-          setLoading(false);
-          return;
-        }
-
-        // Autres buckets → URL signée Supabase
-        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(p, 3600);
-        if (error) throw error;
-        setBackupUrl(null);
-        setMediaUrl(data.signedUrl);
-        const fileExt = (p.split('.').pop() || '').toLowerCase();
-        setMediaType(['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(fileExt) ? 'video' : 'image');
-      } catch (error) {
-        console.error(`Error fetching media for path "${path}" in bucket "${bucket}":`, error.message);
-        // Fallback générique vers CDN si possible
-        if (bucket) {
-          let rel = (path || '').replace(/^\/+/, '');
-          if (rel.startsWith(`${bucket}/`)) rel = rel.slice(bucket.length + 1);
-          if (rel) {
-            const candidates = [
-              `https://onekamer-media-cdn.b-cdn.net/${bucket}/${rel}`,
-              `https://onekamer-media-cdn.b-cdn.net/${rel}`,
-              `https://onekamer-media-cdn.b-cdn.net/${bucket}/${bucket}/${rel}`,
-            ].map(u => u.replace(/(?<!:)\/\/+/, '/'));
-            console.log('🛰️ CDN (fallback) → candidates', candidates);
-            setCdnCandidates(candidates);
-            setCdnIndex(0);
-            setMediaUrl(candidates[0]);
-            setMediaType(/\.(mp4|webm|ogg|mov)$/i.test(rel) ? 'video' : 'image');
-          } else {
+        if (error) {
+          if (error.message.includes('not found')) {
+            console.warn(`Media not found in bucket "${bucket}" at path "${path}", using default.`);
             setMediaUrl(defaultImages[bucket] || null);
+            setMediaType('image');
+            // ne pas marquer en erreur pour afficher le fallback
+          } else {
+            throw error;
+          }
+        } else if (data && data.signedUrl) {
+          setMediaUrl(data.signedUrl);
+          const fileExt = p.split('.').pop().toLowerCase();
+          if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(fileExt)) {
+            setMediaType('video');
+          } else {
             setMediaType('image');
           }
         } else {
-          setMediaUrl(defaultImages[bucket] || null);
-          setMediaType('image');
+          throw new Error('Could not get signed URL.');
         }
+      } catch (error) {
+        console.error(`Error fetching signed media URL for path "${path}" in bucket "${bucket}":`, error.message);
+        setMediaUrl(defaultImages[bucket] || null);
+        setMediaType('image');
+        // ne pas marquer en erreur pour afficher le fallback
       } finally {
         setLoading(false);
       }
@@ -188,36 +109,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
     return <video src={mediaUrl} controls className={className} playsInline />;
   }
 
-  return (
-    <img
-      src={mediaUrl}
-      alt={alt}
-      className={className}
-      onError={(e) => {
-        const failed = e.currentTarget.currentSrc || e.currentTarget.src;
-        console.warn('⚠️ Image load failed →', failed);
-        // rotate through cdnCandidates if any remain
-        if (cdnCandidates.length && cdnIndex < cdnCandidates.length - 1) {
-          const nextIndex = cdnIndex + 1;
-          const nextUrl = cdnCandidates[nextIndex];
-          console.log('🔁 Trying next CDN candidate →', nextUrl);
-          setCdnIndex(nextIndex);
-          e.currentTarget.src = nextUrl;
-          return;
-        }
-        // legacy single backup usage
-        if (backupUrl) {
-          const next = backupUrl;
-          setBackupUrl(null);
-          console.log('🔁 Trying legacy backupUrl →', next);
-          e.currentTarget.src = next;
-          return;
-        }
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = defaultImages[bucket] || defaultImages.rencontres;
-      }}
-    />
-  );
+  return <img src={mediaUrl} alt={alt} className={className} />;
 };
 
 export default MediaDisplay;
