@@ -120,24 +120,25 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       
       if (msg.is_system_message) {
         return (
-            <div className="text-center my-4">
-                <p className="text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block">{msg.message_contenu}</p>
-            </div>
+          <div className="text-center my-4">
+            <p className="text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block">{msg.message_contenu}</p>
+          </div>
         );
       }
 
       const renderContent = () => {
         const c = msg.message_contenu || '';
         const isHttp = /^https?:\/\//i.test(c);
-        const isAudio = /(\.webm|\.ogg|\.m4a|\.mp3|\.mp4)(\?|$)/i.test(c);
-        const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif)(\?|$)/i.test(c);
-        const isVideo = /(\.mp4|\.webm|\.ogg|\.mov)(\?|$)/i.test(c);
+        const isVideo = /(?:\.mp4|\.webm|\.ogg|\.mov)(\?|$)/i.test(c);
+        const isImage = /(?:\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif)(\?|$)/i.test(c);
+        // Audio uniquement (ne pas inclure .mp4)
+        const isAudio = /(?:\.m4a|\.mp3|\.wav|\.aac|\.ogg)(\?|$)/i.test(c);
         if (isHttp) {
-          if (isAudio) return <AudioPlayer src={c} initialDuration={msg.audio_duration || 0} />;
-          if (isImage) return <img src={c} alt="Média partagé" className="rounded-lg max-h-80" />;
           if (isVideo) return <video src={c} controls className="rounded-lg max-h-80" />;
+          if (isImage) return <img src={c} alt="Média partagé" className="rounded-lg max-h-80" />;
+          if (isAudio) return <AudioPlayer src={c} initialDuration={msg.audio_duration || 0} />;
         }
-        // Legacy path in Supabase storage
+        // Legacy chemin Supabase -> MediaDisplay gère la signature/fallback
         try {
           const isMediaPath = c && c.includes('/');
           if (isMediaPath) {
@@ -356,7 +357,16 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', folder);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData });
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 25000);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData, signal: controller.signal })
+          .catch((e) => {
+            if (e.name === 'AbortError') {
+              throw new Error("Délai dépassé lors de l’upload (timeout)");
+            }
+            throw e;
+          })
+          .finally(() => clearTimeout(timer));
         const text = await response.text();
         let data = null;
         if (text) {

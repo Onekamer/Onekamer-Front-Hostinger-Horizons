@@ -575,16 +575,28 @@ const CommentSection = ({ postId }) => {
     };
   
   const uploadToBunny = async (file, folder) => {
+    console.log('[Echange] uploadToBunny start', { name: file?.name, type: file?.type, folder });
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", folder);
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
       method: "POST",
       body: formData,
-    });
+      signal: controller.signal,
+    }).catch((e) => {
+      if (e.name === 'AbortError') {
+        console.warn('[Echange] uploadToBunny aborted by timeout');
+        throw new Error("Délai dépassé lors de l’upload (timeout)");
+      }
+      throw e;
+    }).finally(() => clearTimeout(timer));
 
+    console.log('[Echange] uploadToBunny response status', response?.status);
     const text = await response.text();
+    console.log('[Echange] uploadToBunny body length', text?.length || 0);
     let data = null;
     if (text) {
       try {
@@ -600,6 +612,7 @@ const CommentSection = ({ postId }) => {
       throw new Error(message);
     }
 
+    console.log('[Echange] uploadToBunny success', data?.url);
     return data.url;
   };
 

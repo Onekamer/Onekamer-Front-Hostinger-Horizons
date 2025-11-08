@@ -443,19 +443,43 @@ const CreatePost = () => {
     };
 
   const uploadToBunny = async (file, folder) => {
+    console.log('[CreatePost] uploadToBunny start', { name: file?.name, type: file?.type, folder });
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", folder);
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
       method: "POST",
       body: formData,
-    });
+      signal: controller.signal,
+    }).catch((e) => {
+      if (e.name === 'AbortError') {
+        console.warn('[CreatePost] uploadToBunny aborted by timeout');
+        throw new Error("Délai dépassé lors de l’upload (timeout)");
+      }
+      throw e;
+    }).finally(() => clearTimeout(timer));
 
-    const data = await response.json();
-    if (!data.success) {
-      throw new Error("Erreur d’upload BunnyCDN");
+    console.log('[CreatePost] uploadToBunny response status', response?.status);
+    const text = await response.text();
+    console.log('[CreatePost] uploadToBunny body length', text?.length || 0);
+    let data = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        console.error("Réponse upload invalide:", text);
+        throw new Error("Réponse inattendue du serveur d'upload");
+      }
     }
+
+    if (!response.ok || !data?.success) {
+      const message = data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`;
+      throw new Error(message);
+    }
+    console.log('[CreatePost] uploadToBunny success', data?.url);
     return data.url;
   };
 
