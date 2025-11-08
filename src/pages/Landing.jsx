@@ -20,7 +20,7 @@ const Landing = () => {
       {/* Header */}
       <header className="fixed top-0 inset-x-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/') }>
             <img
               src="https://onekamer-media-cdn.b-cdn.net/logo/IMG_0885%202.PNG"
               alt="OneKamer"
@@ -177,10 +177,9 @@ const Landing = () => {
           <div className="flex items-center justify-center flex-wrap gap-6 mb-3">
             <Link to="/mentions-legales" className="hover:underline">Mentions légales</Link>
             <Link to="/rgpd" className="hover:underline">Confidentialité</Link>
-            <Link to="/aide" className="hover:underline">Contact</Link>
+            <a href="mailto:contact@onekamer.co" className="hover:underline">Contact</a>
             <a href="#" className="hover:underline" aria-label="TikTok">TikTok</a>
             <a href="#" className="hover:underline" aria-label="Instagram">Instagram</a>
-            <Link to="/presse" className="hover:underline">Presse</Link>
           </div>
           <div>© 2025 OneKamer.co</div>
         </div>

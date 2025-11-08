@@ -47,6 +47,7 @@ import CguPage from '@/pages/Cgu';
 import RgpdPage from '@/pages/Rgpd';
 import MentionsLegalesPage from '@/pages/MentionLegales';
 import Landing from '@/pages/Landing';
+import PublicHeader from '@/pages/public/PublicHeader';
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -66,7 +67,8 @@ const AppContent = () => {
   const { showCharte, acceptCharte } = useCharteValidation();
   const { session } = useAuth();
   const location = useLocation();
-  const isLanding = !session && location.pathname === '/';
+  const publicPaths = ['/', '/cgu', '/rgpd', '/mentions-legales'];
+  const isPublic = !session && publicPaths.includes(location.pathname);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   useEffect(() => {
@@ -80,11 +82,14 @@ const AppContent = () => {
 
   return (
     <>
-      {!isLanding && <Header deferredPrompt={deferredPrompt} />}
+      {!isPublic ? <Header deferredPrompt={deferredPrompt} /> : <PublicHeader />}
       <AppLayout />
-      {isLanding ? (
+      {isPublic ? (
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/cgu" element={<CguPage />} />
+          <Route path="/rgpd" element={<RgpdPage />} />
+          <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       ) : (
@@ -135,7 +140,7 @@ const AppContent = () => {
       )}
 
       <ChartePopup show={showCharte} onAccept={acceptCharte} />
-      {!isLanding && <BottomNav />}
+      {!isPublic && <BottomNav />}
     </>
   );
 }
