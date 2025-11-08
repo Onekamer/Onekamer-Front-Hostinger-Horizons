@@ -363,13 +363,16 @@ useEffect(() => {
 
 
   const currentProfile = profiles[currentIndex];
-  const mainPhoto = currentProfile ? (currentProfile.image_url || (Array.isArray(currentProfile.photos) ? currentProfile.photos[0] : null)) : null;
+  const mainPhoto = (() => {
+    if (!currentProfile) return null;
+    const firstPhoto = (Array.isArray(currentProfile.photos) && currentProfile.photos.length > 0) ? currentProfile.photos[0] : null;
+    const candidates = [currentProfile.image_url, firstPhoto].filter(Boolean);
+    const absolute = candidates.find((c) => typeof c === 'string' && /^https?:\/\//i.test(c));
+    return absolute || candidates[0] || null;
+  })();
   const galleryPhotos = currentProfile ? (() => {
     const existing = Array.isArray(currentProfile.photos) ? currentProfile.photos.filter(Boolean) : [];
-    if (currentProfile.image_url && !existing.includes(currentProfile.image_url)) {
-      return [currentProfile.image_url, ...existing];
-    }
-    return existing;
+    return currentProfile.image_url ? existing.filter(p => p !== currentProfile.image_url) : existing;
   })() : [];
   
   if (authLoading) {
