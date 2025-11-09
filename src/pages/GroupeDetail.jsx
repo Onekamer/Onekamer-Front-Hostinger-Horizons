@@ -595,70 +595,72 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               </div>
               
               <TabsContent value="messages" className="flex-grow flex flex-col overflow-hidden">
-                {isMember && (
-                  <div className="flex-shrink-0 p-3 border-b bg-gray-50">
-                    <div className="flex items-center gap-2">
-                      {isRecording ? (
-                        <div className="flex items-center gap-2 w-full bg-gray-100 p-2 rounded-lg">
-                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                          <span className="text-sm text-red-500 font-mono">{`${Math.floor(recordingTime/60)}:${String(recordingTime%60).padStart(2,'0')}`}</span>
-                        </div>
-                      ) : (
-                        <Textarea
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          placeholder="Votre message..."
-                          className="flex-1 bg-white"
-                          rows={1}
-                          disabled={!!audioBlob}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendMessage();
-                            }
-                          }}
-                        />
-                      )}
-                      <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={!newMessage.trim() && !audioBlob && !recorderPromiseRef.current && !mediaFile}><Send className="h-5 w-5" /></Button>
-                    </div>
-                    {(mediaPreviewUrl || audioBlob) && (
-                      <div className="relative p-2 bg-gray-100 rounded-lg mt-2">
-                        {mediaPreviewUrl && mediaFile?.type?.startsWith('image') ? (
-                          <img src={mediaPreviewUrl} alt="preview" className="w-24 h-24 rounded object-cover" />
-                        ) : mediaPreviewUrl ? (
-                          <video src={mediaPreviewUrl} controls className="w-full rounded object-cover" />
-                        ) : audioBlob ? (
-                          <AudioPlayer src={URL.createObjectURL(audioBlob)} />
-                        ) : null}
-                        <Button size="icon" variant="destructive" onClick={mediaPreviewUrl ? handleRemoveMedia : handleRemoveAudio} className="absolute -top-1 -right-1 h-5 w-5 rounded-full"><X className="h-3 w-3" /></Button>
+                <div className="flex-grow overflow-y-auto flex flex-col">
+                  <div className="p-4 space-y-2">
+                    {messages.map(msg => <MessageItem key={msg.message_id} msg={msg} currentUserId={user.id} groupId={groupId} onActionComplete={fetchGroupData} />)}
+                    <div ref={messagesEndRef}></div>
+                  </div>
+                  {isMember && (
+                    <div className="flex-shrink-0 p-3 border-t bg-gray-50">
+                      <div className="flex items-center gap-2">
+                        {isRecording ? (
+                          <div className="flex items-center gap-2 w-full bg-gray-100 p-2 rounded-lg">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            <span className="text-sm text-red-500 font-mono">{`${Math.floor(recordingTime/60)}:${String(recordingTime%60).padStart(2,'0')}`}</span>
+                          </div>
+                        ) : (
+                          <Textarea
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Votre message..."
+                            className="flex-1 bg-white"
+                            rows={1}
+                            disabled={!!audioBlob}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                          />
+                        )}
+                        <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={!newMessage.trim() && !audioBlob && !recorderPromiseRef.current && !mediaFile}><Send className="h-5 w-5" /></Button>
                       </div>
-                    )}
-                    <div className="flex gap-2 mt-2">
-                      {!isRecording && !audioBlob && (
-                        <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={!!audioBlob}>
-                          <ImageIcon className="h-4 w-4 mr-2" /> Image/Vidéo
-                        </Button>
+                      {(mediaPreviewUrl || audioBlob) && (
+                        <div className="relative p-2 bg-gray-100 rounded-lg mt-2">
+                          {mediaPreviewUrl && mediaFile?.type?.startsWith('image') ? (
+                            <img src={mediaPreviewUrl} alt="preview" className="w-24 h-24 rounded object-cover" />
+                          ) : mediaPreviewUrl ? (
+                            <video src={mediaPreviewUrl} controls className="w-full rounded object-cover" />
+                          ) : audioBlob ? (
+                            <AudioPlayer src={URL.createObjectURL(audioBlob)} />
+                          ) : null}
+                          <Button size="icon" variant="destructive" onClick={mediaPreviewUrl ? handleRemoveMedia : handleRemoveAudio} className="absolute -top-1 -right-1 h-5 w-5 rounded-full"><X className="h-3 w-3" /></Button>
+                        </div>
                       )}
-                      <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob} />
-                      {!mediaFile && (
-                        !isRecording ? (
-                          !audioBlob && (
-                            <Button size="sm" type="button" variant="ghost" onClick={startRecording}>
-                              <Mic className="h-4 w-4 mr-2" /> Audio
+                      <div className="flex gap-2 mt-2">
+                        {!isRecording && !audioBlob && (
+                          <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={!!audioBlob}>
+                            <ImageIcon className="h-4 w-4 mr-2" /> Image/Vidéo
+                          </Button>
+                        )}
+                        <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob} />
+                        {!mediaFile && (
+                          !isRecording ? (
+                            !audioBlob && (
+                              <Button size="sm" type="button" variant="ghost" onClick={startRecording}>
+                                <Mic className="h-4 w-4 mr-2" /> Audio
+                              </Button>
+                            )
+                          ) : (
+                            <Button size="sm" type="button" variant="destructive" onClick={stopRecording}>
+                              <Square className="h-4 w-4 mr-2" /> Stop
                             </Button>
                           )
-                        ) : (
-                          <Button size="sm" type="button" variant="destructive" onClick={stopRecording}>
-                            <Square className="h-4 w-4 mr-2" /> Stop
-                          </Button>
-                        )
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-                <div className="flex-grow overflow-y-auto p-4 space-y-2">
-                  {messages.map(msg => <MessageItem key={msg.message_id} msg={msg} currentUserId={user.id} groupId={groupId} onActionComplete={fetchGroupData} />)}
-                  <div ref={messagesEndRef}></div>
+                  )}
                 </div>
               </TabsContent>
 
