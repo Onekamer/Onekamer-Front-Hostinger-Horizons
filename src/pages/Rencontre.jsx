@@ -486,7 +486,7 @@ if (!myProfile) {
             >
               <button onClick={() => setView('card')} className="flex items-center gap-2 text-green-600 font-semibold"><ArrowLeft className="h-5 w-5" />Retour</button>
               <div className="text-center">
-                <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-green-200"><MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" /></div>
+                <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-green-200 cursor-pointer" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}><MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" /></div>
                 <h2 className="text-3xl font-bold text-gray-800">{currentProfile.name?.split(' ')[0]}, {currentProfile.age}</h2>
                 <div className="flex items-center justify-center gap-4 text-gray-500 text-sm mt-2">
                   <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {currentProfile.ville?.nom || currentProfile.city}</span>
