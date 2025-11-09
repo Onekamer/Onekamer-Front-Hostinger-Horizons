@@ -137,15 +137,22 @@ const RencontreProfil = () => {
       setProfile(p => ({ ...p, image_url: userProfile?.avatar_url, name: userProfile?.username, user_id: user.id }))
     } else if (data) {
       setProfile(prev => ({...prev, ...data, photos: Array.isArray(data.photos) ? data.photos : []}));
-      // 🧩 Génère une URL signée si image_url est un chemin de stockage
+      // 🧩 Génère une URL signée si image_url est un chemin de stockage (normalisé relatif au bucket)
       try {
         if (data.image_url && typeof data.image_url === 'string') {
           if (data.image_url.startsWith('http')) {
             setImagePreview(data.image_url);
           } else {
+            let p = data.image_url.replace(/^\/+/, '');
+            if (p.startsWith('rencontres/rencontres/')) {
+              p = p.replace(/^rencontres\//, '');
+            }
+            if (p.startsWith('rencontres/')) {
+              p = p.slice('rencontres/'.length);
+            }
             const { data: signed, error: signErr } = await supabase.storage
               .from('rencontres')
-              .createSignedUrl(data.image_url, 3600);
+              .createSignedUrl(p, 3600);
             if (!signErr && signed?.signedUrl) {
               setImagePreview(signed.signedUrl);
             } else {
