@@ -159,6 +159,8 @@ const Rencontre = () => {
     ageRange: [18, 65],
     rencontreTypeId: ''
   });
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxPath, setLightboxPath] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [canInteract, setCanInteract] = useState(false);
   const [canView, setCanView] = useState(null); // ✅ nouveau
@@ -455,7 +457,7 @@ if (!myProfile) {
                  </div>
               ) : (
                 <Card className="overflow-hidden shadow-lg rounded-2xl">
-                  <div className="relative h-[55vh] max-h-[450px]">
+                  <div className="relative h-[55vh] max-h-[450px]" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}>
                     <MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
                       <h2 className="text-3xl font-bold">{currentProfile.name?.split(' ')[0]}, {currentProfile.age}</h2>
@@ -497,7 +499,7 @@ if (!myProfile) {
                   <h3 className="font-bold text-lg text-gray-800">Photos</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {galleryPhotos.slice(0, 6).map((photo, index) => (
-                      <div key={`${photo}-${index}`} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+                      <div key={`${photo}-${index}`} className="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer" onClick={() => { setLightboxPath(photo); setLightboxOpen(true); }}>
                         <MediaDisplay bucket="rencontres" path={photo} alt={`${currentProfile.name} - Photo ${index + 1}`} className="w-full h-full object-cover" />
                       </div>
                     ))}
@@ -546,6 +548,13 @@ if (!myProfile) {
           )}
         </AnimatePresence>
       </div>
+      {lightboxOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={() => setLightboxOpen(false)}>
+          <div className="max-w-[95vw] max-h-[95vh] p-2" onClick={(e) => e.stopPropagation()}>
+            <MediaDisplay bucket="rencontres" path={lightboxPath} alt="media" className="max-h-[90vh] max-w-[90vw] object-contain" />
+          </div>
+        </div>
+      )}
     </>
   );
 };

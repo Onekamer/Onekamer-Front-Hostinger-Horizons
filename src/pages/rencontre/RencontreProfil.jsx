@@ -440,10 +440,8 @@ const RencontreProfil = () => {
     const enfantValue = `${profile.enfant}${profile.enfant === 'Oui' && profile.show_nombre_enfant ? ` (${profile.nombre_enfant || 'N/A'})` : ''}`;
     const galleryPhotos = (() => {
       const existing = Array.isArray(profile.photos) ? profile.photos.filter(Boolean) : [];
-      if (profile.image_url && !existing.includes(profile.image_url)) {
-        return [profile.image_url, ...existing];
-      }
-      return existing;
+      // 🚫 Ne pas dupliquer la photo de profil (image_url) dans la galerie
+      return profile.image_url ? existing.filter((p) => p !== profile.image_url) : existing;
     })();
 
     return (
