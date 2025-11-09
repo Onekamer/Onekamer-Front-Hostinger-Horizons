@@ -262,19 +262,30 @@ useEffect(() => {
     setLoading(false);
   }, [user, myProfile, filters]);
 
-  // Ouverture directe d'un profil via ?rid=<rencontre_id>
+  // Ouverture directe d'un profil via ?rid=<rencontre_id|user_uuid>
   useEffect(() => {
     const rid = searchParams.get('rid');
     const openDirectProfile = async () => {
       if (!rid) return;
       setLoading(true);
-      const { data, error } = await supabase
+      // 1) tenter par id direct
+      let { data, error } = await supabase
         .from('rencontres')
         .select('*, ville:ville_id(nom)')
         .eq('id', rid)
-        .single();
-      if (!error && data) {
-        setProfiles([{
+        .maybeSingle();
+      // 2) si non trouvé et rid ressemble à un UUID, tenter par user_id
+      if ((!data || error) && /^[0-9a-fA-F-]{36}$/.test(rid)) {
+        const res2 = await supabase
+          .from('rencontres')
+          .select('*, ville:ville_id(nom)')
+          .eq('user_id', rid)
+          .maybeSingle();
+        data = res2.data;
+        error = res2.error;
+      }
+      if (data && !error) {
+        setProfiles([{ 
           ...data,
           photos: Array.isArray(data.photos) ? data.photos.filter(Boolean) : [],
         }]);
@@ -320,22 +331,107 @@ useEffect(() => {
     return;
   }
 
-  if (!myProfile) return;
+  if (!myProfile) {
+    toast({ title: 'Profil requis', description: "Créez d'abord votre profil Rencontre pour interagir.", variant: 'destructive' });
+    return;
+  }
 
   if (action === 'like') {
+    // Résolution UUID du liked_id depuis card ou ?rid
+    const getLikedId = async () => {
+      if (typeof likedProfileId === 'string' && likedProfileId.length > 0) return likedProfileId;
+      if (currentProfile?.id) return currentProfile.id;
+      const ridParam = searchParams.get('rid');
+      if (ridParam) {
+        if (/^[0-9a-fA-F-]{36}$/.test(ridParam)) {
+          const { data, error } = await supabase
+            .from('rencontres')
+            .select('id')
+            .eq('user_id', ridParam)
+            .maybeSingle();
+          if (!error && data?.id) return data.id;
+        }
+        const byId = await supabase
+          .from('rencontres')
+          .select('id')
+          .eq('id', ridParam)
+          .maybeSingle();
+        if (!byId.error && byId.data?.id) return byId.data.id;
+      }
+      return null;
+    };
+
+    const likedId = await getLikedId();
+    if (!likedId) {
+      console.error('Like annulé: liked_id introuvable', { likedProfileId, currentProfile, rid: searchParams.get('rid') });
+      toast({ title: 'Erreur', description: "Impossible d'identifier le profil à liker.", variant: 'destructive' });
+      return;
+    }
+    // Pré-contrôle: vérifier que le profil liké possède un user_id présent dans profiles
+    const { data: target, error: targetErr } = await supabase
+      .from('rencontres')
+      .select('user_id')
+      .eq('id', likedId)
+      .maybeSingle();
+    if (targetErr || !target?.user_id) {
+      console.error('Like annulé: profil Rencontre cible introuvable', { likedId, targetErr });
+      toast({ title: 'Profil indisponible', description: "Le profil cible n'est pas disponible.", variant: 'destructive' });
+      return;
+    }
+    const { data: profExists, error: profErr } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', target.user_id)
+      .maybeSingle();
+    if (profErr || !profExists?.id) {
+      console.warn('Like bloqué: user_id cible absent de profiles', { likedId, user_id: target.user_id, profErr });
+      toast({ title: 'Profil incomplet', description: "Ce membre n'a pas encore finalisé son profil.", variant: 'destructive' });
+      return;
+    }
+
     const { error } = await supabase
       .from('rencontres_likes')
-      .insert({ liker_id: myProfile.id, liked_id: likedProfileId });
+      .insert({ liker_id: myProfile.id, liked_id: likedId });
 
     if (error && error.code !== '23505') { // 23505 = unique_violation
-      toast({
-        title: 'Erreur',
-        description: "Le like n'a pas pu être enregistré.",
-        variant: 'destructive',
-      });
+      // Cas particulier: 23503 (FK notifications) -> vérifier si le like est quand même inséré
+      if (error.code === '23503') {
+        const { data: likeRow } = await supabase
+          .from('rencontres_likes')
+          .select('liker_id')
+          .eq('liker_id', myProfile.id)
+          .eq('liked_id', likedId)
+          .maybeSingle();
+        if (likeRow) {
+          console.warn('Notification échouée (23503) mais like présent. On continue.');
+          toast({ title: 'Like envoyé', description: 'Votre like a bien été enregistré.', variant: 'default' });
+        } else {
+          console.error('Erreur like rencontres_likes:', error);
+          toast({
+            title: 'Erreur',
+            description: "Le like n'a pas pu être enregistré.",
+            variant: 'destructive',
+          });
+          return; // ne pas avancer la vue en cas d'échec réel
+        }
+      } else {
+        console.error('Erreur like rencontres_likes:', error);
+        toast({
+          title: 'Erreur',
+          description: "Le like n'a pas pu être enregistré.",
+          variant: 'destructive',
+        });
+        return; // ne pas avancer la vue en cas d'erreur
+      }
+    }
+    if (error && error.code === '23505') {
+      toast({ title: 'Déjà liké', description: 'Vous avez déjà liké ce profil.', variant: 'default' });
+    } else {
+      toast({ title: 'Like envoyé', description: 'Votre like a bien été enregistré.', variant: 'default' });
     }
   }
 
+  // avancer uniquement si succès ou doublon (déjà liké)
   setView('card');
   setCurrentIndex((prev) => prev + 1);
 };
