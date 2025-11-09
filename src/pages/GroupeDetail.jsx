@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { useParams, useNavigate } from 'react-router-dom';
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
-    import { ArrowLeft, Send, Loader2, Heart, Mic, Square, X, Image as ImageIcon } from 'lucide-react';
+    import { ArrowLeft, Send, Loader2, Heart, Mic, Square, X, Image as ImageIcon, Trash2 } from 'lucide-react';
     import { Textarea } from '@/components/ui/textarea';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
@@ -129,26 +129,40 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const renderContent = () => {
         const c = msg.message_contenu || '';
         const isHttp = /^https?:\/\//i.test(c);
-        const isVideo = /(?:\.mp4|\.webm|\.ogg|\.mov)(\?|$)/i.test(c);
-        const isImage = /(?:\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif)(\?|$)/i.test(c);
-        // Audio uniquement (ne pas inclure .mp4)
-        const isAudio = /(?:\.m4a|\.mp3|\.wav|\.aac|\.ogg)(\?|$)/i.test(c);
+        const baseImg = 'block w-full rounded-xl max-h-[70vh] object-cover';
+        const baseVid = 'block w-full rounded-xl max-h-[70vh] h-auto object-cover';
+        const isAudio = /(\.webm$|\.ogg$|\.m4a$|\.mp3$)/i.test((c.split('?')[0] || ''));
+        const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif)(\?|$)/i.test(c);
+        const isVideo = /(\.mp4|\.webm|\.ogg|\.mov)(\?|$)/i.test(c);
         if (isHttp) {
-          if (isVideo) return <video src={c} controls className="rounded-lg max-h-80" />;
-          if (isImage) return <img src={c} alt="Média partagé" className="rounded-lg max-h-80" />;
+          if (isVideo) return <video src={c} controls playsInline className={baseVid} />;
+          if (isImage) return <img src={c} alt="Média partagé" className={baseImg} />;
           if (isAudio) return <AudioPlayer src={c} initialDuration={msg.audio_duration || 0} />;
         }
-        // Legacy chemin Supabase -> MediaDisplay gère la signature/fallback
         try {
           const isMediaPath = c && c.includes('/');
-          if (isMediaPath) {
-            return <MediaDisplay bucket="groupes" path={c} alt="Média partagé" className="rounded-lg max-h-80 cursor-pointer" />;
-          }
-        } catch (e) {}
+          if (isMediaPath) return <MediaDisplay bucket="groupes" path={c} alt="Média partagé" className={`${baseVid} cursor-pointer`} />;
+        } catch {}
         return <p className="text-gray-800">{c}</p>;
       };
 
       const isMyMessage = msg.sender_id === currentUserId;
+
+      const handleDelete = async () => {
+        if (!user || !msg.message_id || user.id !== msg.sender_id) return;
+        const ok = window.confirm('Supprimer cette publication ?');
+        if (!ok) return;
+        const { error } = await supabase
+          .from('messages_groupes')
+          .delete()
+          .match({ id: msg.message_id, sender_id: user.id });
+        if (error) {
+          toast({ title: 'Erreur', description: "Suppression impossible.", variant: 'destructive' });
+        } else {
+          toast({ title: 'Supprimé', description: 'Votre publication a été supprimée.' });
+          onActionComplete?.();
+        }
+      };
 
       return (
           <Card className="bg-white/80 backdrop-blur-sm border-none shadow-sm mb-4">
@@ -159,18 +173,16 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                           <AvatarFallback>{msg.sender_username?.[0] || '?'}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                          <div>
-                              <p className="font-bold">{msg.sender_username || 'Utilisateur inconnu'}</p>
-                              <p className="text-xs text-gray-500">
-                                {formatDistanceToNow(new Date(msg.message_date), { addSuffix: true, locale: fr })}
-                              </p>
-                          </div>
-                           <div className="mt-3">
-                              {renderContent()}
-                          </div>
+                          <p className="font-bold">{msg.sender_username || 'Utilisateur inconnu'}</p>
+                          <p className="text-xs text-gray-500">
+                            {formatDistanceToNow(new Date(msg.message_date), { addSuffix: true, locale: fr })}
+                          </p>
                       </div>
                   </div>
-                  <div className="flex items-center gap-4 text-[#6B6B6B] mt-3 pl-12">
+                  <div className="mt-3">
+                    {renderContent()}
+                  </div>
+                  <div className="flex items-center gap-4 text-[#6B6B6B] mt-3">
                       <button
                         className={`flex items-center gap-2 hover:text-[#E0222A] transition-colors ${isLiked ? 'text-[#E0222A]' : ''}`}
                         onClick={handleLike}
@@ -178,6 +190,15 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                         <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
                         <span>{likesCount}</span>
                       </button>
+                      {isMyMessage && (
+                        <button
+                          className="flex items-center gap-2 hover:text-red-600 transition-colors"
+                          onClick={handleDelete}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                          <span>Supprimer</span>
+                        </button>
+                      )}
                       {!isMyMessage && msg.sender_id && (
                         <DonationDialog receiverId={msg.sender_id} receiverName={msg.sender_username} groupId={groupId} onDonationComplete={onActionComplete} />
                       )}
@@ -196,6 +217,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const [messages, setMessages] = useState([]);
       const [loading, setLoading] = useState(true);
       const [newMessage, setNewMessage] = useState('');
+      const [sending, setSending] = useState(false);
       const [joinRequestStatus, setJoinRequestStatus] = useState('idle');
       // Media attach state
       const [mediaFile, setMediaFile] = useState(null);
@@ -358,22 +380,26 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         formData.append('file', file);
         formData.append('folder', folder);
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 25000);
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData, signal: controller.signal })
-          .catch((e) => {
-            if (e.name === 'AbortError') {
-              throw new Error("Délai dépassé lors de l’upload (timeout)");
-            }
-            throw e;
-          })
-          .finally(() => clearTimeout(timer));
+        const timeoutMs = 60000; // 60s pour cold start/connexion mobile
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        let response;
+        try {
+          response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData, signal: controller.signal });
+        } catch (e) {
+          if (e.name === 'AbortError') {
+            throw new Error(`Délai dépassé lors de l’upload (${Math.floor(timeoutMs/1000)}s). Réessaie dans quelques secondes.`);
+          }
+          throw new Error(`Échec réseau vers le serveur d’upload (${import.meta.env.VITE_API_URL}). ${e.message || ''}`.trim());
+        } finally {
+          clearTimeout(timer);
+        }
         const text = await response.text();
         let data = null;
         if (text) {
           try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); }
         }
         if (!response.ok || !data?.success) {
-          const message = data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`;
+          const message = data?.message || data?.error || `Erreur d’upload BunnyCDN (code ${response.status})`;
           throw new Error(message);
         }
         return data.url;
@@ -433,7 +459,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       };
 
       const handleSendMessage = async () => {
-        if (!user) return;
+        if (!user || sending) return;
+        setSending(true);
         // If audio present (or pending), upload audio and send URL
         let finalBlob = audioBlob;
         if (!finalBlob && recorderPromiseRef.current) finalBlob = await recorderPromiseRef.current;
@@ -441,6 +468,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         if (finalBlob) {
           if (!finalBlob || finalBlob.size < 2000) {
             toast({ title: 'Erreur audio', description: "Audio vide ou trop court.", variant: 'destructive' });
+            setSending(false);
             return;
           }
           const { ext, type } = mimeRef.current || { ext: 'webm', type: finalBlob.type || 'audio/webm' };
@@ -455,9 +483,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             });
             if (error) throw error;
             handleRemoveAudio();
+            toast({ title: 'Envoyé', description: 'Audio publié.' });
           } catch (e) {
             toast({ title: 'Erreur', description: e.message || 'Envoi audio impossible.', variant: 'destructive' });
           }
+          setSending(false);
           return;
         }
 
@@ -473,13 +503,15 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             if (error) throw error;
             handleRemoveMedia();
             setNewMessage('');
+            toast({ title: 'Envoyé', description: 'Média publié.' });
           } catch (e) {
             toast({ title: 'Erreur', description: e.message || 'Envoi média impossible.', variant: 'destructive' });
           }
+          setSending(false);
           return;
         }
 
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim()) { setSending(false); return; }
         const { error } = await supabase.from('messages_groupes').insert({
           groupe_id: groupId,
           sender_id: user.id,
@@ -489,7 +521,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             toast({ title: 'Erreur', description: 'Impossible d\'envoyer le message.', variant: 'destructive' });
         } else {
             setNewMessage('');
+            toast({ title: 'Envoyé', description: 'Message publié.' });
         }
+        setSending(false);
       };
 
       const handleRequestToJoin = async () => {
@@ -624,7 +658,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                             }}
                           />
                         )}
-                        <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={!newMessage.trim() && !audioBlob && !recorderPromiseRef.current && !mediaFile}><Send className="h-5 w-5" /></Button>
+                        <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={sending || (!newMessage.trim() && !audioBlob && !recorderPromiseRef.current && !mediaFile)}>
+                          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                        </Button>
                       </div>
                       {(mediaPreviewUrl || audioBlob) && (
                         <div className="relative p-2 bg-gray-100 rounded-lg mt-2">
