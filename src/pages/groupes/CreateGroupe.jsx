@@ -117,40 +117,7 @@ const CreateGroupe = () => {
 
     setLoading(true);
 
-    let uploadedImageUrl = null;
-    if (imageFile) {
-      try {
-        const compressedFile = await compressImage(imageFile, { maxSizeMB: 1, maxWidthOrHeight: 1080 });
-        
-        const formData = new FormData();
-        const safeFile = new File(
-          [compressedFile],
-          compressedFile.name || `upload_${Date.now()}.jpg`,
-          { type: compressedFile.type || "image/jpeg" }
-        );
-        formData.append("file", safeFile);
-        formData.append("folder", "groupes");
-        formData.append("recordId", user.id);
-
-        const res = await fetch("https://onekamer-server.onrender.com/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          throw new Error("L'upload de l'image du groupe a échoué.");
-        }
-
-        const uploadResult = await res.json();
-        uploadedImageUrl = uploadResult.url;
-
-      } catch (error) {
-        toast({ title: "Erreur d'upload", description: error.message, variant: 'destructive' });
-        setLoading(false);
-        return;
-      }
-    }
-    
+    // 1) Créer le groupe d'abord, sans image pour obtenir l'ID
     const memberIds = selectedMembers.map(m => m.id);
 
     const { data: groupData, error: groupError } = await supabase
@@ -159,7 +126,7 @@ const CreateGroupe = () => {
         nom: groupName,
         description: description,
         theme: theme,
-        image_url: uploadedImageUrl,
+        image_url: null,
         est_prive: !isPublic,
         fondateur_id: user.id
       })
@@ -173,6 +140,24 @@ const CreateGroupe = () => {
     }
 
     const groupId = groupData.id;
+
+    // 2) Si une image a été sélectionnée, uploader dans Supabase Storage et mettre à jour le groupe
+    if (imageFile) {
+      try {
+        const compressedFile = await compressImage(imageFile, { maxSizeMB: 1, maxWidthOrHeight: 1080 });
+        const fileExt = (compressedFile.name?.split('.').pop() || 'jpg').toLowerCase();
+        const finalFile = new File([compressedFile], `${groupId}.${fileExt}`, { type: compressedFile.type || 'image/jpeg' });
+        const { data: uploaded, error: uploadError } = await supabase.storage.from('groupes').upload(`${groupId}.${fileExt}`, finalFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        const storagePath = uploaded?.path || `${groupId}.${fileExt}`;
+        const { error: updateError } = await supabase.from('groupes').update({ image_url: storagePath }).eq('id', groupId);
+        if (updateError) throw updateError;
+      } catch (error) {
+        toast({ title: "Erreur d'upload", description: error.message || "Impossible de téléverser la photo.", variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+    }
 
     const founderMember = { groupe_id: groupId, user_id: user.id, role: 'fondateur', is_admin: true };
     const otherMembers = memberIds.map(id => ({ groupe_id: groupId, user_id: id, role: 'membre', is_admin: false }));

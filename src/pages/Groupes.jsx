@@ -7,11 +7,12 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Users, PlusCircle, Bell, Loader2, Lock, Search, Mail } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from '@/components/ui/input';
 import { canUserAccess } from '@/lib/accessControl';
+import MediaDisplay from '@/components/MediaDisplay';
 
 const Groupes = () => {
   const { user } = useAuth();
@@ -113,10 +114,9 @@ const Groupes = () => {
       >
         <Card className="hover:shadow-lg transition-shadow duration-300 overflow-hidden">
             <CardContent className="p-4 flex items-center gap-4">
-            <Avatar className="h-16 w-16 flex-shrink-0">
-                <AvatarImage src={group.image_url} alt={group.nom} />
-                <AvatarFallback>{group.nom ? group.nom.charAt(0) : 'G'}</AvatarFallback>
-            </Avatar>
+            <div className="h-16 w-16 flex-shrink-0">
+                <MediaDisplay bucket="groupes" path={group.image_url} alt={group.nom} className="h-16 w-16 rounded-full object-cover" />
+            </div>
             <div className="flex-grow min-w-0">
                 <div className="flex items-start justify-between gap-2">
                 <h3 className="text-lg font-semibold truncate" title={group.nom}>{group.nom}</h3>

@@ -240,11 +240,10 @@ const GroupAdmin = ({ group, onGroupUpdate }) => {
                                     if (!file) return;
                                     const fileExt = file.name.split('.').pop();
                                     const filePath = `${group.id}.${fileExt}`;
-                                    const { error: uploadError } = await supabase.storage.from('groupes').upload(filePath, file, { upsert: true });
+                                    const { data: uploaded, error: uploadError } = await supabase.storage.from('groupes').upload(filePath, file, { upsert: true });
                                     if (uploadError) return toast({ title: 'Erreur', description: 'Impossible de téléverser la photo.', variant: 'destructive' });
-                                    const { data } = supabase.storage.from('groupes').getPublicUrl(filePath);
-                                    const publicUrl = `${data.publicUrl}?t=${new Date().getTime()}`;
-                                    const { error: updateError } = await supabase.from('groupes').update({ image_url: publicUrl }).eq('id', group.id);
+                                    const storagePath = uploaded?.path || filePath;
+                                    const { error: updateError } = await supabase.from('groupes').update({ image_url: storagePath }).eq('id', group.id);
                                     if (updateError) toast({ title: 'Erreur', description: 'Impossible de mettre à jour la photo.', variant: 'destructive' });
                                     else {
                                         toast({ title: 'Succès', description: 'Photo du groupe mise à jour.' });
