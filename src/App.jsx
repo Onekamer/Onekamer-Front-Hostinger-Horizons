@@ -48,6 +48,7 @@ import RgpdPage from '@/pages/Rgpd';
 import MentionsLegalesPage from '@/pages/MentionLegales';
 import Landing from '@/pages/Landing';
 import PublicHeader from '@/pages/public/PublicHeader';
+import OneSignalInitializer from '@/OneSignalInitializer';
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -157,6 +158,7 @@ function App() {
         </Helmet>
         <div className="min-h-screen bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5] pb-20">
           <AppContent />
+          <OneSignalInitializer />
         </div>
 
         <Toaster />
