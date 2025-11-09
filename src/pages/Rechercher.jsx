@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Loader2, MapPin, Calendar, FileText, Users, TrendingUp, Newspaper } from 'lucide-react';
+import { Search, Filter, Loader2, MapPin, Calendar, FileText, Users, TrendingUp, Newspaper, Heart } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -96,6 +96,20 @@ const ResultCard = ({ item, type }) => {
                 </div>
             );
             break;
+        case 'rencontres':
+            content = (
+                <div className="flex gap-4" onClick={() => navigate(`/rencontre?rid=${item.id}`)}>
+                    <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
+                        <MediaDisplay bucket="avatars" path={item.profiles?.avatar_url} alt={item.profiles?.username || item.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1"><Heart className="h-3 w-3" /> Profil Rencontre</p>
+                        <h3 className="font-bold truncate">{item.profiles?.username || item.name}</h3>
+                        <p className="text-sm text-gray-600 truncate">{item.name}</p>
+                    </div>
+                </div>
+            );
+            break;
         default:
             content = null;
     }
@@ -111,11 +125,15 @@ const ResultCard = ({ item, type }) => {
 
 
 const Rechercher = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const debounceRef = useRef(null);
 
   const filters = [
     { value: 'all', label: 'Tout', icon: Search },
@@ -124,6 +142,7 @@ const Rechercher = () => {
     { value: 'evenements', label: 'Événements', icon: Calendar },
     { value: 'posts', label: 'Posts', icon: TrendingUp },
     { value: 'faits_divers', label: 'Faits Divers', icon: Newspaper },
+    { value: 'rencontres', label: 'Rencontres', icon: Heart },
   ];
 
   const handleSearch = useCallback(async () => {
@@ -173,6 +192,12 @@ const Rechercher = () => {
             .then(res => ({ type: 'faits_divers', ...res }))
         );
     }
+    if (filter === 'all' || filter === 'rencontres') {
+        searchPromises.push(
+            supabase.from('rencontres').select('id, user_id, name, image_url, profiles(username, avatar_url)').ilike('name', query).limit(10)
+            .then(res => ({ type: 'rencontres', ...res }))
+        );
+    }
 
     const responses = await Promise.all(searchPromises);
     
@@ -188,6 +213,46 @@ const Rechercher = () => {
     setResults(allResults);
     setLoading(false);
 
+  }, [searchTerm, filter]);
+
+  // Autocomplete Rencontres (visible quand filtre = Rencontres ou Tout)
+  useEffect(() => {
+    if (!(filter === 'rencontres' || filter === 'all')) {
+      setSuggestions([]);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const term = searchTerm.trim();
+    if (!term) {
+      setSuggestions([]);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setSuggestLoading(true);
+      const like = `%${term}%`;
+      try {
+        const q1 = supabase
+          .from('rencontres')
+          .select('id, user_id, name, image_url, profiles(username, avatar_url)')
+          .ilike('name', like)
+          .limit(8);
+        const q2 = supabase
+          .from('rencontres')
+          .select('id, user_id, name, image_url, profiles!inner(username, avatar_url)')
+          .ilike('profiles.username', like)
+          .limit(8);
+        const [r1, r2] = await Promise.all([q1, q2]);
+        const arr1 = Array.isArray(r1.data) ? r1.data : [];
+        const arr2 = Array.isArray(r2.data) ? r2.data : [];
+        const map = new Map();
+        [...arr1, ...arr2].forEach(it => { if (it && it.id && !map.has(it.id)) map.set(it.id, it); });
+        setSuggestions(Array.from(map.values()).slice(0, 8));
+      } catch {
+        setSuggestions([]);
+      }
+      setSuggestLoading(false);
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm, filter]);
 
   return (
@@ -211,7 +276,7 @@ const Rechercher = () => {
               <Input
                 placeholder="Que cherchez-vous ?"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setHasSearched(false); }}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 className="flex-grow"
               />
@@ -223,6 +288,29 @@ const Rechercher = () => {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
             </div>
+
+            {(filter === 'rencontres' || filter === 'all') && searchTerm.trim() && (
+              <div className="space-y-2">
+                {suggestLoading && (
+                  <div className="text-sm text-gray-500">Chargement...</div>
+                )}
+                {!suggestLoading && suggestions.length > 0 && (
+                  <div className="space-y-2">
+                    {suggestions.map((s) => (
+                      <div key={s.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/rencontre?rid=${s.id}`)}>
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                          <MediaDisplay bucket="avatars" path={s.profiles?.avatar_url} alt={s.profiles?.username || s.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate">{s.profiles?.username || s.name}</div>
+                          <div className="text-xs text-gray-600 truncate">{s.name}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-2 flex-wrap">
               <Filter className="h-5 w-5 text-[#6B6B6B]" />

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Heart, X, MapPin, Eye, ArrowLeft, Briefcase, User, Ruler, Weight, Users, Film, Tv, BookOpen, Music, Cigarette, GlassWater, Baby, Paintbrush, Gem, Mail, SlidersHorizontal, Loader2, UserCircle2, Sparkles, Languages, Code, Award, GraduationCap } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
 import {
@@ -146,6 +146,7 @@ const ArrayDetailItem = ({ icon: Icon, label, values }) => (
 
 const Rencontre = () => {
   const { user, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -260,6 +261,30 @@ useEffect(() => {
     }
     setLoading(false);
   }, [user, myProfile, filters]);
+
+  // Ouverture directe d'un profil via ?rid=<rencontre_id>
+  useEffect(() => {
+    const rid = searchParams.get('rid');
+    const openDirectProfile = async () => {
+      if (!rid) return;
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('rencontres')
+        .select('*, ville:ville_id(nom)')
+        .eq('id', rid)
+        .single();
+      if (!error && data) {
+        setProfiles([{
+          ...data,
+          photos: Array.isArray(data.photos) ? data.photos.filter(Boolean) : [],
+        }]);
+        setCurrentIndex(0);
+        setView('detail');
+      }
+      setLoading(false);
+    };
+    openDirectProfile();
+  }, [searchParams]);
   
   useEffect(() => {
     fetchMyProfile();
@@ -267,9 +292,11 @@ useEffect(() => {
 
   useEffect(() => {
     if (myProfile) {
-      fetchProfiles();
+      if (!searchParams.get('rid')) {
+        fetchProfiles();
+      }
     }
-  }, [myProfile, fetchProfiles]);
+  }, [myProfile, fetchProfiles, searchParams]);
 
   const handleAction = async (likedProfileId, action) => {
   // ✅ Vérifie si l’utilisateur est connecté
@@ -414,7 +441,7 @@ if (canView === null || canView === undefined) {
 }
 
 
-if (!myProfile) {
+if (!myProfile && !searchParams.get('rid')) {
   return <RencontreProfil />;
 }
 
@@ -425,7 +452,7 @@ if (!myProfile) {
         <meta name="description" content="Rencontrez des membres de la communauté sur OneKamer.co" />
       </Helmet>
 
-      <div className="max-w-md mx-auto">
+      <div className="max-w-md mx-auto overflow-x-hidden">
         <AnimatePresence mode="wait">
           {view === 'card' ? (
             <motion.div
