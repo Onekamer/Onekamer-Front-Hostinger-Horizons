@@ -10,10 +10,24 @@ import '@/index.css';
 // Service Worker unique : PWA + OneSignal
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // PWA
     navigator.serviceWorker
       .register('/sw.js')
-      .then(() => console.log('✅ Service Worker fusionné (PWA + OneSignal) enregistré'))
-      .catch((err) => console.error('❌ Erreur enregistrement SW fusionné :', err));
+      .then(() => console.log('✅ Service Worker PWA enregistré'))
+      .catch((err) => console.error('❌ Erreur enregistrement SW PWA :', err));
+
+    const provider = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
+    if (provider === 'onesignal') {
+      navigator.serviceWorker
+        .register('/OneSignalSDKWorker.js', { scope: '/' })
+        .then(() => console.log('✅ OneSignal Service Worker enregistré'))
+        .catch((err) => console.error('❌ Erreur SW OneSignal :', err));
+    } else if (provider === 'supabase_light') {
+      navigator.serviceWorker
+        .register('/ok-push-sw.js', { scope: '/' })
+        .then(() => console.log('✅ OK Push Service Worker enregistré'))
+        .catch((err) => console.error('❌ Erreur SW OK Push :', err));
+    }
   });
 }
 

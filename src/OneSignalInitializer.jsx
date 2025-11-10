@@ -5,6 +5,10 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 const ONE_SIGNAL_APP_ID = 'a122b55d-7627-4bc9-aeaf-1d6d9a6a50b5';
 
 const OneSignalInitializer = () => {
+  const PROVIDER = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
+  if (PROVIDER === 'supabase_light') {
+    return null;
+  }
   const { user } = useAuth();
   const [initialized, setInitialized] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
