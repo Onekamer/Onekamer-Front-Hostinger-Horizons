@@ -157,21 +157,6 @@ export const AuthProvider = ({ children }) => {
     const profileChannel = supabase.channel(`profile-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}`}, payload => { setProfile(payload.new); fetchAllPermissions(user.id); toast({ title: 'Profil mis à jour!', description: 'Votre abonnement a été mis à jour.' }); }).subscribe();
     return () => { supabase.removeChannel(balanceChannel); supabase.removeChannel(notificationChannel); supabase.removeChannel(profileChannel); }
   }, [user, toast, refreshBalance, fetchAllPermissions]);
-      const refreshProfile = useCallback(async () => {
-        if (user) {
-          const userProfile = await fetchProfile(user.id);
-          setProfile(userProfile);
-          await fetchAllPermissions(user.id);
-        }
-      }, [user, fetchProfile, fetchAllPermissions]);
-
-      useEffect(() => {
-        if (!user) return;
-        const balanceChannel = supabase.channel(`balance-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'okcoins_users_balance', filter: `user_id=eq.${user.id}`}, payload => { setBalance(payload.new); toast({ title: 'Solde mis à jour ! 💰', description: `Votre nouveau solde est de ${payload.new.coins_balance} pièces.` }); }).subscribe();
-        const notificationChannel = supabase.channel(`notifications-for-${user.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'okcoins_notifications', filter: `user_id=eq.${user.id}`}, payload => { toast({ title: 'Nouvelle notification ! 🔔', description: payload.new.message }); refreshBalance(); }).subscribe();
-        const profileChannel = supabase.channel(`profile-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}`}, payload => { setProfile(payload.new); fetchAllPermissions(user.id); toast({ title: 'Profil mis à jour!', description: 'Votre abonnement a été mis à jour.' }); }).subscribe();
-        return () => { supabase.removeChannel(balanceChannel); supabase.removeChannel(notificationChannel); supabase.removeChannel(profileChannel); }
-      }, [user, toast, refreshBalance, fetchAllPermissions]);
 
       const signUp = useCallback(async (credentials, {data, emailRedirectTo}) => {
         const { error } = await supabase.auth.signUp({ ...credentials, options: { data, emailRedirectTo } });
