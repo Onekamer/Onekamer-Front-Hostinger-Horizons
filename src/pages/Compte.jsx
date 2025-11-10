@@ -11,8 +11,28 @@ import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
 
 const Compte = () => {
-  const { user, profile, signOut, balance, loading } = useAuth();
+  const { user, profile, signOut, balance, loading, session } = useAuth();
+  const [isQrAdmin, setIsQrAdmin] = React.useState(false);
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+  const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
   const navigate = useNavigate();
+  React.useEffect(() => {
+    let aborted = false;
+    const run = async () => {
+      try {
+        if (!API_PREFIX || !session?.access_token) return;
+        const res = await fetch(`${API_PREFIX}/qrcode/admin/me`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await res.json();
+        if (!aborted) setIsQrAdmin(!!data?.isAdmin);
+      } catch {
+        if (!aborted) setIsQrAdmin(false);
+      }
+    };
+    run();
+    return () => { aborted = true; };
+  }, [API_PREFIX, session?.access_token]);
   
   if (loading) {
     return (
@@ -108,6 +128,9 @@ const Compte = () => {
             <MenuItem onClick={() => navigate('/compte/modifier')} title="Modifier le profil" />
             <MenuItem onClick={() => navigate('/compte/notifications')} title="Notifications" />
             <MenuItem onClick={() => navigate('/compte/mon-qrcode')} title="Mon QR Code" />
+            {isQrAdmin && (
+              <MenuItem onClick={() => navigate('/scan')} title="Scanner QR (Admin)" />
+            )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
             <MenuItem onClick={() => navigate('/forfaits')} title="Changer de forfait" />
