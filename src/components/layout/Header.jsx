@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, Search, User, Download, Users, Heart } from 'lucide-react';
+import { Menu, Search, User, Download, Users, Heart, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import MediaDisplay from '@/components/MediaDisplay';
+import { useNotifPrefs } from '@/hooks/useNotifPrefs';
 
 const Header = ({ deferredPrompt }) => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { bellHidden } = useNotifPrefs();
+  const featureBell = `${import.meta.env.VITE_FEATURE_NOTIF_BELL}` === 'true';
   const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
@@ -69,6 +72,18 @@ const Header = ({ deferredPrompt }) => {
           <Button variant="ghost" size="icon" onClick={() => navigate('/rechercher')} className="text-[#2BA84A]">
             <Search className="h-5 w-5" />
           </Button>
+
+          {featureBell && !bellHidden && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/compte/notifications')}
+              className="text-[#2BA84A]"
+              aria-label="Notifications"
+            >
+              <Bell className="h-5 w-5" />
+            </Button>
+          )}
 
           {showInstall && (
             <Button variant="ghost" size="icon" onClick={handleInstall} className="text-[#2BA84A]">
