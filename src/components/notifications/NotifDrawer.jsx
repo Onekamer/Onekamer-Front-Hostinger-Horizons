@@ -1,6 +1,31 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 
+function routeForNotification(n) {
+  if (n?.deeplink) return n.deeplink
+  const t = n?.type
+  switch (t) {
+    case 'mentions':
+      return '/echange'
+    case 'annonces':
+      return '/annonces'
+    case 'evenements':
+      return '/evenements'
+    case 'systeme':
+      return '/aide'
+    case 'partenaires':
+      return '/faits-divers'
+    case 'faits_divers':
+      return '/faits-divers'
+    case 'groupes':
+      return '/groupes'
+    case 'rencontre':
+      return '/rencontre/profil'
+    default:
+      return '/'
+  }
+}
+
 export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fetchMore, markRead, markAllRead, onNavigate }) {
   return (
     <div className={`fixed inset-0 z-[60] ${open ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!open}>
@@ -31,7 +56,7 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
                   {n.body && <div className="text-xs text-gray-600 line-clamp-2">{n.body}</div>}
                   <div className="mt-1 text-[11px] text-gray-400">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
                   <div className="mt-2 flex items-center gap-2">
-                    <Button size="sm" className="bg-[#2BA84A] text-white" onClick={async () => { await markRead(n.id); if (n.deeplink) onNavigate(n.deeplink) }}>Ouvrir</Button>
+                    <Button size="sm" className="bg-[#2BA84A] text-white" onClick={async () => { await markRead(n.id); const to = routeForNotification(n); onNavigate(to) }}>Ouvrir</Button>
                     {!n.is_read && (
                       <Button size="sm" variant="outline" onClick={() => markRead(n.id)}>Marquer lu</Button>
                     )}
