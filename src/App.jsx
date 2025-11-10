@@ -18,6 +18,8 @@ import GroupInvitations from '@/pages/groupes/GroupInvitations';
 import OKCoins from '@/pages/OKCoins';
 import Forfaits from '@/pages/Forfaits';
 import Compte from '@/pages/Compte';
+import MonQRCode from '@/pages/compte/MonQRCode';
+import Scan from '@/pages/Scan';
 import Publier from '@/pages/Publier';
 import Rechercher from '@/pages/Rechercher';
 import Messages from '@/pages/Messages';
@@ -114,6 +116,8 @@ const AppContent = () => {
           <Route path="/ok-coins" element={<OKCoins />} />
           <Route path="/forfaits" element={<Forfaits />} />
           <Route path="/compte" element={<Compte />} />
+          <Route path="/compte/mon-qrcode" element={<MonQRCode />} />
+          <Route path="/scan" element={<Scan />} />
           <Route path="/compte/modifier" element={<ModifierProfil />} />
           <Route path="/compte/notifications" element={<Notifications />} />
           <Route path="/compte/confidentialite" element={<Confidentialite />} />
