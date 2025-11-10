@@ -204,13 +204,13 @@ const MonQRCode = () => {
               <div className="text-sm text-gray-600">Aucun QR Code enregistré pour l'instant.</div>
             )}
             {myQrs.map((row) => (
-              <div key={row.id} className="flex items-center gap-3 border rounded-lg p-3">
+              <div key={row.id} className="flex flex-col md:flex-row md:items-center gap-3 border rounded-lg p-3">
                 {row.qrImage ? (
                   <img src={row.qrImage} alt="QR" className="w-20 h-20 bg-white p-1 rounded" />
                 ) : (
                   <div className="w-20 h-20 bg-gray-100 rounded" />
                 )}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium">
                     {row.evenements?.title || 'Événement'}
                     {(row.status === 'expired' || isExpiredDate(row.evenements?.date)) && (
@@ -220,13 +220,14 @@ const MonQRCode = () => {
                   <div className="text-xs text-gray-500">{row.evenements?.date} • {row.evenements?.location}</div>
                   <div className="text-xs">Statut: <span className="font-medium capitalize">{row.status}</span></div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setEventId(row.event_id); setQrImage(row.qrImage || null); setStatus(row.status); setValue(row.qrcode_value); }}>
+                <div className="flex w-full md:w-auto flex-row md:flex-col gap-2 md:ml-auto md:items-end shrink-0">
+                  <Button size="sm" className="whitespace-nowrap" variant="outline" onClick={() => { setEventId(row.event_id); setQrImage(row.qrImage || null); setStatus(row.status); setValue(row.qrcode_value); }}>
                     Ouvrir
                   </Button>
                   <Button
                     size="sm"
                     variant="destructive"
+                    className="whitespace-nowrap"
                     onClick={async () => {
                       if (!API_PREFIX || !session?.access_token) return;
                       const ok = window.confirm('Supprimer ce QR Code ?');
