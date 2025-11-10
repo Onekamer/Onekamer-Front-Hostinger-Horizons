@@ -224,6 +224,30 @@ const MonQRCode = () => {
                   <Button size="sm" variant="outline" onClick={() => { setEventId(row.event_id); setQrImage(row.qrImage || null); setStatus(row.status); setValue(row.qrcode_value); }}>
                     Ouvrir
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={async () => {
+                      if (!API_PREFIX || !session?.access_token) return;
+                      const ok = window.confirm('Supprimer ce QR Code ?');
+                      if (!ok) return;
+                      try {
+                        const res = await fetch(`${API_PREFIX}/qrcode/${row.id}`, {
+                          method: 'DELETE',
+                          headers: { Authorization: `Bearer ${session.access_token}` },
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok || data?.deleted !== true) throw new Error(data?.error || 'Suppression échouée');
+                        setMyQrs((prev) => prev.filter((x) => x.id !== row.id));
+                        if (value === row.qrcode_value) { setQrImage(null); setStatus(null); setValue(null); }
+                        if (user?.id && row.event_id) { const key = `qr_${user.id}_${row.event_id}`; try { localStorage.removeItem(key); } catch {} }
+                      } catch (e) {
+                        alert(e?.message || 'Erreur lors de la suppression');
+                      }
+                    }}
+                  >
+                    Supprimer
+                  </Button>
                 </div>
               </div>
             ))}
