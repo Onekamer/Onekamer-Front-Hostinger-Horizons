@@ -21,6 +21,18 @@ const MonQRCode = () => {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [myQrs, setMyQrs] = useState([]);
 
+  const isExpiredDate = (iso) => {
+    if (!iso) return false;
+    try {
+      const d = new Date(iso);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return d < today;
+    } catch {
+      return false;
+    }
+  };
+
   const cacheKey = useMemo(() => (user && eventId ? `qr_${user.id}_${eventId}` : null), [user, eventId]);
 
   useEffect(() => {
@@ -170,7 +182,12 @@ const MonQRCode = () => {
               <div className="w-full flex justify-center">
                 <img src={qrImage} alt="QR Code" className="w-64 h-64 bg-white p-2 rounded" />
               </div>
-              <div className="text-sm text-center">Statut: <span className="font-medium capitalize">{status}</span></div>
+              <div className="text-sm text-center">
+                Statut: <span className="font-medium capitalize">{status}</span>
+                {status === 'expired' && (
+                  <span className="ml-2 text-xs font-semibold text-red-600">Expiré</span>
+                )}
+              </div>
               {value && (
                 <div className="text-xs text-center text-gray-500 break-all">{value}</div>
               )}
@@ -194,7 +211,12 @@ const MonQRCode = () => {
                   <div className="w-20 h-20 bg-gray-100 rounded" />
                 )}
                 <div className="flex-1">
-                  <div className="text-sm font-medium">{row.evenements?.title || 'Événement'}</div>
+                  <div className="text-sm font-medium">
+                    {row.evenements?.title || 'Événement'}
+                    {(row.status === 'expired' || isExpiredDate(row.evenements?.date)) && (
+                      <span className="ml-2 text-[10px] font-semibold text-red-700">Expiré</span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500">{row.evenements?.date} • {row.evenements?.location}</div>
                   <div className="text-xs">Statut: <span className="font-medium capitalize">{row.status}</span></div>
                 </div>
