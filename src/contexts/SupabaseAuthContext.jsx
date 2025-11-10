@@ -1,131 +1,162 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-    import { supabase } from '@/lib/customSupabaseClient';
-    import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
+import subscribeForPush from '@/lib/push/subscribeForPush';
 
-    const AuthContext = createContext(undefined);
+const AuthContext = createContext(undefined);
 
-    export const AuthProvider = ({ children }) => {
-      const { toast } = useToast();
-      const [user, setUser] = useState(null);
-      const [session, setSession] = useState(null);
-      const [profile, setProfile] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [balance, setBalance] = useState(null);
-      const [permissions, setPermissions] = useState({});
+export const AuthProvider = ({ children }) => {
+  const { toast } = useToast();
+  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [balance, setBalance] = useState(null);
+  const [permissions, setPermissions] = useState({});
 
-      const fetchProfile = useCallback(async (userId) => {
-        if (!userId) return null;
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-          return null;
-        }
-        return data;
-      }, []);
+  const fetchProfile = useCallback(async (userId) => {
+    if (!userId) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+    return data;
+  }, []);
 
-      const fetchBalance = useCallback(async (userId) => {
-        if (!userId) return null;
-        const { data, error } = await supabase
-          .from('okcoins_users_balance')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching balance:', error);
-          return null;
-        }
-        return data;
-      }, []);
+  const fetchBalance = useCallback(async (userId) => {
+    if (!userId) return null;
+    const { data, error } = await supabase
+      .from('okcoins_users_balance')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching balance:', error);
+      return null;
+    }
+    return data;
+  }, []);
 
-      const checkFeaturePermission = useCallback(async (userId, featureKey) => {
-        if (!userId) return false;
-        const { data, error } = await supabase.rpc('user_has_feature', {
-          p_user_id: userId,
-          p_feature_key: featureKey,
-        });
-        if (error) {
-          console.error(`Error checking permission for ${featureKey}:`, error);
-          return false;
-        }
-        return data;
-      }, []);
+  const checkFeaturePermission = useCallback(async (userId, featureKey) => {
+    if (!userId) return false;
+    const { data, error } = await supabase.rpc('user_has_feature', {
+      p_user_id: userId,
+      p_feature_key: featureKey,
+    });
+    if (error) {
+      console.error(`Error checking permission for ${featureKey}:`, error);
+      return false;
+    }
+    return data;
+  }, []);
 
-      const fetchAllPermissions = useCallback(async (userId) => {
-        if (!userId) return {};
-        const featureKeys = [
-          'annonces_read', 'create_annonce', 'rencontre_access', 
-          'partenaires_access', 'position_access', 'evenements_read',
-          'faits_divers_read', 'groupes_read'
-        ];
-        const permissionChecks = featureKeys.map(key => checkFeaturePermission(userId, key));
-        const results = await Promise.all(permissionChecks);
-        const userPermissions = featureKeys.reduce((acc, key, index) => {
-          acc[key] = results[index];
-          return acc;
-        }, {});
-        setPermissions(userPermissions);
-        return userPermissions;
-      }, [checkFeaturePermission]);
+  const fetchAllPermissions = useCallback(async (userId) => {
+    if (!userId) return {};
+    const featureKeys = [
+      'annonces_read', 'create_annonce', 'rencontre_access', 
+      'partenaires_access', 'position_access', 'evenements_read',
+      'faits_divers_read', 'groupes_read'
+    ];
+    const permissionChecks = featureKeys.map(key => checkFeaturePermission(userId, key));
+    const results = await Promise.all(permissionChecks);
+    const userPermissions = featureKeys.reduce((acc, key, index) => {
+      acc[key] = results[index];
+      return acc;
+    }, {});
+    setPermissions(userPermissions);
+    return userPermissions;
+  }, [checkFeaturePermission]);
 
-      const handleSession = useCallback(async (session) => {
-        setSession(session);
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
+  const handleSession = useCallback(async (session) => {
+    setSession(session);
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
 
-        if (currentUser) {
-          const [userProfile, userBalance, userPermissions] = await Promise.all([
-            fetchProfile(currentUser.id),
-            fetchBalance(currentUser.id),
-            fetchAllPermissions(currentUser.id)
-          ]);
-          setProfile(userProfile);
-          setBalance(userBalance);
-          setPermissions(userPermissions);
-        } else {
+    if (currentUser) {
+      const [userProfile, userBalance, userPermissions] = await Promise.all([
+        fetchProfile(currentUser.id),
+        fetchBalance(currentUser.id),
+        fetchAllPermissions(currentUser.id)
+      ]);
+      setProfile(userProfile);
+      setBalance(userBalance);
+      setPermissions(userPermissions);
+    } else {
+      setProfile(null);
+      setBalance(null);
+      setPermissions({});
+    }
+    setLoading(false);
+  }, [fetchProfile, fetchBalance, fetchAllPermissions]);
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      await handleSession(session);
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          await handleSession(session);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
           setProfile(null);
           setBalance(null);
           setPermissions({});
+          setLoading(false);
         }
-        setLoading(false);
-      }, [fetchProfile, fetchBalance, fetchAllPermissions]);
+      }
+    );
 
-      useEffect(() => {
-        const getSession = async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          await handleSession(session);
-        };
+    return () => subscription.unsubscribe();
+  }, [handleSession]);
 
-        getSession();
+  useEffect(() => {
+    const provider = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
+    if (provider !== 'supabase_light') return;
+    if (!user) return;
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-              await handleSession(session);
-            } else if (event === 'SIGNED_OUT') {
-              setUser(null);
-              setSession(null);
-              setProfile(null);
-              setBalance(null);
-              setPermissions({});
-              setLoading(false);
-            }
-          }
-        );
+    (async () => {
+      try {
+        const result = await subscribeForPush(user.id);
+        if (result?.error) console.warn('Push subscribe error (PROD):', result.error);
+      } catch (e) {
+        console.warn('Push subscribe failed (PROD):', e?.message || e);
+      }
+    })();
+  }, [user]);
 
-        return () => subscription.unsubscribe();
-      }, [handleSession]);
+  const refreshBalance = useCallback(async () => {
+    if (user) {
+      const userBalance = await fetchBalance(user.id);
+      setBalance(userBalance);
+    }
+  }, [user, fetchBalance]);
+  
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      const userProfile = await fetchProfile(user.id);
+      setProfile(userProfile);
+      await fetchAllPermissions(user.id);
+    }
+  }, [user, fetchProfile, fetchAllPermissions]);
 
-      const refreshBalance = useCallback(async () => {
-        if (user) {
-          const userBalance = await fetchBalance(user.id);
-          setBalance(userBalance);
-        }
-      }, [user, fetchBalance]);
-      
+  useEffect(() => {
+    if (!user) return;
+    const balanceChannel = supabase.channel(`balance-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'okcoins_users_balance', filter: `user_id=eq.${user.id}`}, payload => { setBalance(payload.new); toast({ title: 'Solde mis à jour ! 💰', description: `Votre nouveau solde est de ${payload.new.coins_balance} pièces.` }); }).subscribe();
+    const notificationChannel = supabase.channel(`notifications-for-${user.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'okcoins_notifications', filter: `user_id=eq.${user.id}`}, payload => { toast({ title: 'Nouvelle notification ! 🔔', description: payload.new.message }); refreshBalance(); }).subscribe();
+    const profileChannel = supabase.channel(`profile-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}`}, payload => { setProfile(payload.new); fetchAllPermissions(user.id); toast({ title: 'Profil mis à jour!', description: 'Votre abonnement a été mis à jour.' }); }).subscribe();
+    return () => { supabase.removeChannel(balanceChannel); supabase.removeChannel(notificationChannel); supabase.removeChannel(profileChannel); }
+  }, [user, toast, refreshBalance, fetchAllPermissions]);
       const refreshProfile = useCallback(async () => {
         if (user) {
           const userProfile = await fetchProfile(user.id);
