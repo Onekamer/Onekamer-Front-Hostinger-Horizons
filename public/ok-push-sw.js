@@ -20,7 +20,21 @@ self.addEventListener('push', (event) => {
       requireInteraction: Boolean(data.requireInteraction),
     };
 
-    event.waitUntil(self.registration.showNotification(title, options));
+    event.waitUntil(
+      Promise.all([
+        self.registration.showNotification(title, options),
+        (async () => {
+          try {
+            const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+            clientList.forEach((client) => {
+              client.postMessage({ type: 'NEW_PUSH', payload: { title, body, url, data } });
+            });
+          } catch (_e) {
+            // ignore
+          }
+        })(),
+      ])
+    );
   } catch (e) {
     event.waitUntil(self.registration.showNotification('OneKamer', {
       body: 'Nouvelle notification',

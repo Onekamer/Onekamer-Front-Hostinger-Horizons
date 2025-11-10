@@ -8,12 +8,26 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import MediaDisplay from '@/components/MediaDisplay';
 import { useNotifPrefs } from '@/hooks/useNotifPrefs';
+import { useNotifications } from '@/hooks/useNotifications';
+import NotifDrawer from '@/components/notifications/NotifDrawer';
 
 const Header = ({ deferredPrompt }) => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { bellHidden } = useNotifPrefs();
   const featureBell = `${import.meta.env.VITE_FEATURE_NOTIF_BELL}` === 'true';
+  const {
+    items,
+    unreadCount,
+    loading,
+    hasMore,
+    fetchFirst,
+    fetchMore,
+    markRead,
+    markAllRead,
+    open,
+    setOpen,
+  } = useNotifications(user?.id);
   const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
@@ -74,15 +88,25 @@ const Header = ({ deferredPrompt }) => {
           </Button>
 
           {featureBell && !bellHidden && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/compte/notifications')}
-              className="text-[#2BA84A]"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5" />
-            </Button>
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={async () => {
+                  setOpen(true)
+                  if (!items?.length) await fetchFirst()
+                }}
+                className="text-[#2BA84A]"
+                aria-label="Notifications"
+              >
+                <Bell className="h-5 w-5" />
+              </Button>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[4px] rounded-full bg-red-500 text-white text-[10px] leading-[16px] text-center">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </div>
           )}
 
           {showInstall && (
@@ -143,6 +167,20 @@ const Header = ({ deferredPrompt }) => {
           </DropdownMenu>
         </div>
       </div>
+      <NotifDrawer
+        open={open}
+        setOpen={setOpen}
+        items={items}
+        loading={loading}
+        hasMore={hasMore}
+        fetchMore={fetchMore}
+        markRead={markRead}
+        markAllRead={markAllRead}
+        onNavigate={(to) => {
+          setOpen(false)
+          navigate(to)
+        }}
+      />
     </header>
   );
 };
