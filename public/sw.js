@@ -51,7 +51,7 @@ self.addEventListener('push', (event) => {
   const title = payload.title || payload.headings?.en || payload.notification?.title || payload.data?.title || 'OneKamer.co';
   const body = payload.body || payload.contents?.en || payload.notification?.body || payload.data?.message || 'Nouvelle notification sur OneKamer';
   const icon = payload.icon || payload.data?.icon || '/ok_logo.png';
-  const badge = payload.badge || payload.data?.badge || icon;
+  const badge = payload.badge || payload.data?.badge || 'https://onekamer-media-cdn.b-cdn.net/favicon-32x32.png';
   const url = payload.url || payload.launchURL || payload.notification?.data?.url || payload.data?.url || 'https://onekamer.co';
 
   // 🖼️ Image enrichie (si fournie par le serveur)
@@ -70,6 +70,8 @@ self.addEventListener('push', (event) => {
     sound,
     vibrate: vibration,
     requireInteraction: true,
+    tag: payload.data?.tag || payload.tag || 'ok-general',
+    renotify: true,
     data: { url },
     actions: [
       { action: 'open', title: 'Ouvrir', icon: '/icons/open.png' },
@@ -80,38 +82,36 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Ouverture de l’URL au clic
+// Clic sur la notification (focus/navigate robuste vers l'origine cible)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.url || 'https://onekamer.co';
+  const target = event.notification?.data?.url || 'https://onekamer.co';
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsArr) => {
-      const hadWindow = clientsArr.some((client) => {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
-          client.focus();
-          return true;
-        }
-        return false;
-      });
-      if (!hadWindow && self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const targetOrigin = new URL(target).origin;
+      for (const client of clientList) {
+        try {
+          const clientOrigin = new URL(client.url).origin;
+          if (clientOrigin === targetOrigin) {
+            if ('focus' in client) client.focus();
+            if ('navigate' in client && client.url !== target) client.navigate(target);
+            return true;
+          }
+        } catch (_) {}
       }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+      return false;
     })
   );
 });
 
-// 5️⃣ Clic sur la notification
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const target = event.notification.data?.url || 'https://onekamer.co';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url === target && 'focus' in client) return client.focus();
-      }
-      if (clients.openWindow) return clients.openWindow(target);
-    })
-  );
+// Renouvellement d'abonnement push: notifie l'app de relancer subscribeForPush
+self.addEventListener('pushsubscriptionchange', () => {
+  self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    for (const client of clientList) {
+      client.postMessage({ type: 'ok_push_subscription_changed' });
+    }
+  });
 });
 
 console.log('✅ OneKamer SW enrichi (image + vibration + son + actions) prêt 🎨');
