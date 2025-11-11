@@ -178,8 +178,8 @@ const Landing = () => {
             <Link to="/mentions-legales" className="hover:underline">Mentions légales</Link>
             <Link to="/rgpd" className="hover:underline">Confidentialité</Link>
             <a href="mailto:contact@onekamer.co" className="hover:underline">Contact</a>
-            <a href="#" className="hover:underline" aria-label="TikTok">TikTok</a>
-            <a href="#" className="hover:underline" aria-label="Instagram">Instagram</a>
+            <a href="https://www.tiktok.com/@onekamer.co?_r=1&_t=ZN-91I4c1H64eM" target="_blank" rel="noopener noreferrer" className="hover:underline" aria-label="TikTok">TikTok</a>
+            <a href="https://www.instagram.com/onekamer.co?igsh=Z3p4dGJxamkyOWdw" target="_blank" rel="noopener noreferrer" className="hover:underline" aria-label="Instagram">Instagram</a>
           </div>
           <div>© 2025 OneKamer.co</div>
         </div>
