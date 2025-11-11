@@ -7,7 +7,7 @@ import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import '@/index.css';
 
-// Service Worker unique : PWA + OneSignal
+// Service Worker PWA + désenregistrement OneSignal (si natif)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     // PWA
@@ -23,10 +23,15 @@ if ('serviceWorker' in navigator) {
         .then(() => console.log('✅ OneSignal Service Worker enregistré'))
         .catch((err) => console.error('❌ Erreur SW OneSignal :', err));
     } else if (provider === 'supabase_light') {
-      navigator.serviceWorker
-        .register('/ok-push-sw.js', { scope: '/' })
-        .then(() => console.log('✅ OK Push Service Worker enregistré'))
-        .catch((err) => console.error('❌ Erreur SW OK Push :', err));
+      // Désenregistrer d’anciens workers OneSignal (nettoyage cache/canaux)
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((r) => {
+          if (r.scriptURL.includes('OneSignal')) {
+            console.log('♻️ Unregister OneSignal SW:', r.scriptURL);
+            r.unregister();
+          }
+        });
+      }).catch(() => {});
     }
   });
 }

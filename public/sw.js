@@ -2,13 +2,9 @@
 /* eslint-disable no-restricted-globals */
 
 // ============================================================
-// ✅ OneKamer — Service Worker fusionné (PWA + OneSignal enrichi)
-// Version finale : vrai message + image + son + vibration + actions
+// ✅ OneKamer — Service Worker PWA + Web Push natif
+// Version : messages + image + son + vibration + actions (sans OneSignal)
 // ============================================================
-
-// 1️⃣ Import du SDK OneSignal
-importScripts('https://cdn.onesignal.com/sdks/OneSignalSDK.js');
-console.log('📡 SDK OneSignal enrichi chargé');
 
 // 2️⃣ Gestion du cache PWA
 const CACHE_NAME = 'onekamer-cache-v3';
@@ -36,7 +32,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================================
-// 4️⃣ OneSignal Notification Handling (fusionné + enrichi)
+// 4️⃣ Notification Handling (Web Push natif)
 // ============================================================
 self.addEventListener('push', (event) => {
   if (!event.data) return;
@@ -49,37 +45,17 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  console.log('📩 Notification OneSignal reçue (enrichie):', payload);
+  console.log('📩 Notification reçue (natif):', payload);
 
   // 🔍 Extraction multi-source (titre, message, image, lien…)
-  const title =
-    payload.title ||
-    payload.headings?.en ||
-    payload.notification?.title ||
-    payload.data?.title ||
-    'OneKamer.co';
+  const title = payload.title || payload.headings?.en || payload.notification?.title || payload.data?.title || 'OneKamer.co';
+  const body = payload.body || payload.contents?.en || payload.notification?.body || payload.data?.message || 'Nouvelle notification sur OneKamer';
+  const icon = payload.icon || payload.data?.icon || '/ok_logo.png';
+  const badge = payload.badge || payload.data?.badge || icon;
+  const url = payload.url || payload.launchURL || payload.notification?.data?.url || payload.data?.url || 'https://onekamer.co';
 
-  const body =
-    payload.body ||
-    payload.contents?.en ||
-    payload.notification?.body ||
-    payload.data?.message ||
-    'Nouvelle notification disponible sur OneKamer';
-
-  const icon = '/ok_logo.png';
-  const url =
-    payload.url ||
-    payload.launchURL ||
-    payload.notification?.data?.url ||
-    payload.data?.url ||
-    'https://onekamer.co';
-
-  // 🖼️ Image enrichie (si fournie par le serveur Render)
-  const image =
-    payload.data?.image ||
-    payload.big_picture ||
-    payload.notification?.big_picture ||
-    null;
+  // 🖼️ Image enrichie (si fournie par le serveur)
+  const image = payload.data?.image || payload.big_picture || payload.notification?.big_picture || null;
 
   // 🔊 Son et vibration personnalisés
   const sound = payload.data?.sound || 'default';
@@ -89,7 +65,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body,
     icon,
-    badge: icon,
+    badge,
     image,
     sound,
     vibrate: vibration,
@@ -102,6 +78,26 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Ouverture de l’URL au clic
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification?.data?.url || 'https://onekamer.co';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsArr) => {
+      const hadWindow = clientsArr.some((client) => {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          client.focus();
+          return true;
+        }
+        return false;
+      });
+      if (!hadWindow && self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
 });
 
 // 5️⃣ Clic sur la notification
