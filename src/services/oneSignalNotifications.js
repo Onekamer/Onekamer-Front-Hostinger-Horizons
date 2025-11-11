@@ -1,10 +1,12 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+const PROVIDER = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
 
 const resolveEndpoint = () => {
   if (!API_BASE_URL) {
-    console.warn('Aucune URL API configurée pour l’envoi des notifications OneSignal.');
+    console.warn('Aucune URL API configurée pour l’envoi des notifications.');
     return null;
   }
+  if (PROVIDER === 'supabase_light') return `${API_BASE_URL}/notifications/dispatch`;
   return `${API_BASE_URL}/notifications/onesignal`;
 };
 
@@ -17,12 +19,32 @@ const postNotification = async (payload = {}) => {
   if (!endpoint) return false;
 
   try {
+    // Adaptation légère du payload pour le mode natif supabase_light
+    const body = (PROVIDER === 'supabase_light')
+      ? (() => {
+          const { title, message, targetUserIds, data, url } = payload || {};
+          if (!Array.isArray(targetUserIds) || targetUserIds.length === 0) {
+            // Pas d'audience explicite: on évite une 400 côté serveur natif
+            return null;
+          }
+          return {
+            title: title || 'Notification',
+            message: message || '',
+            targetUserIds,
+            data: data || {},
+            url: url || '/',
+          };
+        })()
+      : payload;
+
+    if (PROVIDER === 'supabase_light' && !body) return false;
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
