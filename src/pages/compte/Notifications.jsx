@@ -14,12 +14,23 @@ const Notifications = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { bellHidden, setBellHidden, prefs, setPrefs, reset } = useNotifPrefs();
-  const { active, permission, subscribed, endpoint, subscribe, unsubscribe, sendTest } = useWebPush(user?.id);
+  const { active, permission, subscribed, endpoint, subscribe, unsubscribe, disableOnThisDevice, sendTest } = useWebPush(user?.id);
   const [loading, setLoading] = useState(false);
 
   const featureBell = useMemo(() => `${import.meta.env.VITE_FEATURE_NOTIF_BELL}` === 'true', []);
 
   const handleSubscribe = async () => {
+    if (!user) return;
+    setLoading(true);
+    try { await subscribe(); } finally { setLoading(false); }
+  };
+
+  const handleDisableThisDevice = async () => {
+    setLoading(true);
+    try { await disableOnThisDevice(); } finally { setLoading(false); }
+  };
+
+  const handleEnableThisDevice = async () => {
     if (!user) return;
     setLoading(true);
     try { await subscribe(); } finally { setLoading(false); }
@@ -80,6 +91,13 @@ const Notifications = () => {
                       <Button disabled={loading} onClick={handleUnsubscribe} className="bg-[#2BA84A] text-white">Se désabonner</Button>
                     )}
                     <Button disabled={loading} onClick={handleTest} className="bg-[#2BA84A] text-white">Envoyer un test</Button>
+                  </div>
+                  <div className="pt-2">
+                    {subscribed ? (
+                      <Button disabled={loading} onClick={handleDisableThisDevice} variant="outline" className="w-full">Désactiver sur cet appareil</Button>
+                    ) : (
+                      <Button disabled={loading} onClick={handleEnableThisDevice} variant="outline" className="w-full">Activer sur cet appareil</Button>
+                    )}
                   </div>
                 </>
               )}

@@ -47,6 +47,30 @@ export function useWebPush(userId) {
     }
   }, [active, refresh])
 
+  const disableOnThisDevice = useCallback(async () => {
+    if (!active) return { ok: false }
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (!sub) {
+        await refresh()
+        return { ok: true, note: 'no_local_subscription' }
+      }
+      try {
+        await fetch(`${API_BASE_URL}/push/unsubscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint, userId })
+        })
+      } catch { /* noop */ }
+      await sub.unsubscribe()
+      await refresh()
+      return { ok: true }
+    } catch {
+      return { ok: false }
+    }
+  }, [active, userId, refresh])
+
   const sendTest = useCallback(async () => {
     if (!active || !userId) return { ok: false }
     try {
@@ -68,5 +92,5 @@ export function useWebPush(userId) {
     }
   }, [active, userId])
 
-  return useMemo(() => ({ active, permission, subscribed, endpoint, refresh, subscribe, unsubscribe, sendTest }), [active, permission, subscribed, endpoint, refresh, subscribe, unsubscribe, sendTest])
+  return useMemo(() => ({ active, permission, subscribed, endpoint, refresh, subscribe, unsubscribe, disableOnThisDevice, sendTest }), [active, permission, subscribed, endpoint, refresh, subscribe, unsubscribe, disableOnThisDevice, sendTest])
 }
