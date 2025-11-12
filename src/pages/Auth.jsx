@@ -7,7 +7,7 @@ import React, { useState } from 'react';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { useToast } from '@/components/ui/use-toast';
-    import { useNavigate, Link } from 'react-router-dom';
+    import { useNavigate } from 'react-router-dom';
     import { Loader2 } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
 
@@ -160,11 +160,7 @@ const AuthPage = () => {
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Se connecter
                   </Button>
-                  <div className="text-center text-sm">
-                    <Link to="/verification-sms" className="underline">
-                      Vérifier par SMS
-                    </Link>
-                  </div>
+                  
                 </form>
               </CardContent>
             </Card>
