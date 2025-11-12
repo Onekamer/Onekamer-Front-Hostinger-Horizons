@@ -42,6 +42,22 @@ async function normalizeToJpeg(file, maxSide = 1600) {
   }
 }
 
+function isProbablyReadableImage(file) {
+  if (!file) return false;
+  // Fichiers virtuels/cloud remontent parfois à taille 0
+  if (!file.size || file.size <= 0) return false;
+  // MIME manquant: on se rabat sur l'extension
+  const name = (file.name || '').toLowerCase();
+  const type = (file.type || '').toLowerCase();
+  const hasSupportedMime = type.startsWith('image/');
+  const hasSupportedExt = /\.(jpe?g|png|webp|gif|bmp)$/i.test(name);
+  // HEIC/HEIF souvent non décodable par le navigateur
+  const isHeic = /\.(heic|heif)$/i.test(name) || type.includes('heic') || type.includes('heif');
+  if (isHeic) return false;
+  // On tolère WEBP/GIF/BMP, le pipeline convertira en JPEG si possible
+  return hasSupportedMime || hasSupportedExt;
+}
+
 async function processImageFile(inputFile) {
   try {
     const options = { maxSizeMB: 1, maxWidthOrHeight: 1600, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.85 };
@@ -265,7 +281,29 @@ const RencontreProfil = () => {
       return;
     }
 
-    const filesToProcess = files.slice(0, remainingSlots);
+    // Filtrer les fichiers probablement non lisibles (cloud/virtuel, HEIC/HEIF, taille 0)
+    const sliced = files.slice(0, remainingSlots);
+    const validFiles = [];
+    let invalidCount = 0;
+    for (const f of sliced) {
+      if (isProbablyReadableImage(f)) {
+        validFiles.push(f);
+      } else {
+        invalidCount++;
+      }
+    }
+    if (invalidCount > 0) {
+      toast({
+        title: 'Fichier non disponible',
+        description: "Certaines photos ne peuvent pas être lues (cloud/format). Utilisez l'onglet Photos/Collections ou enregistrez l'image sur l'appareil, puis réessayez.",
+        variant: 'destructive',
+      });
+    }
+    if (validFiles.length === 0) {
+      e.target.value = '';
+      return;
+    }
+    const filesToProcess = validFiles;
 
     // 1) Afficher la prévisualisation immédiatement avec le fichier original
     const immediateItems = filesToProcess.map((file) => ({
