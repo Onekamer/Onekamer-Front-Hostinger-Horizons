@@ -692,7 +692,7 @@ const RencontreProfil = () => {
                 <div><Label htmlFor="sexe">Sexe</Label>
                   <Select onValueChange={(value) => handleSelectChange('sexe', value)} value={profile.sexe || ''}>
                     <SelectTrigger><SelectValue placeholder="Sélectionnez votre sexe" /></SelectTrigger>
-                    <SelectContent><SelectItem value="Homme">Homme</SelectItem><SelectItem value="Femme">Femme</SelectItem><SelectItem value="Autre">Autre</SelectItem></SelectContent>
+                    <SelectContent><SelectItem value="Homme">Homme</SelectItem><SelectItem value="Femme">Femme</SelectItem></SelectContent>
                   </Select>
                 </div>
                 <div><Label htmlFor="type_rencontre_souhaite_id">Type de rencontre</Label>
