@@ -658,6 +658,7 @@ const RencontreProfil = () => {
                   <span className="text-sm text-gray-500">{profile.photos.length + galleryFiles.length}/6</span>
                 </div>
                 <p className="text-sm text-gray-500">Ajoutez jusqu'à 6 photos pour présenter votre univers.</p>
+                <p className="text-xs text-gray-500">Astuce: préférez Photos/Collections (les images cloud peuvent échouer).</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {profile.photos.map((photo, index) => (
                     <div key={`${photo}-${index}`} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group">
