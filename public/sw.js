@@ -51,7 +51,7 @@ self.addEventListener('push', (event) => {
   const title = payload.title || payload.headings?.en || payload.notification?.title || payload.data?.title || 'OneKamer.co';
   const body = payload.body || payload.contents?.en || payload.notification?.body || payload.data?.message || 'Nouvelle notification sur OneKamer';
   const icon = payload.icon || payload.data?.icon || '/ok_logo.png';
-  const badge = payload.badge || payload.data?.badge || 'https://onekamer-media-cdn.b-cdn.net/favicon-32x32.png';
+  const badge = payload.badge || payload.data?.badge || 'https://onekamer-media-cdn.b-cdn.net/android-chrome-72x72.png';
   const url = payload.url || payload.launchURL || payload.notification?.data?.url || payload.data?.url || 'https://onekamer.co';
 
   // 🖼️ Image enrichie (si fournie par le serveur)
