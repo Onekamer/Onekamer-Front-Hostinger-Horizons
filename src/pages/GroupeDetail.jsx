@@ -672,6 +672,30 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
          return groupData.some(row => row.membre_id === user.id);
       }, [groupData, user]);
 
+      // Persister l'état "Demande envoyée" après refresh
+      useEffect(() => {
+        const checkPending = async () => {
+          if (!user || !groupId) return;
+          try {
+            const { data, error } = await supabase
+              .from('group_join_requests')
+              .select('id')
+              .eq('group_id', groupId)
+              .eq('requester_id', user.id)
+              .eq('status', 'pending')
+              .limit(1);
+            if (!error && Array.isArray(data) && data.length > 0) {
+              setJoinRequestStatus('sent');
+            } else if (!error) {
+              setJoinRequestStatus('idle');
+            }
+          } catch (_) {
+            // ne rien faire, garder l'état courant
+          }
+        };
+        checkPending();
+      }, [user, groupId]);
+
       if (loading || authLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
       if (!groupInfo) return null;
     
@@ -688,7 +712,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                  <Button 
                     className="mt-6 bg-[#2BA84A]" 
                     onClick={handleRequestToJoin}
-                    disabled={joinRequestStatus !== 'idle'}
+                    disabled={joinRequestStatus === 'loading' || joinRequestStatus === 'sent'}
                  >
                     {joinRequestStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {joinRequestStatus === 'sent' ? 'Demande envoyée' : 'Demander à rejoindre'}
