@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
     import { Helmet } from 'react-helmet';
-    import { useParams, useNavigate } from 'react-router-dom';
+    import { useParams, useNavigate, useLocation } from 'react-router-dom';
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
     import { ArrowLeft, Send, Loader2, Heart, Mic, Square, X, Image as ImageIcon, Trash2 } from 'lucide-react';
@@ -211,6 +211,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     const GroupeDetail = () => {
       const { groupId } = useParams();
       const navigate = useNavigate();
+      const location = useLocation();
       const { user, session, loading: authLoading } = useAuth();
       const { toast } = useToast();
       const [groupData, setGroupData] = useState([]);
@@ -219,6 +220,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const [newMessage, setNewMessage] = useState('');
       const [sending, setSending] = useState(false);
       const [joinRequestStatus, setJoinRequestStatus] = useState('idle');
+      const [tabValue, setTabValue] = useState('messages');
+      const [joinRequests, setJoinRequests] = useState([]);
+      const [loadingRequests, setLoadingRequests] = useState(false);
+      const [requesterProfiles, setRequesterProfiles] = useState({});
       // Media attach state
       const [mediaFile, setMediaFile] = useState(null);
       const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
@@ -233,6 +238,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const mimeRef = useRef(null);
       const recordingIntervalRef = useRef(null);
       const messagesEndRef = useRef(null);
+      const RAW_API = import.meta.env.VITE_API_URL || '';
+      const API_API = RAW_API.endsWith('/api') ? RAW_API : `${RAW_API.replace(/\/+$/, '')}/api`;
     
       const fetchGroupData = useCallback(async () => {
         if (!user || !session) {
@@ -526,19 +533,107 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         setSending(false);
       };
 
+      // Deep-link ?tab=demandes → ouvrir l'onglet demandes
+      useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab === 'demandes') setTabValue('requests');
+      }, [location.search]);
+
+      // Charger les demandes en attente
+      const fetchJoinRequests = useCallback(async () => {
+        if (!user || !groupId) return;
+        try {
+          setLoadingRequests(true);
+          const { data, error } = await supabase
+            .from('group_join_requests')
+            .select('id, requester_id, status, created_at')
+            .eq('group_id', groupId)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+          if (error) {
+            console.error('Erreur chargement demandes:', error);
+            setJoinRequests([]);
+            setRequesterProfiles({});
+          } else {
+            const requests = data || [];
+            setJoinRequests(requests);
+            const ids = Array.from(new Set(requests.map(r => r.requester_id).filter(Boolean)));
+            if (ids.length > 0) {
+              const { data: profs, error: perr } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .in('id', ids);
+              if (!perr && Array.isArray(profs)) {
+                const map = {};
+                for (const p of profs) map[p.id] = { username: p.username, avatar_url: p.avatar_url };
+                setRequesterProfiles(map);
+              } else {
+                setRequesterProfiles({});
+              }
+            } else {
+              setRequesterProfiles({});
+            }
+          }
+        } finally {
+          setLoadingRequests(false);
+        }
+      }, [groupId, user]);
+
+      useEffect(() => {
+        if (user && tabValue === 'requests') {
+          fetchJoinRequests();
+        }
+      }, [user, tabValue, fetchJoinRequests]);
+
+      const handleApproveRequest = async (requestId) => {
+        if (!user) return;
+        try {
+          const res = await fetch(`${API_API.replace(/\/$/, '')}/groups/requests/${requestId}/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id })
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || json?.error) throw new Error(json?.error || 'Échec approbation');
+          toast({ title: 'Accepté', description: 'Le membre a été ajouté au groupe.' });
+          await fetchJoinRequests();
+          await fetchGroupData();
+        } catch (e) {
+          toast({ title: 'Erreur', description: e?.message || 'Action impossible', variant: 'destructive' });
+        }
+      };
+
+      const handleDenyRequest = async (requestId) => {
+        if (!user) return;
+        try {
+          const res = await fetch(`${API_API.replace(/\/$/, '')}/groups/requests/${requestId}/deny`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actorId: user.id })
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || json?.error) throw new Error(json?.error || 'Échec du refus');
+          toast({ title: 'Refusé', description: 'La demande a été refusée.' });
+          await fetchJoinRequests();
+        } catch (e) {
+          toast({ title: 'Erreur', description: e?.message || 'Action impossible', variant: 'destructive' });
+        }
+      };
+
       const handleRequestToJoin = async () => {
           if (!user) {
               toast({ title: 'Connectez-vous pour rejoindre un groupe', variant: 'destructive' });
               return;
           }
           setJoinRequestStatus('loading');
-          const { error } = await supabase.rpc('request_to_join_group', { p_group_id: groupId });
-          if (error) {
-              toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-              setJoinRequestStatus('error');
-          } else {
-              toast({ title: 'Demande envoyée', description: 'Votre demande a été envoyée au fondateur du groupe.' });
-              setJoinRequestStatus('sent');
+          try {
+            const res = await fetch(`${API_API.replace(/\/$/, '')}/groups/${groupId}/join-request`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requesterId: user.id })
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json?.error) throw new Error(json?.error || 'Échec de la demande');
+            toast({ title: 'Demande envoyée', description: 'Votre demande a été envoyée au fondateur du groupe.' });
+            setJoinRequestStatus('sent');
+          } catch (e) {
+            toast({ title: 'Erreur', description: e?.message || 'Impossible d\'envoyer la demande', variant: 'destructive' });
+            setJoinRequestStatus('error');
           }
       }
 
@@ -580,7 +675,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       if (loading || authLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
       if (!groupInfo) return null;
     
-      if (!isMember && groupInfo.groupe_prive) {
+      if (!isMember) {
         return (
           <>
             <Helmet><title>Rejoindre {groupInfo.groupe_nom}</title></Helmet>
@@ -619,11 +714,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               </div>
             </div>
             
-            <Tabs defaultValue="messages" className="flex-grow flex flex-col overflow-hidden">
+            <Tabs value={tabValue} onValueChange={setTabValue} className="flex-grow flex flex-col overflow-hidden">
               <div className="flex-shrink-0">
-                <TabsList className="grid w-full grid-cols-3 mx-auto max-w-md">
+                <TabsList className="grid w-full grid-cols-4 mx-auto max-w-md">
                   <TabsTrigger value="messages">Messages</TabsTrigger>
                   <TabsTrigger value="members">Membres</TabsTrigger>
+                  {(currentUserRole === 'admin' || currentUserRole === 'fondateur') && <TabsTrigger value="requests">Demandes</TabsTrigger>}
                   {(currentUserRole === 'admin' || currentUserRole === 'fondateur') && <TabsTrigger value="admin">Admin</TabsTrigger>}
                 </TabsList>
               </div>
@@ -703,6 +799,43 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               <TabsContent value="members" className="flex-grow overflow-y-auto p-4">
                 <GroupMembers members={members} currentUserRole={currentUserRole} currentUserId={user.id} groupId={groupId} onMemberUpdate={fetchGroupData} />
               </TabsContent>
+
+              {(currentUserRole === 'admin' || currentUserRole === 'fondateur') && (
+                <TabsContent value="requests" className="flex-grow overflow-y-auto p-4">
+                  {loadingRequests ? (
+                    <div className="flex justify-center items-center h-32"><Loader2 className="h-6 w-6 animate-spin"/></div>
+                  ) : (
+                    <div className="space-y-3">
+                      {joinRequests.length === 0 ? (
+                        <p className="text-gray-500 text-center">Aucune demande en attente.</p>
+                      ) : (
+                        joinRequests.map((r) => {
+                          const prof = requesterProfiles[r.requester_id] || {};
+                          return (
+                            <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border">
+                              <div className="flex items-center gap-3">
+                                <Avatar>
+                                  <AvatarImage src={prof.avatar_url} />
+                                  <AvatarFallback>{(prof.username?.[0] || 'U').toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-semibold">{prof.username || 'Utilisateur'}</p>
+                                  <p className="text-xs text-gray-400">{new Date(r.created_at).toLocaleString()}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="ghost" onClick={() => navigate(`/profil/${r.requester_id}`)}>Profil</Button>
+                                <Button size="sm" className="bg-[#2BA84A]" onClick={() => handleApproveRequest(r.id)}>Accepter</Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDenyRequest(r.id)}>Refuser</Button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+              )}
 
               {(currentUserRole === 'admin' || currentUserRole === 'fondateur') && (
                 <TabsContent value="admin" className="flex-grow overflow-y-auto p-4">
