@@ -94,15 +94,30 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         if (bucket && p.startsWith(`${bucket}/`)) {
           p = p.slice(bucket.length + 1);
         }
-        // Sécurité supplémentaire legacy
-        if (bucket === 'rencontres' && p.startsWith('rencontres/')) {
-          p = p.replace(/^rencontres\//, '');
+        // Tentative 1: chemin normalisé
+        let signPath = p;
+        let signed = null;
+        try {
+          const { data, error } = await supabase.storage.from(bucket).createSignedUrl(signPath, 3600);
+          if (!error && data?.signedUrl) signed = data.signedUrl;
+        } catch {}
+
+        // Tentative 2 (fallback legacy "rencontres/<p>") si le fichier a été stocké sous un sous-dossier supplémentaire
+        if (!signed && bucket === 'rencontres') {
+          const alt = signPath.startsWith('rencontres/') ? signPath : `rencontres/${signPath}`;
+          try {
+            const { data, error } = await supabase.storage.from(bucket).createSignedUrl(alt, 3600);
+            if (!error && data?.signedUrl) {
+              signed = data.signedUrl;
+              signPath = alt;
+            }
+          } catch {}
         }
-        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(p, 3600);
-        if (error) throw error;
+
+        if (!signed) throw new Error('sign_failed');
         setBackupUrl(null);
-        setMediaUrl(data.signedUrl);
-        const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(p);
+        setMediaUrl(signed);
+        const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(signPath);
         setMediaType(isVideo ? 'video' : 'image');
       } catch (err) {
         console.warn('⚠️ Erreur media Supabase:', err?.message || err);
@@ -112,10 +127,15 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
           if (rel.startsWith(`${bucket}/`)) {
             rel = rel.slice(bucket.length + 1);
           }
-          if (rel) {
-            const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${bucket}/${rel}`.replace(/(?<!:)\/\/+/, '/');
+          // Fallback supplémentaire: si objet réellement sous 'rencontres/<rel>', réessayer CDN avec ce préfixe
+          let cdnRel = rel;
+          if (bucket === 'rencontres' && !/^(rencontres\/)/.test(rel)) {
+            cdnRel = `rencontres/${rel}`;
+          }
+          if (cdnRel) {
+            const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${bucket}/${cdnRel}`.replace(/(?<!:)\/\/+/, '/');
             setMediaUrl(cdnUrl);
-            const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
+            const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(cdnRel);
             setMediaType(isVideo ? 'video' : 'image');
             setErrorState(false);
           } else {
