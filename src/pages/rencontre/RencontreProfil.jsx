@@ -48,7 +48,12 @@ async function processImageFile(inputFile) {
     const out = await imageCompression(inputFile, options);
     return out;
   } catch (_e) {
-    return await normalizeToJpeg(inputFile, 1600);
+    try {
+      return await normalizeToJpeg(inputFile, 1600);
+    } catch (_e2) {
+      // Dernier recours: renvoyer le fichier original pour ne pas bloquer l'ajout
+      return inputFile;
+    }
   }
 }
 
@@ -245,53 +250,56 @@ const RencontreProfil = () => {
   };
 
   const handleGalleryChange = async (e) => {
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-  // 🔒 Limite à 6 photos max
-  const remainingSlots = 6 - (profile.photos.length + galleryFiles.length);
-  if (remainingSlots <= 0) {
-    toast({
-      title: 'Limite atteinte',
-      description: 'Vous pouvez ajouter jusqu’à 6 photos.',
-      variant: 'destructive',
-    });
-    e.target.value = '';
-    return;
-  }
-
-  const filesToProcess = files.slice(0, remainingSlots);
-
-  const newGalleryItems = [];
-  for (const file of filesToProcess) {
-    try {
-      const compressedFile = await processImageFile(file);
-      newGalleryItems.push({
-        id: `${Date.now()}-${Math.random()}`,
-        file: compressedFile,
-        preview: URL.createObjectURL(compressedFile),
-      });
-    } catch (error) {
+    // 🔒 Limite à 6 photos max
+    const remainingSlots = 6 - (profile.photos.length + galleryFiles.length);
+    if (remainingSlots <= 0) {
       toast({
-        title: "Erreur d'image",
-        description: error.message,
+        title: 'Limite atteinte',
+        description: 'Vous pouvez ajouter jusqu’à 6 photos.',
         variant: 'destructive',
       });
+      e.target.value = '';
+      return;
     }
-  }
 
-  if (newGalleryItems.length > 0) {
-    setGalleryFiles((prev) => [...prev, ...newGalleryItems]);
+    const filesToProcess = files.slice(0, remainingSlots);
 
-    // 🖼️ Correction principale : afficher immédiatement la première image
-    // si aucune photo principale n'est encore visible
-    if (!imagePreview) {
-      setImagePreview(newGalleryItems[0].preview);
+    // 1) Afficher la prévisualisation immédiatement avec le fichier original
+    const immediateItems = filesToProcess.map((file) => ({
+      id: `${Date.now()}-${Math.random()}`,
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+
+    setGalleryFiles((prev) => [...prev, ...immediateItems]);
+
+    // Si aucune image principale, afficher la première preview
+    if (!imagePreview && immediateItems[0]) {
+      setImagePreview(immediateItems[0].preview);
     }
-  }
 
-  e.target.value = '';
-};
+    // 2) Traiter en arrière-plan (compression/normalisation)
+    for (const item of immediateItems) {
+      try {
+        const processed = await processImageFile(item.file).catch(() => null);
+        if (processed && processed !== item.file) {
+          const newPreview = URL.createObjectURL(processed);
+          if (item.preview) {
+            // Libère l'ancienne preview
+            URL.revokeObjectURL(item.preview);
+          }
+          setGalleryFiles((prev) => prev.map((g) => (g.id === item.id ? { ...g, file: processed, preview: newPreview } : g)));
+        }
+      } catch {
+        // On garde l'original si traitement impossible
+      }
+    }
+
+    e.target.value = '';
+  };
 
   const handleRemovePhoto = (url) => {
     setProfile(prev => ({ ...prev, photos: prev.photos.filter(photo => photo !== url) }));
