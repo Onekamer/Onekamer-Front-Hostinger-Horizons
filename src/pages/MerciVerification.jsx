@@ -14,39 +14,48 @@ const MerciVerification = () => {
         const sub = supabase.auth.onAuthStateChange((_event, session) => {
             if (session) {
                 setStatus('success');
-                setTimeout(() => { navigate('/compte'); }, 1000);
+                setTimeout(() => { navigate('/compte'); }, 800);
             }
         });
 
         const handleVerification = async () => {
             try {
-                // 1) Si une session existe déjà, on sort immédiatement
+                // 1) Session déjà présente
                 const { data: s1 } = await supabase.auth.getSession();
                 if (s1?.session) {
                     setStatus('success');
-                    setTimeout(() => { navigate('/compte'); }, 1000);
+                    setTimeout(() => { navigate('/compte'); }, 800);
                     return;
                 }
 
-                // 2) Sinon, on tente de consommer les paramètres du lien
-                const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-                if (data?.session && !error) {
-                    setStatus('success');
-                    setTimeout(() => { navigate('/compte'); }, 1000);
-                    return;
+                // 2) Extraire les paramètres du lien (prise en charge # et ?)
+                const href = window.location.href;
+                const hash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : '';
+                const search = window.location.search?.startsWith('?') ? window.location.search.slice(1) : '';
+                const params = new URLSearchParams(hash || search);
+                const type = params.get('type') || 'signup';
+                const token_hash = params.get('token_hash');
+                const token = params.get('token');
+                const email = params.get('email') || params.get('email_address');
+
+                // 3) Vérifier via verifyOtp si on a un token_hash/token
+                if (token_hash || token) {
+                    const payload = token_hash
+                      ? { type, token_hash }
+                      : { type, token, email };
+                    const { data, error } = await supabase.auth.verifyOtp(payload);
+                    if (!error && data?.session) {
+                        setStatus('success');
+                        setTimeout(() => { navigate('/compte'); }, 800);
+                        return;
+                    }
                 }
 
-                // 3) Dernier fallback: relecture de session ou user
-                const { data: s2 } = await supabase.auth.getSession();
-                if (s2?.session) {
-                    setStatus('success');
-                    setTimeout(() => { navigate('/compte'); }, 1000);
-                    return;
-                }
+                // 4) Fallback: utilisateur déjà confirmé mais pas de session
                 const { data: userData } = await supabase.auth.getUser();
                 if (userData?.user) {
                     setStatus('success');
-                    setTimeout(() => { navigate('/compte'); }, 1000);
+                    setTimeout(() => { navigate('/compte'); }, 800);
                     return;
                 }
 
