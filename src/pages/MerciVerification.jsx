@@ -13,24 +13,29 @@ const MerciVerification = () => {
     useEffect(() => {
         const handleVerification = async () => {
             try {
-                const url = new URL(window.location.href);
-                const { data, error } = await supabase.auth.getSessionFromUrl({ url, storeSession: true });
+                // Laisse le client parser automatiquement l'URL courante (fragment/hash) et stocker la session
+                const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
 
                 if (error) {
+                    // Fallback: si l'utilisateur est déjà confirmé et que la session est invalide,
+                    // on tente de récupérer un éventuel user (peut échouer sans session)
+                    const { data: userData } = await supabase.auth.getUser();
+                    if (userData && userData.user) {
+                        setStatus('success');
+                        setTimeout(() => { navigate('/compte'); }, 1500);
+                        return;
+                    }
                     throw error;
                 }
 
-                if (data.session) {
+                if (data?.session) {
                     setStatus('success');
-                    setTimeout(() => {
-                        navigate('/compte');
-                    }, 3000);
+                    setTimeout(() => { navigate('/compte'); }, 1500);
                 } else {
-                    // This case might happen if the link is visited without a valid session token in the URL fragment.
                     setStatus('error');
                 }
             } catch (error) {
-                console.error("Verification error:", error);
+                console.error('Verification error:', error);
                 setStatus('error');
             }
         };
