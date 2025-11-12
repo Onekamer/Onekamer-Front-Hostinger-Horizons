@@ -11,29 +11,46 @@ const MerciVerification = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        const sub = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) {
+                setStatus('success');
+                setTimeout(() => { navigate('/compte'); }, 1000);
+            }
+        });
+
         const handleVerification = async () => {
             try {
-                // Laisse le client parser automatiquement l'URL courante (fragment/hash) et stocker la session
-                const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-
-                if (error) {
-                    // Fallback: si l'utilisateur est déjà confirmé et que la session est invalide,
-                    // on tente de récupérer un éventuel user (peut échouer sans session)
-                    const { data: userData } = await supabase.auth.getUser();
-                    if (userData && userData.user) {
-                        setStatus('success');
-                        setTimeout(() => { navigate('/compte'); }, 1500);
-                        return;
-                    }
-                    throw error;
-                }
-
-                if (data?.session) {
+                // 1) Si une session existe déjà, on sort immédiatement
+                const { data: s1 } = await supabase.auth.getSession();
+                if (s1?.session) {
                     setStatus('success');
-                    setTimeout(() => { navigate('/compte'); }, 1500);
-                } else {
-                    setStatus('error');
+                    setTimeout(() => { navigate('/compte'); }, 1000);
+                    return;
                 }
+
+                // 2) Sinon, on tente de consommer les paramètres du lien
+                const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+                if (data?.session && !error) {
+                    setStatus('success');
+                    setTimeout(() => { navigate('/compte'); }, 1000);
+                    return;
+                }
+
+                // 3) Dernier fallback: relecture de session ou user
+                const { data: s2 } = await supabase.auth.getSession();
+                if (s2?.session) {
+                    setStatus('success');
+                    setTimeout(() => { navigate('/compte'); }, 1000);
+                    return;
+                }
+                const { data: userData } = await supabase.auth.getUser();
+                if (userData?.user) {
+                    setStatus('success');
+                    setTimeout(() => { navigate('/compte'); }, 1000);
+                    return;
+                }
+
+                setStatus('error');
             } catch (error) {
                 console.error('Verification error:', error);
                 setStatus('error');
@@ -41,6 +58,10 @@ const MerciVerification = () => {
         };
 
         handleVerification();
+
+        return () => {
+            try { sub.data.subscription.unsubscribe(); } catch (_) {}
+        };
     }, [navigate]);
 
     const renderContent = () => {
