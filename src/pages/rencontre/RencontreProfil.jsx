@@ -129,6 +129,7 @@ const RencontreProfil = () => {
     competences_humaines: [],
     photos: [],
   });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [countries, setCountries] = useState([]);
@@ -231,6 +232,7 @@ const RencontreProfil = () => {
       const processedValue = type === 'number' ? (value === '' ? null : parseInt(value, 10)) : value;
       setProfile(prev => ({ ...prev, [name]: processedValue }));
     }
+    setErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleSelectChange = (name, value) => {
@@ -239,6 +241,7 @@ const RencontreProfil = () => {
       setProfile(prev => ({ ...prev, ville_id: null }));
       fetchCities(value);
     }
+    setErrors(prev => ({ ...prev, [name]: undefined }));
   };
   
   const handleChoiceChange = (name, value) => {
@@ -260,6 +263,7 @@ const RencontreProfil = () => {
       const processed = await processImageFile(file);
       setImageFile(processed);
       setImagePreview(URL.createObjectURL(processed));
+      setErrors(prev => ({ ...prev, photo: undefined }));
     } catch (error) {
       toast({ title: "Erreur d'image", description: error.message, variant: "destructive" });
     }
@@ -336,6 +340,10 @@ const RencontreProfil = () => {
       }
     }
 
+    if (immediateItems.length > 0) {
+      setErrors(prev => ({ ...prev, photo: undefined }));
+    }
+
     e.target.value = '';
   };
 
@@ -358,6 +366,49 @@ const RencontreProfil = () => {
   if (!user) return;
   setSaving(true);
   try {
+    const newErrors = {};
+
+    const hasPhoto = !!(imagePreview || profile.image_url || (Array.isArray(profile.photos) && profile.photos.length > 0) || galleryFiles.length > 0);
+    if (!hasPhoto) {
+      newErrors.photo = "Une photo de profil est obligatoire.";
+    }
+
+    if (!profile.name || !String(profile.name).trim()) {
+      newErrors.name = "Le nom/pseudo est obligatoire.";
+    }
+
+    if (!profile.age || Number.isNaN(Number(profile.age))) {
+      newErrors.age = "L'âge est obligatoire.";
+    }
+
+    if (!profile.sexe) {
+      newErrors.sexe = "Le sexe est obligatoire.";
+    }
+
+    const hasCountry = !!(profile.pays_id && ((typeof profile.pays_id === 'string' && profile.pays_id.trim() !== '') || typeof profile.pays_id === 'number' || profile.pays_id.id));
+    if (!hasCountry) {
+      newErrors.pays_id = "Le pays est obligatoire.";
+    }
+
+    const hasCity = !!(profile.ville_id && ((typeof profile.ville_id === 'string' && profile.ville_id.trim() !== '') || typeof profile.ville_id === 'number' || profile.ville_id.id));
+    if (!hasCity) {
+      newErrors.ville_id = "La ville est obligatoire.";
+    }
+
+    if (!profile.bio || !String(profile.bio).trim()) {
+      newErrors.bio = "La bio courte est obligatoire.";
+    }
+
+    if (!profile.long_bio || !String(profile.long_bio).trim()) {
+      newErrors.long_bio = "La section \"À propos de moi\" est obligatoire.";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast({ title: "Champs obligatoires manquants", description: "Merci de compléter tous les champs marqués d'une astérisque.", variant: "destructive" });
+      return;
+    }
+
     let imageUrl = profile.image_url;
 
     // 📸 Upload de la photo principale via serveur LAB (BunnyCDN)
@@ -464,6 +515,7 @@ const RencontreProfil = () => {
       toast({ title: "Erreur", description: `La mise à jour a échoué: ${error.message}` , variant: "destructive" });
     } else {
       toast({ title: "Succès", description: "Votre profil a été mis à jour !" });
+      setErrors({});
       await refreshProfile();
       await fetchProfile();
       setIsEditing(false);
@@ -650,6 +702,9 @@ const RencontreProfil = () => {
                   </Button>
                   <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
                 </div>
+                {errors.photo && (
+                  <p className="text-sm text-red-500 text-center">{errors.photo}</p>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -734,13 +789,29 @@ const RencontreProfil = () => {
 </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div><Label htmlFor="name">Nom/Pseudo</Label><Input id="name" name="name" value={profile.name || ''} onChange={handleChange} /></div>
-                <div><Label htmlFor="age">Âge</Label><Input id="age" name="age" type="number" value={profile.age || ''} onChange={handleChange} /></div>
-                <div><Label htmlFor="sexe">Sexe</Label>
+                <div>
+                  <Label htmlFor="name">Nom/Pseudo *</Label>
+                  <Input id="name" name="name" value={profile.name || ''} onChange={handleChange} />
+                  {errors.name && (
+                    <p className="text-sm text-red-500 mt-1">{errors.name}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="age">Âge *</Label>
+                  <Input id="age" name="age" type="number" value={profile.age || ''} onChange={handleChange} />
+                  {errors.age && (
+                    <p className="text-sm text-red-500 mt-1">{errors.age}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="sexe">Sexe *</Label>
                   <Select onValueChange={(value) => handleSelectChange('sexe', value)} value={profile.sexe || ''}>
                     <SelectTrigger><SelectValue placeholder="Sélectionnez votre sexe" /></SelectTrigger>
                     <SelectContent><SelectItem value="Homme">Homme</SelectItem><SelectItem value="Femme">Femme</SelectItem></SelectContent>
                   </Select>
+                  {errors.sexe && (
+                    <p className="text-sm text-red-500 mt-1">{errors.sexe}</p>
+                  )}
                 </div>
                 <div><Label htmlFor="type_rencontre_souhaite_id">Type de rencontre</Label>
                   <Select onValueChange={(value) => handleSelectChange('type_rencontre_souhaite_id', value ? parseInt(value) : null)} value={profile.type_rencontre_souhaite_id?.toString() || ''}>
@@ -748,17 +819,25 @@ const RencontreProfil = () => {
                     <SelectContent>{rencontreTypes.map(t => <SelectItem key={t.id} value={t.id.toString()}>{t.nom}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div><Label htmlFor="pays_id">Pays</Label>
+                <div>
+                  <Label htmlFor="pays_id">Pays *</Label>
                   <Select onValueChange={(value) => handleSelectChange('pays_id', value)} value={profile.pays_id?.id?.toString() || profile.pays_id?.toString() || ''}>
                     <SelectTrigger><SelectValue placeholder="Sélectionnez un pays" /></SelectTrigger>
                     <SelectContent position="popper" className="max-h-[20rem]">{countries.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nom}</SelectItem>)}</SelectContent>
                   </Select>
+                  {errors.pays_id && (
+                    <p className="text-sm text-red-500 mt-1">{errors.pays_id}</p>
+                  )}
                 </div>
-                <div><Label htmlFor="ville_id">Ville</Label>
+                <div>
+                  <Label htmlFor="ville_id">Ville *</Label>
                   <Select onValueChange={(value) => handleSelectChange('ville_id', value)} value={profile.ville_id?.id?.toString() || profile.ville_id?.toString() || ''} disabled={!profile.pays_id || cities.length === 0}>
                     <SelectTrigger><SelectValue placeholder={!profile.pays_id ? "Sélectionnez un pays" : "Sélectionnez une ville"} /></SelectTrigger>
                     <SelectContent position="popper" className="max-h-[20rem]">{cities.map(v => <SelectItem key={v.id} value={v.id.toString()}>{v.nom}</SelectItem>)}</SelectContent>
                   </Select>
+                  {errors.ville_id && (
+                    <p className="text-sm text-red-500 mt-1">{errors.ville_id}</p>
+                  )}
                 </div>
                 <div><Label htmlFor="profession">Profession</Label><Input id="profession" name="profession" value={profile.profession || ''} onChange={handleChange} /></div>
                 
@@ -784,8 +863,20 @@ const RencontreProfil = () => {
                     <Input id="ethnie" name="ethnie" value={profile.ethnie || ''} onChange={handleChange} />
                 </div>
 
-                <div className="md:col-span-2"><Label htmlFor="bio">Bio Courte (max 255)</Label><Textarea id="bio" name="bio" value={profile.bio || ''} onChange={handleChange} maxLength={255} /></div>
-                <div className="md:col-span-2"><Label htmlFor="long_bio">À propos de moi</Label><Textarea id="long_bio" name="long_bio" value={profile.long_bio || ''} onChange={handleChange} rows={5} /></div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="bio">Bio Courte (max 255) *</Label>
+                  <Textarea id="bio" name="bio" value={profile.bio || ''} onChange={handleChange} maxLength={255} />
+                  {errors.bio && (
+                    <p className="text-sm text-red-500 mt-1">{errors.bio}</p>
+                  )}
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="long_bio">À propos de moi *</Label>
+                  <Textarea id="long_bio" name="long_bio" value={profile.long_bio || ''} onChange={handleChange} rows={5} />
+                  {errors.long_bio && (
+                    <p className="text-sm text-red-500 mt-1">{errors.long_bio}</p>
+                  )}
+                </div>
                 
                 <div><Label htmlFor="film">Film préféré</Label><Input id="film" name="film" value={profile.film || ''} onChange={handleChange} /></div>
                 <div><Label htmlFor="serie">Série préférée</Label><Input id="serie" name="serie" value={profile.serie || ''} onChange={handleChange} /></div>
