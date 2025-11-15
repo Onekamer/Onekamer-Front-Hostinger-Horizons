@@ -119,29 +119,44 @@ const FiltersDialog = ({ filters, setFilters, onApply }) => {
   )
 }
 
-const DetailItem = ({ icon: Icon, label, value }) => (
-  <div className="flex flex-col items-start">
-    <div className="flex items-center text-sm text-gray-500 gap-2">
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
-    </div>
-    <p className="font-semibold text-gray-800 mt-1">{value || '-'}</p>
-  </div>
-);
+const DetailItem = ({ icon: Icon, label, value }) => {
+  const isEmpty =
+    value === null ||
+    value === undefined ||
+    (typeof value === 'string' && value.trim() === '');
 
-const ArrayDetailItem = ({ icon: Icon, label, values }) => (
-    <div className="flex flex-col items-start col-span-2 md:col-span-3">
-        <div className="flex items-center text-sm text-gray-500 gap-2">
-            <Icon className="h-4 w-4" />
-            <span>{label}</span>
-        </div>
-        <div className="flex flex-wrap gap-2 mt-1">
-            {(values && values.length > 0) ? values.map((item, index) => (
-                <span key={index} className="bg-gray-100 text-gray-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">{item}</span>
-            )) : <p className="font-semibold text-gray-800">-</p>}
-        </div>
+  if (isEmpty) return null;
+
+  return (
+    <div className="flex flex-col items-start">
+      <div className="flex items-center text-sm text-gray-500 gap-2">
+        <Icon className="h-4 w-4" />
+        <span>{label}</span>
+      </div>
+      <p className="font-semibold text-gray-800 mt-1">{value}</p>
     </div>
-);
+  );
+};
+
+const ArrayDetailItem = ({ icon: Icon, label, values }) => {
+  const safeValues = Array.isArray(values) ? values.filter(Boolean) : [];
+
+  if (safeValues.length === 0) return null;
+
+  return (
+	<div className="flex flex-col items-start col-span-2 md:col-span-3">
+		<div className="flex items-center text-sm text-gray-500 gap-2">
+			<Icon className="h-4 w-4" />
+			<span>{label}</span>
+		</div>
+		<div className="flex flex-wrap gap-2 mt-1">
+			{safeValues.map((item, index) => (
+				<span key={index} className="bg-gray-100 text-gray-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">{item}</span>
+			))}
+		</div>
+	</div>
+  );
+};
 
 
 const Rencontre = () => {
@@ -164,12 +179,12 @@ const Rencontre = () => {
   const [lightboxPath, setLightboxPath] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [canInteract, setCanInteract] = useState(false);
-  const [canView, setCanView] = useState(null); // ✅ nouveau
+  const [canView, setCanView] = useState(null); // 
   const processedMatchesRef = useRef(new Set());
 
   const { toast } = useToast();
 
-  // ✅ 1. Vérification de l'authentification
+  // 1. Vérification de l'authentification
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -177,12 +192,12 @@ const Rencontre = () => {
     }
   }, [authLoading, user, navigate]);
 
-  // ✅ 2. Vérifications des accès selon le plan Supabase
+  // 2. Vérifications des accès selon le plan Supabase
 useEffect(() => {
   if (authLoading) return;
 
   const checkAccess = async () => {
-    setCanView(null); // ✅ ajout ici
+    setCanView(null); // 
 
     if (!user) {
       setCanInteract(false);
@@ -190,15 +205,15 @@ useEffect(() => {
       return;
     }
 
-    // 🔁 Attendre réellement la réponse Supabase avant d'afficher quoi que ce soit
+    // Attendre réellement la réponse Supabase avant d'afficher quoi que ce soit
     const [viewAccess, interactAccess] = await Promise.all([
       canUserAccess(user, 'rencontre', 'view'),
       canUserAccess(user, 'rencontre', 'interact')
     ]);
 
-    console.log("🔍 Accès rencontre → view:", viewAccess, " | interact:", interactAccess);
+    console.log(" Accès rencontre → view:", viewAccess, " | interact:", interactAccess);
 
-    // ✅ Mise à jour de l'état une fois les deux réponses reçues
+    // Mise à jour de l'état une fois les deux réponses reçues
     setCanView(Boolean(viewAccess));
     setCanInteract(Boolean(interactAccess));
   };
@@ -310,7 +325,7 @@ useEffect(() => {
   }, [myProfile, fetchProfiles, searchParams]);
 
   const handleAction = async (likedProfileId, action) => {
-  // ✅ Vérifie si l’utilisateur est connecté
+  // Vérifie si l’utilisateur est connecté
   if (!user) {
     toast({
       title: "Connexion requise",
@@ -321,7 +336,7 @@ useEffect(() => {
     return;
   }
 
-  // ✅ Vérifie si le plan autorise les interactions (VIP/Admin)
+  // Vérifie si le plan autorise les interactions (VIP/Admin)
   if (!canInteract) {
     toast({
       title: "Accès réservé",
@@ -457,7 +472,7 @@ useEffect(() => {
 
         if (match.user1_id === myProfile.id || match.user2_id === myProfile.id) {
           toast({
-            title: "C’est un match ! 💚",
+            title: "C’est un match ! ",
             description: "Vous avez un nouveau match. Consultez vos messages."
           });
 
@@ -588,7 +603,7 @@ if (!myProfile && !searchParams.get('rid')) {
                     </div>
                   </div>
                   <CardContent className="p-6 space-y-4">
-                    <p className="text-gray-700 h-10 overflow-hidden">{currentProfile.bio}</p>
+                    <p className="text-gray-700">{currentProfile.bio}</p>
                     <div className="flex justify-around items-center pt-4">
                       <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleAction(currentProfile.id, 'pass')} className="w-16 h-16 rounded-full flex items-center justify-center bg-white shadow-md"><X className="h-8 w-8 text-gray-500" /></motion.button>
                       <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleAction(currentProfile.id, 'like')} className="w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg"><Heart className="h-10 w-10 text-white" fill="white" /></motion.button>
