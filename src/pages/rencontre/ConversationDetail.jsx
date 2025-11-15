@@ -45,7 +45,7 @@ const ConversationDetail = () => {
 
     const { data: matchData, error: matchError } = await supabase
       .from('rencontres_matches')
-      .select('user1:rencontres!user1_id(id, user_id, name, image_url), user2:rencontres!user2_id(id, user_id, name, image_url)')
+      .select('user1:rencontres!user1_id(id, user_id, name, image_url, photos), user2:rencontres!user2_id(id, user_id, name, image_url, photos)')
       .eq('id', matchId)
       .single();
 
@@ -158,8 +158,16 @@ const ConversationDetail = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="w-10 h-10 mr-3">
-             <MediaDisplay bucket="avatars" path={otherUser.image_url} alt={otherUser.name} className="w-full h-full object-cover rounded-full" />
-            <AvatarFallback>{otherUser.name?.charAt(0)}</AvatarFallback>
+            {otherUser.image_url ? (
+              <MediaDisplay
+                bucket="avatars"
+                path={otherUser.image_url}
+                alt={otherUser.name}
+                className="w-full h-full object-cover rounded-full"
+              />
+            ) : (
+              <AvatarFallback>{otherUser.name?.charAt(0)}</AvatarFallback>
+            )}
           </Avatar>
           <h2 className="font-bold text-lg">{otherUser.name}</h2>
         </header>

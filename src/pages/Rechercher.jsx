@@ -12,6 +12,15 @@ import MediaDisplay from '@/components/MediaDisplay';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
+const getRencontrePhoto = (record) => {
+  if (!record) return null;
+  const photosArray = Array.isArray(record.photos) ? record.photos.filter(Boolean) : [];
+  const firstPhoto = photosArray.length > 0 ? photosArray[0] : null;
+  const candidates = [record.image_url, firstPhoto].filter(Boolean);
+  const absolute = candidates.find((c) => typeof c === 'string' && /^https?:\/\//i.test(c));
+  return absolute || candidates[0] || null;
+};
+
 const ResultCard = ({ item, type }) => {
     const navigate = useNavigate();
     let content;
@@ -96,11 +105,14 @@ const ResultCard = ({ item, type }) => {
                 </div>
             );
             break;
-        case 'rencontres':
+        case 'rencontres': {
+            const rencontrePhoto = getRencontrePhoto(item);
+            const bucket = rencontrePhoto ? 'rencontres' : 'avatars';
+            const path = rencontrePhoto || item.profiles?.avatar_url;
             content = (
                 <div className="flex gap-4" onClick={() => navigate(`/rencontre?rid=${item.id}`)}>
                     <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
-                        <MediaDisplay bucket="avatars" path={item.profiles?.avatar_url} alt={item.profiles?.username || item.name} className="w-full h-full object-cover" />
+                        <MediaDisplay bucket={bucket} path={path} alt={item.profiles?.username || item.name} className="w-full h-full object-cover" />
                     </div>
                     <div>
                         <p className="text-xs text-gray-500 flex items-center gap-1"><Heart className="h-3 w-3" /> Profil Rencontre</p>
@@ -110,6 +122,7 @@ const ResultCard = ({ item, type }) => {
                 </div>
             );
             break;
+        }
         default:
             content = null;
     }
@@ -194,7 +207,7 @@ const Rechercher = () => {
     }
     if (filter === 'all' || filter === 'rencontres') {
         searchPromises.push(
-            supabase.from('rencontres').select('id, user_id, name, image_url, profiles(username, avatar_url)').ilike('name', query).limit(10)
+            supabase.from('rencontres').select('id, user_id, name, image_url, photos, profiles(username, avatar_url)').ilike('name', query).limit(10)
             .then(res => ({ type: 'rencontres', ...res }))
         );
     }
@@ -232,8 +245,8 @@ const Rechercher = () => {
         const push = (p, type) => promises.push(p.then(res => ({ type, res })).catch(() => ({ type, res: { data: [], error: null } })));
         const want = (t) => filter === 'all' || filter === t;
         if (want('rencontres')) {
-          const qR1 = supabase.from('rencontres').select('id, user_id, name, image_url, profiles(username, avatar_url)').ilike('name', like).limit(5);
-          const qR2 = supabase.from('rencontres').select('id, user_id, name, image_url, profiles!inner(username, avatar_url)').ilike('profiles.username', like).limit(5);
+          const qR1 = supabase.from('rencontres').select('id, user_id, name, image_url, photos, profiles(username, avatar_url)').ilike('name', like).limit(5);
+          const qR2 = supabase.from('rencontres').select('id, user_id, name, image_url, photos, profiles!inner(username, avatar_url)').ilike('profiles.username', like).limit(5);
           push(qR1, 'rencontres');
           push(qR2, 'rencontres');
         }
@@ -305,11 +318,14 @@ const Rechercher = () => {
                   <div className="space-y-2">
                     {suggestions.map(({type, data}) => {
                       switch (type) {
-                        case 'rencontres':
+                        case 'rencontres': {
+                          const rencontrePhoto = getRencontrePhoto(data);
+                          const bucket = rencontrePhoto ? 'rencontres' : 'avatars';
+                          const path = rencontrePhoto || data.profiles?.avatar_url;
                           return (
                             <div key={`r-${data.id}`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/rencontre?rid=${data.id}`)}>
                               <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                                <MediaDisplay bucket="avatars" path={data.profiles?.avatar_url} alt={data.profiles?.username || data.name} className="w-full h-full object-cover" />
+                                <MediaDisplay bucket={bucket} path={path} alt={data.profiles?.username || data.name} className="w-full h-full object-cover" />
                               </div>
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold truncate">{data.profiles?.username || data.name}</div>
@@ -317,6 +333,7 @@ const Rechercher = () => {
                               </div>
                             </div>
                           );
+                        }
                         case 'annonces':
                           return (
                             <div key={`a-${data.id}`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => navigate('/annonces')}>
