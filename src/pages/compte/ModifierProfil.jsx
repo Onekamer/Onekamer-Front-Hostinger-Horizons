@@ -28,6 +28,7 @@ const ModifierProfil = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
+  const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ const ModifierProfil = () => {
       setBio(profile.bio || '');
       setAvatarPath(profile.avatar_url || null);
     }
-  
+
     if (user) {
       setEmail(user.email || '');
     }
@@ -48,7 +49,7 @@ const ModifierProfil = () => {
     try {
       const file = event.target.files[0];
       if (!file || !user) return;
-  
+
       setUploading(true);
 
       const formData = new FormData();
@@ -79,14 +80,15 @@ const ModifierProfil = () => {
         .eq('id', user.id);
 
       if (updateError) throw updateError;
-      
+
       setAvatarPath(avatarUrl);
       await refreshProfile();
-  
+
       toast({
         title: 'Photo mise à jour !',
-        description: 'Votre nouvel avatar a été enregistré avec succès 🎉',
+        description: 'Votre nouvel avatar a été enregistré avec succès ',
       });
+      setErrors(prev => ({ ...prev, photo: undefined }));
     } catch (error) {
       console.error('Erreur upload avatar:', error.message);
       toast({
@@ -101,6 +103,33 @@ const ModifierProfil = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const newErrors = {};
+
+    if (!avatarPath) {
+      newErrors.photo = "Une photo de profil est obligatoire.";
+    }
+    if (!username || !username.trim()) {
+      newErrors.username = "Le nom d'utilisateur est obligatoire.";
+    }
+    if (!bio || !bio.trim()) {
+      newErrors.bio = "La biographie est obligatoire.";
+    }
+    if (!email || !email.trim()) {
+      newErrors.email = "L'email est obligatoire.";
+    } else if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      newErrors.email = "Veuillez saisir un email valide.";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast({
+        title: 'Champs obligatoires manquants',
+        description: "Merci de compléter les champs marqués d'une astérisque.",
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
 
     const { error: profileError } = await supabase
@@ -119,7 +148,7 @@ const ModifierProfil = () => {
       setLoading(false);
       return;
     }
-    
+
     const updates = {};
     if (email !== user.email) {
       updates.email = email;
@@ -144,9 +173,10 @@ const ModifierProfil = () => {
     await refreshProfile();
 
     toast({
-      title: "✅ Profil mis à jour avec succès.",
+      title: " Profil mis à jour avec succès.",
       description: "Vos informations ont été enregistrées.",
     });
+    setErrors({});
     setPassword('');
     setConfirmPassword('');
     setLoading(false);
@@ -185,15 +215,15 @@ const ModifierProfil = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="relative w-24 h-24">
-                     {avatarPath ? (
-                        <MediaDisplay bucket="avatars" path={avatarPath} alt="Avatar" className="w-24 h-24 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#2BA84A] to-[#F5C300] flex items-center justify-center text-white text-4xl font-bold">
-                          {(username || fullName || email)?.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    <Button 
-                      type="button" 
+                    {avatarPath ? (
+                      <MediaDisplay bucket="avatars" path={avatarPath} alt="Avatar" className="w-24 h-24 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#2BA84A] to-[#F5C300] flex items-center justify-center text-white text-4xl font-bold">
+                        {(username || fullName || email)?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <Button
+                      type="button"
                       size="icon"
                       className="absolute bottom-0 right-0 rounded-full"
                       onClick={() => fileInputRef.current.click()}
@@ -210,53 +240,92 @@ const ModifierProfil = () => {
                       disabled={uploading}
                     />
                   </div>
-                   <div className="flex-grow">
-                     <h2 className="font-bold text-lg">{username || fullName}</h2>
-                     <p className="text-sm text-gray-500">Changer la photo de profil</p>
-                   </div>
+                  <div className="flex-grow">
+                    <h2 className="font-bold text-lg">{username || fullName}</h2>
+                    <p className="text-sm text-gray-500">Changer la photo de profil *</p>
+                  </div>
                 </div>
+                {errors.photo && (
+                  <p className="text-sm text-red-500 mt-1">{errors.photo}</p>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="username">Nom d'utilisateur</Label>
-                        <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="name">Nom complet</Label>
-                        <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Nom d'utilisateur *</Label>
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) => {
+                        setUsername(e.target.value);
+                        setErrors(prev => ({ ...prev, username: undefined }));
+                      }}
+                    />
+                    {errors.username && (
+                      <p className="text-sm text-red-500 mt-1">{errors.username}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nom complet</Label>
+                    <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                  </div>
                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="phone">Téléphone</Label>
-                    <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+33612345678" />
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Téléphone</Label>
+                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+33612345678" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Biographie</Label>
-                  <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value.slice(0, 200))} maxLength="200" placeholder="Parlez un peu de vous..." />
+                  <Label htmlFor="bio">Biographie *</Label>
+                  <Textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => {
+                      const val = e.target.value.slice(0, 200);
+                      setBio(val);
+                      setErrors(prev => ({ ...prev, bio: undefined }));
+                    }}
+                    maxLength="200"
+                    placeholder="Parlez un peu de vous..."
+                  />
                   <p className="text-sm text-gray-500 text-right">{bio.length} / 200</p>
+                  {errors.bio && (
+                    <p className="text-sm text-red-500 mt-1">{errors.bio}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.com" />
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrors(prev => ({ ...prev, email: undefined }));
+                    }}
+                    placeholder="votre@email.com"
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-red-500 mt-1">{errors.email}</p>
+                  )}
                 </div>
-                
+
                 <Card className="bg-red-50 border-red-200">
-                    <CardHeader>
-                        <CardTitle className="text-lg text-red-800">Changer le mot de passe</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                            <Label htmlFor="password">Nouveau mot de passe</Label>
-                            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-                            </div>
-                            <div className="space-y-2">
-                            <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                            <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
-                            </div>
-                        </div>
-                    </CardContent>
+                  <CardHeader>
+                    <CardTitle className="text-lg text-red-800">Changer le mot de passe</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Nouveau mot de passe</Label>
+                        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                        <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
 
                 <Button type="submit" className="w-full bg-[#2BA84A]" disabled={loading || uploading}>
