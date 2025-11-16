@@ -112,35 +112,41 @@ const Landing = () => {
 
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             {/* Gratuit */}
-            <div className="relative rounded-xl border border-gray-200 bg-white p-6 flex flex-col shadow-sm">
+            <div className="relative rounded-xl border border-gray-200 bg-white p-6 flex flex-col h-full shadow-sm">
               <h3 className="text-lg font-semibold">Gratuit</h3>
               <p className="text-sm italic text-gray-600 mt-1">Découvrez les bases de la communauté OneKamer.</p>
-              <div className="mt-3 text-3xl font-extrabold">0€ <span className="text-base font-normal">/ mois</span></div>
-              <ul className="mt-4 space-y-2 text-gray-700 text-sm">
-                <li>📰 Accès aux Annonces (lecture)</li>
-                <li>🎟️ Accès aux Événements (lecture)</li>
-                <li>💬 Accès aux Échanges (lecture + commentaires)</li>
-                <li>🗞️ Accès aux Faits divers</li>
-                <li>👥 Accès aux Groupes (lecture)</li>
-              </ul>
+              <div className="mt-3 flex-1">
+                <div className="text-3xl font-extrabold">0€ <span className="text-base font-normal">/ mois</span></div>
+                <ul className="mt-4 space-y-2 text-gray-700 text-sm">
+                  <li>📰 Accès aux Annonces (lecture)</li>
+                  <li>🎟️ Accès aux Événements (lecture)</li>
+                  <li>💬 Accès aux Échanges (lecture + commentaires)</li>
+                  <li>🗞️ Accès aux Faits divers</li>
+                  <li>👥 Accès aux Groupes (lecture)</li>
+                  <li>📱 Accès au QR Code pour les événements</li>
+                </ul>
+              </div>
               <div className="mt-6">
                 <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
-                  Gratuit
+                  S'inscrire
                 </button>
               </div>
             </div>
 
             {/* Standard */}
-            <div className="relative rounded-xl border-2 border-[#2BA84A] bg-white p-6 flex flex-col shadow-sm">
+            <div className="relative rounded-xl border-2 border-[#2BA84A] bg-white p-6 flex flex-col h-full shadow-sm">
               <div className="absolute top-0 right-4 -mt-3 bg-[#2BA84A] text-white text-xs font-bold px-3 py-1 rounded-full">POPULAIRE</div>
               <h3 className="text-lg font-semibold">Standard</h3>
               <p className="text-sm italic text-gray-600 mt-1">Moins cher qu’une portion de soya bien pimenté.</p>
-              <div className="mt-3 text-3xl font-extrabold">2€ <span className="text-base font-normal">/ mois</span></div>
-              <ul className="mt-4 space-y-2 text-gray-700 text-sm">
-                <li>✅ Tout du plan Gratuit</li>
-                <li>🏢 Accès aux Partenaires & Recommandations</li>
-                <li>🏷️ Badge Standard sur le profil</li>
-              </ul>
+              <div className="mt-3 flex-1">
+                <div className="text-3xl font-extrabold">2€ <span className="text-base font-normal">/ mois</span></div>
+                <ul className="mt-4 space-y-2 text-gray-700 text-sm">
+                  <li>✅ Tout du plan Gratuit</li>
+                  <li>🏢 Accès aux Partenaires & Recommandations</li>
+                  <li>🏷️ Badge Standard sur le profil</li>
+                  <li>📱 Accès au QR Code pour les événements</li>
+                </ul>
+              </div>
               <div className="mt-6">
                 <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
                   Souscrire au forfait Standard
@@ -149,18 +155,27 @@ const Landing = () => {
             </div>
 
             {/* VIP */}
-            <div className="relative rounded-xl border border-gray-200 bg-white p-6 flex flex-col shadow-sm">
-              <h3 className="text-lg font-semibold">VIP</h3>
+            <div className="relative rounded-xl border border-gray-200 bg-white p-6 flex flex-col h-full shadow-sm">
+              <h3 className="text-lg font-semibold flex items-center justify-between">
+                <span>VIP</span>
+                <span className="ml-4 px-4 py-1.5 rounded-full text-sm font-semibold bg-[#2BA84A] text-white">
+                  1 mois d'essai gratuit
+                </span>
+              </h3>
               <p className="text-sm italic text-gray-600 mt-1">À peine le prix de deux courses en moto-taxi.</p>
-              <div className="mt-3 text-3xl font-extrabold">5€ <span className="text-base font-normal">/ mois</span></div>
-              <ul className="mt-4 space-y-2 text-gray-700 text-sm">
-                <li>✅ Tout du plan Standard</li>
-                <li>❤️ Accès complet à la section Rencontre</li>
-                <li>✍️ Création d’annonces</li>
-                <li>🎉 Création d’événements</li>
-                <li>👨‍👩‍👧‍👦 Création de groupes</li>
-                <li>💎 Badge VIP sur le profil</li>
-              </ul>
+              <div className="mt-3 flex-1">
+                <div className="text-3xl font-extrabold">5€ <span className="text-base font-normal">/ mois</span></div>
+                <ul className="mt-4 space-y-2 text-gray-700 text-sm">
+                  <li>✅ Tout du plan Standard</li>
+                  <li>❤️ Accès complet à la section Rencontre</li>
+                  <li>✍️ Création d’annonces</li>
+                  <li>🎉 Création d’événements</li>
+                  <li>👨‍👩‍👧‍👦 Création de groupes</li>
+                  <li>📱 Accès au QR Code pour les événements</li>
+                  <li>💎 Badge VIP sur le profil</li>
+                  <li>🆓 1 mois d'essai gratuit</li>
+                </ul>
+              </div>
               <div className="mt-6">
                 <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
                   Devenir membre VIP

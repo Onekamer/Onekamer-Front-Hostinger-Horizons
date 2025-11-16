@@ -72,6 +72,7 @@ const Forfaits = () => {
         '💬 Accès aux Échanges (lecture + commentaires)',
         '🗞️ Accès aux Faits divers',
         '👥 Accès aux Groupes (lecture)',
+        '📱 Accès au QR Code pour les événements',
       ],
     },
     {
@@ -85,6 +86,7 @@ const Forfaits = () => {
         '✅ Tout du plan Gratuit',
         '🏢 Accès aux Partenaires & Recommandations',
         '🏷️ Badge Standard sur le profil',
+        '📱 Accès au QR Code pour les événements',
       ],
     },
     {
@@ -99,7 +101,9 @@ const Forfaits = () => {
         '✍️ Création d’annonces',
         '🎉 Création d’événements',
         '👨‍👩‍👧‍👦 Création de groupes',
+        '📱 Accès au QR Code pour les événements',
         '💎 Badge VIP sur le profil',
+        '🆓 1 mois d\'essai gratuit',
       ],
     }
   ];
@@ -121,7 +125,18 @@ const Forfaits = () => {
             <Card key={plan.key} className={`flex flex-col ${plan.isPopular ? 'border-2 border-[#2BA84A]' : ''} ${profile?.plan === plan.key ? 'bg-green-50' : ''}`}>
               {plan.isPopular && <div className="absolute top-0 right-4 -mt-3 bg-[#2BA84A] text-white text-xs font-bold px-3 py-1 rounded-full">POPULAIRE</div>}
               <CardHeader>
-                <CardTitle>{plan.name}</CardTitle>
+                <CardTitle>
+                  {plan.key === 'vip' ? (
+                    <div className="flex items-center justify-between">
+                      <span>{plan.name}</span>
+                      <span className="ml-4 px-4 py-1.5 rounded-full text-sm font-semibold bg-[#2BA84A] text-white">
+                        1 mois d'essai gratuit
+                      </span>
+                    </div>
+                  ) : (
+                    plan.name
+                  )}
+                </CardTitle>
                 <CardDescription className="italic">{plan.description}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-between space-y-4">
