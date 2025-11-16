@@ -62,10 +62,22 @@ const ModifierProfil = () => {
       formData.append("type", "avatars");
       formData.append("recordId", user.id);
 
-      const res = await fetch("https://onekamer-server.onrender.com/api/upload-media", {
+      // URL de base API (permet d'évoluer si VITE_API_URL est défini plus tard)
+      const baseUrl = import.meta.env.VITE_API_URL || "https://onekamer-server.onrender.com/api";
+
+      // 1) Tentative sur /upload-media
+      let res = await fetch(`${baseUrl}/upload-media`, {
         method: "POST",
         body: formData,
       });
+
+      // 2) Si la route n'existe pas (404), fallback sur /upload
+      if (res.status === 404) {
+        res = await fetch(`${baseUrl}/upload`, {
+          method: "POST",
+          body: formData,
+        });
+      }
 
       if (!res.ok) {
         throw new Error('La mise à jour du fichier a échoué');
