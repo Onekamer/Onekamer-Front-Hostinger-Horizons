@@ -59,7 +59,7 @@ const ModifierProfil = () => {
         { type: file.type || "image/jpeg" }
       );
       formData.append("file", safeFile);
-      formData.append("type", "profiles");
+      formData.append("type", "avatars");
       formData.append("recordId", user.id);
 
       const res = await fetch("https://onekamer-server.onrender.com/api/upload-media", {
