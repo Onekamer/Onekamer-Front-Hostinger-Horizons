@@ -131,6 +131,9 @@ const Compte = () => {
             {isQrAdmin && (
               <MenuItem onClick={() => navigate('/scan')} title="Scanner QR (Admin)" />
             )}
+            {profile.role === 'admin' && (
+              <MenuItem onClick={() => navigate('/compte/emails-admin')} title="Envoyer des emails (admin)" />
+            )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
             <MenuItem onClick={() => navigate('/forfaits')} title="Changer de forfait" />
