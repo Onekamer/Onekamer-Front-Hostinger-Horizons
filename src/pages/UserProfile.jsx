@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ const UserProfile = () => {
   
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -51,13 +53,6 @@ const UserProfile = () => {
     loadProfile();
   }, [userId]);
 
-  const handleFollow = () => {
-    toast({
-      title: `Vous suivez maintenant ${profile?.username || 'cet utilisateur'}`,
-      description: "🚧 Cette fonctionnalité n'est pas encore implémentée.",
-    });
-  };
-  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -102,7 +97,18 @@ const UserProfile = () => {
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center">
                 {profile.avatar_url ? (
-                  <MediaDisplay bucket="avatars" path={profile.avatar_url} alt="Avatar" className="w-32 h-32 rounded-full object-cover mb-4" />
+                  <button
+                    type="button"
+                    className="w-32 h-32 rounded-full overflow-hidden mb-4 focus:outline-none focus:ring-2 focus:ring-[#2BA84A]"
+                    onClick={() => setLightboxOpen(true)}
+                  >
+                    <MediaDisplay
+                      bucket="avatars"
+                      path={profile.avatar_url}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                 ) : (
                   <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#2BA84A] to-[#F5C300] flex items-center justify-center text-white text-5xl font-bold mb-4">
                     {(profile.username || 'U').charAt(0).toUpperCase()}
@@ -146,18 +152,29 @@ const UserProfile = () => {
                 </div>
 
                 <p className="text-gray-600 mt-6 max-w-md">{profile.bio || 'Aucune biographie.'}</p>
-
-                <div className="flex gap-4 mt-6">
-                  <Button className="bg-[#2BA84A]" onClick={handleFollow}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Suivre
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
+      {lightboxOpen && profile.avatar_url && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <div
+            className="max-w-[95vw] max-h-[95vh] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MediaDisplay
+              bucket="avatars"
+              path={profile.avatar_url}
+              alt="Avatar"
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 };
