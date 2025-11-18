@@ -720,36 +720,6 @@ const CreatePost = () => {
                     onChange={handleFileChange}
                     disabled={recording || !!audioBlob}
                 />
-                
-                {!mediaFile && (
-                  !recording ? (
-                    <Button
-                      onClick={startRecording}
-                      disabled={loading || !!audioBlob}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      <Mic className="h-4 w-4 mr-2" /> Démarrer
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={stopRecording}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      <Square className="h-4 w-4 mr-2" /> Arrêter
-                    </Button>
-                  )
-                )}
-                {recording && (
-                  <div className="ml-2 flex items-center gap-2 text-red-600">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="font-mono text-sm">
-                      {String(Math.floor(recordingTime / 60)).padStart(1,"0")}:
-                      {String(recordingTime % 60).padStart(2,"0")}
-                    </span>
-                  </div>
-                )}
             </div>
 
             <Button
