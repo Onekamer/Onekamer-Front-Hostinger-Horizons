@@ -762,19 +762,6 @@ const CommentSection = ({ postId }) => {
                   </Button>
                 )}
                 <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob}/>
-                
-                {!mediaFile && (
-                    isRecording ? (
-                        <Button size="sm" type="button" variant="destructive" onClick={stopRecording}>
-                            <Square className="h-4 w-4 mr-2" /> Stop
-                        </Button>
-                    ) : (
-                       !audioBlob &&
-                        <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isPostingComment}>
-                            <Mic className="h-4 w-4 mr-2" /> Audio
-                        </Button>
-                    )
-                )}
             </div>
         </form>
       </div>

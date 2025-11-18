@@ -801,19 +801,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                           </Button>
                         )}
                         <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob} />
-                        {!mediaFile && (
-                          !isRecording ? (
-                            !audioBlob && (
-                              <Button size="sm" type="button" variant="ghost" onClick={startRecording}>
-                                <Mic className="h-4 w-4 mr-2" /> Audio
-                              </Button>
-                            )
-                          ) : (
-                            <Button size="sm" type="button" variant="destructive" onClick={stopRecording}>
-                              <Square className="h-4 w-4 mr-2" /> Stop
-                            </Button>
-                          )
-                        )}
                       </div>
                     </div>
                   )}
