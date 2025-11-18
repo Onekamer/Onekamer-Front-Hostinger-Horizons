@@ -52,6 +52,7 @@ import MentionsLegalesPage from '@/pages/MentionLegales';
 import Landing from '@/pages/Landing';
 import PublicHeader from '@/pages/public/PublicHeader';
 import OneSignalInitializer from '@/OneSignalInitializer';
+import IosPwaPrompt from '@/components/IosPwaPrompt';
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -165,6 +166,7 @@ function App() {
         <div className="min-h-screen bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5] pb-20">
           <AppContent />
           <OneSignalInitializer />
+          <IosPwaPrompt />
         </div>
 
         <Toaster />
