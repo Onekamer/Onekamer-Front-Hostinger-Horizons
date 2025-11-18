@@ -25,12 +25,24 @@ import React, { useState, useEffect, useCallback } from 'react';
     const OuvrirGoogleMaps = ({ latitude, longitude, location }) => {
       const { toast } = useToast();
       const handleOpenMaps = () => {
-        if (!latitude || !longitude) {
-          toast({ title: 'Erreur', description: 'Coordonnées de carte non disponibles.', variant: 'destructive' });
+        if (latitude && longitude) {
+          const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+          window.open(url, "_blank");
           return;
         }
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-        window.open(url, "_blank");
+
+        if (location) {
+          const encoded = encodeURIComponent(location);
+          const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+          window.open(url, "_blank");
+          return;
+        }
+
+        toast({
+          title: 'Lieu indisponible',
+          description: "Aucune information de localisation disponible pour cet événement.",
+          variant: 'destructive',
+        });
       };
 
       return (
@@ -180,6 +192,30 @@ import React, { useState, useEffect, useCallback } from 'react';
                 toast({ title: "Partage non disponible" });
             }
         };
+        const handleOpenMapsQuick = (e) => {
+          e.stopPropagation();
+
+          const { latitude, longitude, location } = event;
+
+          if (latitude && longitude) {
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+            window.open(url, "_blank");
+            return;
+          }
+
+          if (location) {
+            const encoded = encodeURIComponent(location);
+            const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+            window.open(url, "_blank");
+            return;
+          }
+
+          toast({
+            title: 'Lieu indisponible',
+            description: "Aucune information de localisation disponible pour cet événement.",
+            variant: 'destructive',
+          });
+        };
         
         return (
             <Card onClick={() => onSelect(event)} className="cursor-pointer group overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 h-full flex flex-col rounded-lg">
@@ -206,7 +242,16 @@ import React, { useState, useEffect, useCallback } from 'react';
                     <div>
                       <div className="flex items-center gap-2 text-sm text-gray-600"><Calendar className="h-4 w-4 text-[#2BA84A]" /><span>{new Date(event.date).toLocaleDateString('fr-FR')} à {event.time}</span></div>
                     </div>
-                    <span className="text-2xl font-bold text-[#2BA84A] mt-2">{formatPrice(event.price, event.devises)}</span>
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-2xl font-bold text-[#2BA84A]">{formatPrice(event.price, event.devises)}</span>
+                      <Button
+                        onClick={handleOpenMapsQuick}
+                        className="bg-[#2BA84A] hover:bg-[#24903f] text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        <span>S'y rendre</span>
+                      </Button>
+                    </div>
                 </CardContent>
             </Card>
         );

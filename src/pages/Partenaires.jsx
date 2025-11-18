@@ -8,12 +8,14 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Star, Share2, MessageSquare, Mail, ArrowLeft, Lock } from 'lucide-react';
+import { Plus, Search, Star, Share2, MessageSquare, Mail, ArrowLeft, Lock, MapPin } from 'lucide-react';
 import { canUserAccess } from '@/lib/accessControl';
 import FavoriteButton from '@/components/FavoriteButton';
 import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
 
 const PartenaireDetail = ({ partenaire, onBack, onRecommander }) => {
+  const { toast } = useToast();
+
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
@@ -24,6 +26,31 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander }) => {
     } else {
       alert("La fonction de partage n'est pas supportée sur ce navigateur.");
     }
+  };
+
+  const handleOpenMaps = () => {
+    if (!partenaire) return;
+
+    const { latitude, longitude, address } = partenaire;
+
+    if (latitude && longitude) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+      window.open(url, "_blank");
+      return;
+    }
+
+    if (address) {
+      const encoded = encodeURIComponent(address);
+      const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+      window.open(url, "_blank");
+      return;
+    }
+
+    toast({
+      title: 'Adresse indisponible',
+      description: "Aucune information de localisation disponible pour ce partenaire.",
+      variant: 'destructive',
+    });
   };
 
   return (
@@ -74,6 +101,12 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander }) => {
               <p><span className="font-semibold">Téléphone:</span> <a href={`tel:${partenaire.phone}`} className="text-green-600">{partenaire.phone}</a></p>
               {partenaire.website && <p><span className="font-semibold">Site web:</span> <a href={partenaire.website} target="_blank" rel="noopener noreferrer" className="text-green-600">{partenaire.website}</a></p>}
             </div>
+            <button
+              onClick={handleOpenMaps}
+              className="mt-3 bg-[#2BA84A] hover:bg-[#24903f] text-white px-3 py-2 rounded-md text-sm w-full"
+            >
+              📍 Ouvrir dans Google Maps
+            </button>
             <p className="text-sm text-gray-500 italic border-t pt-4">Recommandé par: {partenaire.recommandation || 'la communauté'}</p>
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={() => onRecommander(partenaire.id)} className="flex-1">
@@ -174,6 +207,32 @@ const Partenaires = () => {
     toast({ title: 'Bientôt disponible', description: 'La fonctionnalité de recommandation sera bientôt activée.' });
   };
 
+  const handleOpenMapsQuick = (e, partenaire) => {
+    e.stopPropagation();
+    if (!partenaire) return;
+
+    const { latitude, longitude, address } = partenaire;
+
+    if (latitude && longitude) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+      window.open(url, "_blank");
+      return;
+    }
+
+    if (address) {
+      const encoded = encodeURIComponent(address);
+      const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+      window.open(url, "_blank");
+      return;
+    }
+
+    toast({
+      title: 'Adresse indisponible',
+      description: "Aucune information de localisation disponible pour ce partenaire.",
+      variant: 'destructive',
+    });
+  };
+
   return (
   <>
     <Helmet>
@@ -271,7 +330,14 @@ const Partenaires = () => {
                       {partenaire.address}
                     </p>
                   </CardHeader>
-                  <CardContent className="flex justify-around border-t pt-4 pb-0">
+                  <CardContent className="flex justify-around border-t pt-4 pb-3">
+                    <Button
+                      onClick={(e) => handleOpenMapsQuick(e, partenaire)}
+                      className="bg-[#2BA84A] hover:bg-[#24903f] text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      <span>S'y rendre</span>
+                    </Button>
                     <Button variant="ghost" size="icon">
                       <MessageSquare className="w-5 h-5 text-[#2BA84A]" />
                     </Button>
