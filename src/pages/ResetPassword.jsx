@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
+// build: noop to force Render rebuild
 const SUPABASE_URL = 'https://neswuuicqesslduqwzck.supabase.co';
 const ENABLE_FALLBACK = (typeof window !== 'undefined') ? !/[?&#]nofallback=1/.test(window.location.href) : true;
 const ResetPassword = () => {
