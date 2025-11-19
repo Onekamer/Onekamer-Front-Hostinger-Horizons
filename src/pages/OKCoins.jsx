@@ -272,7 +272,7 @@ const OKCoins = () => {
                 <AccordionContent className="pl-8 space-y-2">
                   <p>1. <strong>Rechargez</strong> votre solde en OK Coins (pièces virtuelles) depuis votre compte.</p>
                   <p>2. <strong>Envoyez</strong> un don à un membre, un créateur ou une publication.</p>
-                  <p>3. Les bénéficiaires reçoivent des points et peuvent ensuite <strong>convertir</strong> leurs pièces en récompenses ou avantages.</p>
+                  <p>3. Les bénéficiaires reçoivent des pièces et peuvent par la suite demander un retrait directement sur leur compte bancaire via l'application ou les utiliser pour payer directement avec lorsqu'il s'agit d'évènement payant organisé par OneKamer.</p>
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-3">
