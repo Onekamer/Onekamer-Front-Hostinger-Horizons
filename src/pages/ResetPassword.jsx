@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
+const SUPABASE_URL = 'https://neswuuicqesslduqwzck.supabase.co';
 const ResetPassword = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -69,6 +70,26 @@ const ResetPassword = () => {
                     clearInterval(interval);
                 }
             }, 250);
+
+            // 4.b Fallback: if no session after 2.5s but access_token is present in hash or query, force verify roundtrip
+            const fallback = setTimeout(() => {
+                if (!hasSession) {
+                    const hash = window.location.hash || '';
+                    const search = window.location.search || '';
+                    const tokenMatchHash = hash.match(/access_token=([^&]+)/);
+                    const tokenMatchQuery = search.match(/access_token=([^&]+)/);
+                    const token = (tokenMatchHash && tokenMatchHash[1]) || (tokenMatchQuery && tokenMatchQuery[1]);
+                    if (token) {
+                        const redirectTo = encodeURIComponent(`${window.location.origin}/reset-password`);
+                        const verifyUrl = `${SUPABASE_URL}/auth/v1/verify?token=${token}&type=recovery&redirect_to=${redirectTo}`;
+                        console.debug('[ResetPassword][PROD] fallback redirect to verify endpoint');
+                        window.location.replace(verifyUrl);
+                    }
+                }
+            }, 2500);
+
+            // clear fallback on unmount
+            window.addEventListener('beforeunload', () => clearTimeout(fallback));
         }
 
         return () => {
