@@ -19,7 +19,9 @@ import React, { useState } from 'react';
         const handlePasswordReset = async (e) => {
             e.preventDefault();
             setLoading(true);
-            const { error } = await supabase.auth.resetPasswordForEmail(email);
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
             setLoading(false);
             if (error) {
                 toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
