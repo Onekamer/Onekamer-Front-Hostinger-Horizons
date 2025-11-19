@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -14,38 +15,9 @@ const ResetPassword = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [hasSession, setHasSession] = useState(false);
+
     const navigate = useNavigate();
     const { toast } = useToast();
-
-    useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-
-                const params = new URLSearchParams(window.location.search);
-                const isRecovery = params.get('type') === 'recovery';
-
-                if (session || isRecovery) {
-                    setHasSession(true);
-                }
-            } catch (e) {
-                // no-op
-            }
-        };
-
-        checkSession();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-                setHasSession(true);
-            }
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, []);
 
     const handleResetPassword = async (e) => {
         e.preventDefault();
@@ -81,31 +53,27 @@ const ResetPassword = () => {
                     <CardHeader>
                         <CardTitle>Réinitialiser le mot de passe</CardTitle>
                         <CardDescription>
-                            {hasSession ? 'Entrez votre nouveau mot de passe.' : 'Veuillez utiliser le lien envoyé par email. Redirection en cours...'}
+                            Entrez votre nouveau mot de passe.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {hasSession ? (
-                            <form onSubmit={handleResetPassword} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="new-password">Nouveau mot de passe</Label>
-                                    <Input id="new-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
-                                    <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                                </div>
-                                {error && <p className="text-sm text-red-500">{error}</p>}
-                                <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Mettre à jour le mot de passe
-                                </Button>
-                            </form>
-                        ) : (
-                            <div className="text-center text-gray-500">
-                                <p>Si vous n'êtes pas redirigé, veuillez vérifier le lien dans votre email.</p>
+                        <form onSubmit={handleResetPassword} className="space-y-4">
+
+                            <div className="space-y-2">
+                                <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                                <Input id="new-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
                             </div>
-                        )}
+                            <div className="space-y-2">
+                                <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                                <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                            </div>
+                            {error && <p className="text-sm text-red-500">{error}</p>}
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Mettre à jour le mot de passe
+                            </Button>
+                        </form>
+
                     </CardContent>
                 </Card>
             </div>
