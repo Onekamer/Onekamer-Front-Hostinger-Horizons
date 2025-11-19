@@ -71,22 +71,31 @@ const ResetPassword = () => {
                 }
             }, 250);
 
-            // 4.b Fallback: if no session after 2.5s but access_token is present in hash or query, force verify roundtrip
+            // 4.b Fallback: delayed to 8s with guards to avoid consuming valid links too early
             const fallback = setTimeout(() => {
-                if (!hasSession) {
-                    const hash = window.location.hash || '';
-                    const search = window.location.search || '';
-                    const tokenMatchHash = hash.match(/access_token=([^&]+)/);
-                    const tokenMatchQuery = search.match(/access_token=([^&]+)/);
-                    const token = (tokenMatchHash && tokenMatchHash[1]) || (tokenMatchQuery && tokenMatchQuery[1]);
-                    if (token) {
-                        const redirectTo = encodeURIComponent(`${window.location.origin}/reset-password`);
-                        const verifyUrl = `${SUPABASE_URL}/auth/v1/verify?token=${token}&type=recovery&redirect_to=${redirectTo}`;
-                        console.debug('[ResetPassword][PROD] fallback redirect to verify endpoint');
-                        window.location.replace(verifyUrl);
-                    }
+                if (hasSession) {
+                    console.debug('[ResetPassword][PROD] fallback SKIPPED reason=session-already-present');
+                    return;
                 }
-            }, 2500);
+                const hash = window.location.hash || '';
+                const search = window.location.search || '';
+                // if Supabase already indicates an error (expired/invalid), do not fallback
+                if (/([?&#])error=/.test(window.location.href)) {
+                    console.debug('[ResetPassword][PROD] fallback SKIPPED reason=url-error-present');
+                    return;
+                }
+                const tokenMatchHash = hash.match(/access_token=([^&]+)/);
+                const tokenMatchQuery = search.match(/access_token=([^&]+)/);
+                const token = (tokenMatchHash && tokenMatchHash[1]) || (tokenMatchQuery && tokenMatchQuery[1]);
+                if (!token) {
+                    console.debug('[ResetPassword][PROD] fallback SKIPPED reason=no-token');
+                    return;
+                }
+                const redirectTo = encodeURIComponent(`${window.location.origin}/reset-password`);
+                const verifyUrl = `${SUPABASE_URL}/auth/v1/verify?token=${token}&type=recovery&redirect_to=${redirectTo}`;
+                console.debug('[ResetPassword][PROD] fallback redirect to verify endpoint (8s)');
+                window.location.replace(verifyUrl);
+            }, 8000);
 
             // clear fallback on unmount
             window.addEventListener('beforeunload', () => clearTimeout(fallback));
