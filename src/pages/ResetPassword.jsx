@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
 const SUPABASE_URL = 'https://neswuuicqesslduqwzck.supabase.co';
-const ENABLE_FALLBACK = (typeof window (== 'undefined') ? !typeof window !== 'undefined') ? !/[?&#]nofall : trueback=1/.test(window.location.href) : true;
+const ENABLE_FALLBACK = (typeof window !== 'undefined') ? !/[?&#]nofallback=1/.test(window.location.href) : true;
 const ResetPassword = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
