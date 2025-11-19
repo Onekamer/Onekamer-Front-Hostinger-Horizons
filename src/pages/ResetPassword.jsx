@@ -54,6 +54,23 @@ const ResetPassword = () => {
             }
         });
 
+        // 4) If URL contains recovery params, poll session for up to ~10s (Safari workaround)
+        const href = window.location.href;
+        if (/type=recovery|access_token=/.test(href)) {
+            let attempts = 0;
+            const maxAttempts = 40; // 40 * 250ms = 10s
+            const interval = setInterval(async () => {
+                attempts += 1;
+                const { data } = await supabase.auth.getSession();
+                console.debug('[ResetPassword][PROD] polling getSession', { attempts, hasSession: !!data?.session });
+                if (!mounted) { clearInterval(interval); return; }
+                if (data?.session || attempts >= maxAttempts) {
+                    if (data?.session) setHasSession(true);
+                    clearInterval(interval);
+                }
+            }, 250);
+        }
+
         return () => {
             mounted = false;
             clearTimeout(t);
