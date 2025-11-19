@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
 const SUPABASE_URL = 'https://neswuuicqesslduqwzck.supabase.co';
-const ENABLE_FALLBACK = !/[?&#]nofallback=1/.test(window.location.href);
+const ENABLE_FALLBACK = (typeof window (== 'undefined') ? !typeof window !== 'undefined') ? !/[?&#]nofall : trueback=1/.test(window.location.href) : true;
 const ResetPassword = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,9 +22,11 @@ const ResetPassword = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
 
-    // Parse URL error for UX
-    const urlErrorMatch = /[?&#]error=([^&]+)/.exec(window.location.href);
-    const urlErrorDescMatch = /[?&#]error_description=([^&]+)/.exec(window.location.href);
+    // Parse URL error for UX (safe for build-time without window)
+    const hrefSafe = (typeof window !== 'undefined') ? window.location.href : ''; (safe for build-time without window)
+    const hrefSafe = (typeof window !== 'undefined')on.fSaheref : '';
+    const urlErrorMatch = /[?&#]error=([^&]+)/.exec(hrefSafe);fSae
+    const urlErrorDescMatch = /[?&#]error_description=([^&]+)/.exec(hrefSafe);
     const urlError = urlErrorMatch ? decodeURIComponent(urlErrorMatch[1].replace(/\+/g, ' ')) : '';
     const urlErrorDesc = urlErrorDescMatch ? decodeURIComponent(urlErrorDescMatch[1].replace(/\+/g, ' ')) : '';
 
