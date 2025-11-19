@@ -23,9 +23,8 @@ const ResetPassword = () => {
     const { toast } = useToast();
 
     // Parse URL error for UX (safe for build-time without window)
-    const hrefSafe = (typeof window !== 'undefined') ? window.location.href : ''; (safe for build-time without window)
-    const hrefSafe = (typeof window !== 'undefined')on.fSaheref : '';
-    const urlErrorMatch = /[?&#]error=([^&]+)/.exec(hrefSafe);fSae
+    const hrefSafe = (typeof window !== 'undefined') ? window.location.href : '';
+    const urlErrorMatch = /[?&#]error=([^&]+)/.exec(hrefSafe);
     const urlErrorDescMatch = /[?&#]error_description=([^&]+)/.exec(hrefSafe);
     const urlError = urlErrorMatch ? decodeURIComponent(urlErrorMatch[1].replace(/\+/g, ' ')) : '';
     const urlErrorDesc = urlErrorDescMatch ? decodeURIComponent(urlErrorDescMatch[1].replace(/\+/g, ' ')) : '';
