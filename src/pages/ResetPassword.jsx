@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
 const SUPABASE_URL = 'https://neswuuicqesslduqwzck.supabase.co';
+const ENABLE_FALLBACK = !/[?&#]nofallback=1/.test(window.location.href);
 const ResetPassword = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,6 +21,12 @@ const ResetPassword = () => {
 
     const navigate = useNavigate();
     const { toast } = useToast();
+
+    // Parse URL error for UX
+    const urlErrorMatch = /[?&#]error=([^&]+)/.exec(window.location.href);
+    const urlErrorDescMatch = /[?&#]error_description=([^&]+)/.exec(window.location.href);
+    const urlError = urlErrorMatch ? decodeURIComponent(urlErrorMatch[1].replace(/\+/g, ' ')) : '';
+    const urlErrorDesc = urlErrorDescMatch ? decodeURIComponent(urlErrorDescMatch[1].replace(/\+/g, ' ')) : '';
 
     // Robust session detection + detailed logs to debug iOS/Safari
     useEffect(() => {
@@ -72,33 +79,38 @@ const ResetPassword = () => {
             }, 250);
 
             // 4.b Fallback: delayed to 8s with guards to avoid consuming valid links too early
-            const fallback = setTimeout(() => {
-                if (hasSession) {
-                    console.debug('[ResetPassword][PROD] fallback SKIPPED reason=session-already-present');
-                    return;
-                }
-                const hash = window.location.hash || '';
-                const search = window.location.search || '';
-                // if Supabase already indicates an error (expired/invalid), do not fallback
-                if (/([?&#])error=/.test(window.location.href)) {
-                    console.debug('[ResetPassword][PROD] fallback SKIPPED reason=url-error-present');
-                    return;
-                }
-                const tokenMatchHash = hash.match(/access_token=([^&]+)/);
-                const tokenMatchQuery = search.match(/access_token=([^&]+)/);
-                const token = (tokenMatchHash && tokenMatchHash[1]) || (tokenMatchQuery && tokenMatchQuery[1]);
-                if (!token) {
-                    console.debug('[ResetPassword][PROD] fallback SKIPPED reason=no-token');
-                    return;
-                }
-                const redirectTo = encodeURIComponent(`${window.location.origin}/reset-password`);
-                const verifyUrl = `${SUPABASE_URL}/auth/v1/verify?token=${token}&type=recovery&redirect_to=${redirectTo}`;
-                console.debug('[ResetPassword][PROD] fallback redirect to verify endpoint (8s)');
-                window.location.replace(verifyUrl);
-            }, 8000);
+            if (ENABLE_FALLBACK) {
+                console.debug('[ResetPassword][PROD] fallback scheduled: true (8s)');
+                const fallback = setTimeout(() => {
+                    if (hasSession) {
+                        console.debug('[ResetPassword][PROD] fallback SKIPPED reason=session-already-present');
+                        return;
+                    }
+                    const hash = window.location.hash || '';
+                    const search = window.location.search || '';
+                    // if Supabase already indicates an error (expired/invalid), do not fallback
+                    if (/([?&#])error=/.test(window.location.href)) {
+                        console.debug('[ResetPassword][PROD] fallback SKIPPED reason=url-error-present');
+                        return;
+                    }
+                    const tokenMatchHash = hash.match(/access_token=([^&]+)/);
+                    const tokenMatchQuery = search.match(/access_token=([^&]+)/);
+                    const token = (tokenMatchHash && tokenMatchHash[1]) || (tokenMatchQuery && tokenMatchQuery[1]);
+                    if (!token) {
+                        console.debug('[ResetPassword][PROD] fallback SKIPPED reason=no-token');
+                        return;
+                    }
+                    const redirectTo = encodeURIComponent(`${window.location.origin}/reset-password`);
+                    const verifyUrl = `${SUPABASE_URL}/auth/v1/verify?token=${token}&type=recovery&redirect_to=${redirectTo}`;
+                    console.debug('[ResetPassword][PROD] fallback redirect to verify endpoint (8s)');
+                    window.location.replace(verifyUrl);
+                }, 8000);
 
-            // clear fallback on unmount
-            window.addEventListener('beforeunload', () => clearTimeout(fallback));
+                // clear fallback on unmount
+                window.addEventListener('beforeunload', () => clearTimeout(fallback));
+            } else {
+                console.debug('[ResetPassword][PROD] fallback scheduled: false (nofallback=1)');
+            }
         }
 
         return () => {
@@ -177,10 +189,19 @@ const ResetPassword = () => {
                                 </Button>
                             </form>
                         ) : (
-                            <div className="text-center text-gray-500">
-                                <p>Si vous n'êtes pas redirigé, veuillez vérifier le lien dans votre email.</p>
+                            <div className="text-center text-gray-500 space-y-3">
+                                {urlError ? (
+                                  <>
+                                    <p className="text-red-600 font-medium">Lien de réinitialisation invalide ou expiré.</p>
+                                    {urlErrorDesc && <p className="text-sm">{urlErrorDesc}</p>}
+                                    <Button onClick={() => navigate('/auth')} className="mt-2">Renvoyer un nouveau lien</Button>
+                                  </>
+                                ) : (
+                                  <p>Si vous n'êtes pas redirigé, veuillez vérifier le lien dans votre email.</p>
+                                )}
+                                <p className="text-xs text-gray-400">Fallback actif: {String(ENABLE_FALLBACK)}</p>
                             </div>
-                        )}
+                        )
                     </CardContent>
                 </Card>
             </div>
