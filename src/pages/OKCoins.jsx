@@ -44,6 +44,8 @@ const OKCoins = () => {
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
   const debounceTimeout = useRef(null);
 
+  const serverLabUrl = import.meta.env.VITE_SERVER_LAB_URL || 'https://onekamer-server-lab.onrender.com';
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [packsRes, levelsRes, donorsRes] = await Promise.all([
