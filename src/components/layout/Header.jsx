@@ -77,7 +77,11 @@ const Header = ({ deferredPrompt }) => {
         <div className="flex-grow flex justify-center items-center h-full px-2">
           <Link to="/" className="flex items-center h-full">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-full flex items-center">
-              <img src="https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/logo_v2-JTv10.png?v=2" alt="OneKamer Logo" className="h-[calc(100%-0.5rem)] w-auto object-contain" />
+              <img
+                src="https://onekamer-media-cdn.b-cdn.net/logo/IMG_0885%202.PNG"
+                alt="OneKamer Logo"
+                className="h-[calc(100%-0.5rem)] w-auto object-contain"
+              />
             </motion.div>
           </Link>
         </div>
