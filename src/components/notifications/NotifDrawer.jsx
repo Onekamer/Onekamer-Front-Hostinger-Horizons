@@ -2,12 +2,16 @@ import React from 'react'
 import { Button } from '@/components/ui/button'
 
 function routeForNotification(n) {
-  if (n?.deeplink) return n.deeplink
+  // 1️⃣ Si un deeplink précis est présent et non générique, on le réutilise
+  if (n?.deeplink && n.deeplink !== '/' && n.deeplink !== '/annonces') return n.deeplink
+
   const t = n?.type
   switch (t) {
     case 'mentions':
       return '/echange'
+    case 'annonce':
     case 'annonces':
+      if (n?.contentId) return `/annonces?annonceId=${n.contentId}`
       return '/annonces'
     case 'evenements':
       return '/evenements'
