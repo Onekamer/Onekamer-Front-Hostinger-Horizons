@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-    import { Helmet } from 'react-helmet';
-    import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
+import { Helmet } from 'react-helmet';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search, Share2, MapPin, ArrowLeft, Phone, MessageSquare, Mail, Plus, Loader2, Trash2, Euro } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import MediaDisplay from '@/components/MediaDisplay';
+import FavoriteButton from '@/components/FavoriteButton';
+import { canUserAccess } from '@/lib/accessControl';
+import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
 
     const formatPrice = (price, devise) => {
         const priceNumber = parseFloat(price);
