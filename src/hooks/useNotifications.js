@@ -89,6 +89,14 @@ export function useNotifications(userId) {
     }
   }, [API_BASE_URL, userId, canUseApi, unreadCount])
 
+  // Pré-charge les notifications dès que l'API est disponible et qu'un userId est présent
+  useEffect(() => {
+    if (!canUseApi) return
+    // On ne refait pas l'appel si on a déjà des items
+    if (items.length > 0) return
+    fetchFirst()
+  }, [canUseApi, fetchFirst, items.length])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (swListenerAttached.current) return

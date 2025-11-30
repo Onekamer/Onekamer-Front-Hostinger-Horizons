@@ -83,6 +83,7 @@ export const notifyNewAnnonce = async ({ annonceId, title, authorName, price }) 
     title: '🛍️ Nouvelle annonce',
     message: `${authorName || 'Un membre'} vient de publier "${title}"${price ? ` à ${price}` : ''}.`,
     targetSegment: 'subscribed_users',
+    url: annonceId ? `/annonces?annonceId=${annonceId}` : '/annonces',
     data: {
       type: 'annonce',
       annonceId,
