@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
     import { Helmet } from 'react-helmet';
-    import { motion, AnimatePresence } from 'framer-motion';
-    import { Card, CardContent } from '@/components/ui/card';
-    import { Button } from '@/components/ui/button';
-    import { Input } from '@/components/ui/input';
-    import { Search, Share2, MapPin, ArrowLeft, Phone, MessageSquare, Mail, Plus, Loader2, Trash2, Euro } from 'lucide-react';
-    import { useToast } from '@/components/ui/use-toast';
-    import { useNavigate } from 'react-router-dom';
-    import { supabase } from '@/lib/customSupabaseClient';
-    import { useAuth } from '@/contexts/SupabaseAuthContext';
-    import MediaDisplay from '@/components/MediaDisplay';
-    import FavoriteButton from '@/components/FavoriteButton';
-    import { canUserAccess } from '@/lib/accessControl';
     import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
 
     const formatPrice = (price, devise) => {
@@ -203,8 +191,9 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [annonces, setAnnonces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAnnonce, setSelectedAnnonce] = useState(null);
-  const [searchTerm, setSearchTerm] = useState(''); // ✅ Correction ici
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [canCreateAd, setCanCreateAd] = useState(false);
@@ -253,6 +242,17 @@ import React, { useState, useEffect, useCallback } from 'react';
           supabase.removeChannel(channel);
         }
       }, [fetchAnnonces]);
+
+      // Ouvre automatiquement une annonce si l'URL contient ?annonceId=...
+      useEffect(() => {
+        if (!annonces || annonces.length === 0) return;
+        const annonceId = searchParams.get('annonceId');
+        if (!annonceId) return;
+        const found = annonces.find((ann) => String(ann.id) === String(annonceId));
+        if (found) {
+          setSelectedAnnonce(found);
+        }
+      }, [annonces, searchParams]);
 
       const handleDelete = async (annonceId, mediaPath) => {
         if (!user) return;

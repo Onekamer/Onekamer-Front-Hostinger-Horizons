@@ -4,11 +4,12 @@ import { Loader2, ImageOff } from 'lucide-react';
 import { normalizeMediaUrl } from '@/utils/normalizeMediaUrl';
 
 const defaultImages = {
-  annonces: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/deafb02734097cfca203ab9aad10f6ba.png',
-  evenements: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/e3c7a83af237fb7227a561adbdc2fb56.png',
-  partenaires: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/fbbe30b8a750bf10ddf4da2c7de7bfd3.png',
+  // Fallback générique: on réutilise une image Bunny déjà connue
+  annonces: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
+  evenements: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
+  partenaires: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
+  faits_divers: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
   groupes: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Groupe.jpg',
-  faits_divers: 'https://horizons-cdn.hostinger.com/2838c69a-ba17-4f74-8eef-55777dbe8ec3/3426b67577181940ee97b83de9829d6d.png',
   rencontres: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
 };
 
