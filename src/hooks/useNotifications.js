@@ -23,7 +23,7 @@ export function useNotifications(userId) {
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Erreur API notifications')
 
-      const next = json?.items || []
+      const next = (json?.items || []).filter((n) => !n.is_read)
       setItems((prev) => (isFirst ? next : [...prev, ...next]))
       setUnreadCount(Number(json?.unreadCount || 0))
       setHasMore(Boolean(json?.hasMore))
@@ -48,7 +48,8 @@ export function useNotifications(userId) {
 
   const markRead = useCallback(async (id) => {
     if (!canUseApi || !id) return { ok: false }
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
+    // Retire immédiatement la notification lue de la liste
+    setItems((prev) => prev.filter((n) => n.id !== id))
     setUnreadCount((n) => Math.max(0, n - 1))
     try {
       const res = await fetch(`${API_BASE_URL}/notifications/mark-read`, {
@@ -60,15 +61,17 @@ export function useNotifications(userId) {
       if (!ok) throw new Error('mark-read failed')
       return { ok }
     } catch (_e) {
-      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: false } : n)))
+      // En cas d'échec, on recharge la première page pour resynchroniser
       setUnreadCount((n) => n + 1)
+      fetchFirst()
       return { ok: false }
     }
-  }, [API_BASE_URL, userId, canUseApi])
+  }, [API_BASE_URL, userId, canUseApi, fetchFirst])
 
   const markAllRead = useCallback(async () => {
     if (!canUseApi) return { ok: false }
-    setItems((prev) => prev.map((n) => ({ ...n, is_read: true })))
+    // On vide localement la liste (toutes les notifs sont considérées comme lues)
+    setItems([])
     const prevUnread = unreadCount
     setUnreadCount(0)
     try {
