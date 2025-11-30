@@ -14,6 +14,23 @@ import FavoriteButton from '@/components/FavoriteButton';
 import { canUserAccess } from '@/lib/accessControl';
 import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
 
+// Même logique de slug que le backend fix-annonces-images
+const slugify = (str = '') =>
+  str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const CDN_ANNONCES_BASE = 'https://onekamer-media-cdn.b-cdn.net/annonces/';
+
+const getDefaultAnnonceImage = (categorieNom) => {
+  const baseName = categorieNom && categorieNom.trim() ? categorieNom.trim() : 'autres';
+  const slug = slugify(baseName);
+  return `${CDN_ANNONCES_BASE}default_annonces_${slug}.png`;
+};
+
     const formatPrice = (price, devise) => {
         const priceNumber = parseFloat(price);
         if (isNaN(priceNumber) || priceNumber <= 0) {
@@ -138,6 +155,7 @@ import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
 
     const AnnonceCard = ({ annonce, onSelect }) => {
         const { toast } = useToast();
+        const mediaPath = annonce.media_url || getDefaultAnnonceImage(annonce.annonces_categories?.nom);
         const handleShare = async (e) => {
             e.stopPropagation();
             const shareData = { title: annonce.titre, text: annonce.description, url: window.location.href };
@@ -157,7 +175,7 @@ import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
         return (
             <Card onClick={() => onSelect(annonce)} className="cursor-pointer group overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 h-full flex flex-col rounded-lg">
                 <div className="relative h-48 bg-gray-200">
-                    <MediaDisplay bucket="annonces" path={annonce.media_url} alt={annonce.titre} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <MediaDisplay bucket="annonces" path={mediaPath} alt={annonce.titre} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                     <div className="relative p-2 h-full flex flex-col justify-between">
                         <div className="flex justify-between items-start">
