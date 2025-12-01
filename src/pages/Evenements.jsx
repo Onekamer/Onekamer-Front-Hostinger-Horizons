@@ -77,18 +77,6 @@ import React, { useState, useEffect, useCallback } from 'react';
         }
       };
 
-      // Deeplink : ouverture automatique d'un événement via ?eventId=
-      useEffect(() => {
-        if (!events || events.length === 0) return;
-        const eventId = searchParams.get('eventId');
-        if (!eventId) return;
-
-        const found = events.find((e) => String(e.id) === String(eventId));
-        if (found) {
-          setSelectedEvent(found);
-        }
-      }, [events, searchParams]);
-
       const getReservationLink = () => {
         if (event.site_web) return event.site_web;
         if (event.telephone) return `tel:${event.telephone}`;
@@ -315,6 +303,18 @@ import React, { useState, useEffect, useCallback } from 'react';
           
         return () => supabase.removeChannel(channel);
       }, [fetchEvents]);
+
+      // Deeplink : ouverture automatique d'un événement via ?eventId=
+      useEffect(() => {
+        if (!events || events.length === 0) return;
+        const eventId = searchParams.get('eventId');
+        if (!eventId) return;
+
+        const found = events.find((e) => String(e.id) === String(eventId));
+        if (found) {
+          setSelectedEvent(found);
+        }
+      }, [events, searchParams]);
       
       const handleDelete = async (eventId, mediaUrl) => {
         if (!user) return;
