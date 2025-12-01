@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Button } from '@/components/ui/button';
     import { Calendar, MapPin, Clock, Banknote, Share2, ArrowLeft, Ticket, Plus, Loader2, Trash2 } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
-    import { useNavigate } from 'react-router-dom';
+    import { useNavigate, useSearchParams } from 'react-router-dom';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import MediaDisplay from '@/components/MediaDisplay';
@@ -76,6 +76,18 @@ import React, { useState, useEffect, useCallback } from 'react';
           toast({ title: "Partage non disponible" });
         }
       };
+
+      // Deeplink : ouverture automatique d'un événement via ?eventId=
+      useEffect(() => {
+        if (!events || events.length === 0) return;
+        const eventId = searchParams.get('eventId');
+        if (!eventId) return;
+
+        const found = events.find((e) => String(e.id) === String(eventId));
+        if (found) {
+          setSelectedEvent(found);
+        }
+      }, [events, searchParams]);
 
       const getReservationLink = () => {
         if (event.site_web) return event.site_web;
@@ -261,6 +273,7 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
