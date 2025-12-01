@@ -71,6 +71,7 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, excerp
     title: '📣 Nouvelle mention',
     message: `${authorName || 'Un membre'} t’a mentionné${message ? ` : ${message}` : ''}`,
     targetUserIds: targets,
+    url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
       type: 'mention',
       postId,
@@ -96,6 +97,7 @@ export const notifyNewEvenement = async ({ eventId, title, date, authorName }) =
     title: '🎉 Nouvel événement',
     message: `${authorName || 'Un membre'} organise ${title}${date ? ` le ${date}` : ''}.`,
     targetSegment: 'subscribed_users',
+    url: eventId ? `/evenements?eventId=${eventId}` : '/evenements',
     data: {
       type: 'evenement',
       eventId,
@@ -108,6 +110,7 @@ export const notifyNewPartenaire = async ({ partnerId, name, city, authorName })
     title: '🤝 Nouveau partenaire',
     message: `${authorName || 'Un membre'} recommande ${name}${city ? ` à ${city}` : ''}.`,
     targetSegment: 'subscribed_users',
+    url: partnerId ? `/partenaires?partnerId=${partnerId}` : '/partenaires',
     data: {
       type: 'partenaire',
       partnerId,
@@ -120,6 +123,7 @@ export const notifyNewFaitDivers = async ({ articleId, title, authorName }) => {
     title: '📰 Nouveau fait divers',
     message: `${authorName || 'Un membre'} a publié "${title}".`,
     targetSegment: 'subscribed_users',
+    url: articleId ? `/faits-divers?articleId=${articleId}` : '/faits-divers',
     data: {
       type: 'fait_divers',
       articleId,
@@ -135,6 +139,7 @@ export const notifyDonationReceived = async ({ receiverId, senderName, amount })
     title: '💚 Nouveau don reçu',
     message: `${senderName || 'Un membre'} t’a envoyé ${amount} OKCoins !`,
     targetUserIds: targets,
+    url: '/ok-coins',
     data: {
       type: 'donation',
     },
@@ -151,6 +156,7 @@ export const notifyRencontreMatch = async ({ userIds = [], names = [], matchId }
     title: '💞 Nouveau match',
     message: label ? `${label}, vous avez matché !` : 'Vous avez un nouveau match 🎉',
     targetUserIds: targets,
+    url: matchId ? `/rencontre/messages/${matchId}` : '/rencontre/messages',
     data: {
       type: 'rencontre_match',
       matchId,
@@ -158,7 +164,7 @@ export const notifyRencontreMatch = async ({ userIds = [], names = [], matchId }
   });
 };
 
-export const notifyRencontreMessage = async ({ recipientId, senderName, message }) => {
+export const notifyRencontreMessage = async ({ recipientId, senderName, message, matchId }) => {
   const targets = normalizeUserIds([recipientId]);
   if (!targets.length) return false;
 
@@ -171,6 +177,7 @@ export const notifyRencontreMessage = async ({ recipientId, senderName, message 
     targetUserIds: targets,
     data: {
       type: 'rencontre_message',
+      matchId,
     },
   });
 };

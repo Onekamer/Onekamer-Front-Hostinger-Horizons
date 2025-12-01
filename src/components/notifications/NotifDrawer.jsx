@@ -13,18 +13,26 @@ function routeForNotification(n) {
     case 'annonces':
       if (n?.contentId) return `/annonces?annonceId=${n.contentId}`
       return '/annonces'
+    case 'evenement':
     case 'evenements':
       return '/evenements'
     case 'systeme':
       return '/aide'
+    case 'partenaire':
     case 'partenaires':
-      return '/faits-divers'
+      return '/partenaires'
+    case 'fait_divers':
     case 'faits_divers':
       return '/faits-divers'
     case 'groupes':
       return '/groupes'
     case 'rencontre':
       return '/rencontre/profil'
+    case 'rencontre_match':
+    case 'rencontre_message':
+      return '/rencontre/messages'
+    case 'donation':
+      return '/ok-coins'
     default:
       return '/'
   }
