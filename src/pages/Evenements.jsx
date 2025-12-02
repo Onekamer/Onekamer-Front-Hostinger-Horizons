@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Button } from '@/components/ui/button';
     import { Calendar, MapPin, Clock, Banknote, Share2, ArrowLeft, Ticket, Plus, Loader2, Trash2 } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
-    import { useNavigate, useSearchParams } from 'react-router-dom';
+    import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import MediaDisplay from '@/components/MediaDisplay';
@@ -261,8 +261,9 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [canCreateEvent, setCanCreateEvent] = useState(false);
@@ -304,17 +305,20 @@ import React, { useState, useEffect, useCallback } from 'react';
         return () => supabase.removeChannel(channel);
       }, [fetchEvents]);
 
-      // Deeplink : ouverture automatique d'un événement via ?eventId=
+      // Deep link : ouvre un événement précis via ?eventId=
       useEffect(() => {
         if (!events || events.length === 0) return;
-        const eventId = searchParams.get('eventId');
+
+        // On lit toujours la valeur actuelle de l'URL
+        const params = new URLSearchParams(location.search || '');
+        const eventId = params.get('eventId');
         if (!eventId) return;
 
-        const found = events.find((e) => String(e.id) === String(eventId));
+        const found = events.find((evt) => String(evt.id) === String(eventId));
         if (found) {
           setSelectedEvent(found);
         }
-      }, [events, searchParams]);
+      }, [events, location.search]);
       
       const handleDelete = async (eventId, mediaUrl) => {
         if (!user) return;
