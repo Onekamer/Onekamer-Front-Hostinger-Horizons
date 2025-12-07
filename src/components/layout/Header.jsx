@@ -43,9 +43,15 @@ const Header = ({ deferredPrompt }) => {
       }
     }
   };
+  // 👉 Ajout safe-area iOS
+  const safeAreaStyle = {
+    paddingTop: 'env(safe-area-inset-top)',
+  };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass-effect border-b border-[#2BA84A]/20 shadow-sm">
+    <header className="fixed top-0 left-0 right-0 z-50 glass-effect border-b border-[#2BA84A]/20 shadow-sm"
+            style={safeAreaStyle}
+      >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex-shrink-0 w-24 flex justify-start">
           <DropdownMenu>
