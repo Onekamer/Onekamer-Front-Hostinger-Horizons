@@ -7,8 +7,16 @@ import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import '@/index.css';
 
-// Service Worker PWA + désenregistrement OneSignal (si natif)
-if ('serviceWorker' in navigator) {
+// 🔍 Détection de l'app native iOS (Capacitor + WKWebView)
+const isIOSNativeApp =
+  typeof window !== 'undefined' &&
+  window.Capacitor &&
+  typeof window.Capacitor.getPlatform === 'function' &&
+  window.Capacitor.getPlatform() === 'ios';
+
+ //Service Worker PWA + désenregistrement OneSignal (si natif)
+// 👉 On NE fait ça que si on n'est PAS dans l'app iOS native
+if ('serviceWorker' in navigator && !isIOSNativeApp) {
   window.addEventListener('load', () => {
     // PWA
     navigator.serviceWorker
