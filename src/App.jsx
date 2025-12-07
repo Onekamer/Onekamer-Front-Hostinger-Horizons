@@ -76,6 +76,13 @@ const AppContent = () => {
   const isPublic = !session && publicPaths.includes(location.pathname);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
+  // 🔍 On détecte si on est dans l’app native iOS (Capacitor + WKWebView)
+  const isIOSNativeApp =
+    typeof window !== 'undefined' &&
+    window.Capacitor &&
+    typeof window.Capacitor.getPlatform === 'function' &&
+    window.Capacitor.getPlatform() === 'ios';
+
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
@@ -98,7 +105,14 @@ const AppContent = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       ) : (
-      <main className="container mx-auto px-4 pt-20 pb-4">
+      <main
+          className="container mx-auto px-4 pt-20 pb-4"
+          style={
+            isIOSNativeApp
+              ? { paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }
+              : undefined
+          }
+        >
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/annonces" element={<Annonces />} />
