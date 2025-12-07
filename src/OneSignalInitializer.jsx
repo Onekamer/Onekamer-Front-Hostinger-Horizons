@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import OneSignal from 'react-onesignal';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { Capacitor } from '@capacitor/core';
 
 const ONE_SIGNAL_APP_ID = 'a122b55d-7627-4bc9-aeaf-1d6d9a6a50b5';
 
 const OneSignalInitializer = () => {
   const PROVIDER = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
+  
+  // ⛔ On désactive OneSignal dans l’app iOS (WKWebView ne supporte pas SW/push web)
+  if (isIOSNativeApp) {
+    console.warn('⛔ OneSignalInitializer désactivé dans l’app iOS native.');
+    return null;
+  }
+    
   if (PROVIDER === 'supabase_light') {
     return null;
   }
