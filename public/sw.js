@@ -26,9 +26,39 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 3️⃣ Fallback réseau → cache
+// 3️⃣ Fallback réseau → cache (version robuste)
 self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+  // On n'intercepte que les requêtes GET
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  event.respondWith(
+    (async () => {
+      try {
+        // On tente toujours le réseau en premier
+        const networkResponse = await fetch(event.request);
+        return networkResponse;
+      } catch (_err) {
+        // En cas d'échec réseau, on tente le cache
+        const cached = await caches.match(event.request);
+        if (cached) {
+          return cached;
+        }
+
+        // Si c'est une navigation (HTML) et qu'on n'a rien, on renvoie la page offline
+        if (event.request.mode === 'navigate') {
+          const offline = await caches.match('/offline.html');
+          if (offline) {
+            return offline;
+          }
+        }
+
+        // En dernier recours, on renvoie une erreur HTTP générique
+        return Response.error();
+      }
+    })()
+  );
 });
 
 // ============================================================
