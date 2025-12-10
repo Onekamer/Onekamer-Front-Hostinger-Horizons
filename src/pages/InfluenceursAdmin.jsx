@@ -15,6 +15,19 @@ const InfluenceursAdmin = () => {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    nom_public: '',
+    identifiant_reseau: '',
+    email: '',
+    code: '',
+    stripe_promotion_code_id: '',
+    date_debut: '',
+    date_fin: '',
+    actif: true,
+    ok_coins_bonus: 0,
+  });
 
   if (!user || !profile) {
     return <Navigate to="/auth" replace />;
@@ -25,30 +38,86 @@ const InfluenceursAdmin = () => {
     return <Navigate to="/compte" replace />;
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`${SERVER_URL}/admin/influenceurs-promo`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-token': ADMIN_TOKEN || '',
-          },
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Erreur lors du chargement des stats influenceurs');
-        }
-        setItems(data.items || []);
-      } catch (e) {
-        setError(e.message || 'Erreur inconnue');
-      } finally {
-        setLoading(false);
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${SERVER_URL}/admin/influenceurs-promo`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': ADMIN_TOKEN || '',
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors du chargement des stats influenceurs');
       }
-    };
+      setItems(data.items || []);
+    } catch (e) {
+      setError(e.message || 'Erreur inconnue');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    setError(null);
+    try {
+      const payload = {
+        ...form,
+        ok_coins_bonus:
+          form.ok_coins_bonus === '' || isNaN(Number(form.ok_coins_bonus))
+            ? 0
+            : Number(form.ok_coins_bonus),
+      };
+
+      const res = await fetch(`${SERVER_URL}/admin/influenceurs-promo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': ADMIN_TOKEN || '',
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erreur lors de la création de l'influenceur");
+      }
+
+      setForm({
+        nom_public: '',
+        identifiant_reseau: '',
+        email: '',
+        code: '',
+        stripe_promotion_code_id: '',
+        date_debut: '',
+        date_fin: '',
+        actif: true,
+        ok_coins_bonus: 0,
+      });
+
+      await fetchData();
+      setShowForm(false);
+    } catch (e) {
+      setError(e.message || 'Erreur inconnue');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <>
@@ -120,6 +189,134 @@ const InfluenceursAdmin = () => {
               </Card>
             ))}
           </div>
+        )}
+
+        {!showForm && (
+          <div className="pt-2">
+            <Button type="button" variant="outline" onClick={() => setShowForm(true)}>
+              Ajouter un influenceur
+            </Button>
+          </div>
+        )}
+
+        {showForm && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Créer un influenceur + code promo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-3" onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Nom public *</label>
+                    <input
+                      type="text"
+                      name="nom_public"
+                      value={form.nom_public}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Identifiant réseau social</label>
+                    <input
+                      type="text"
+                      name="identifiant_reseau"
+                      value={form.identifiant_reseau}
+                      onChange={handleChange}
+                      placeholder="ex: @willy_insta"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email OneKamer (pour lier au profil)</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={form.email}
+                      onChange={handleChange}
+                      placeholder="influenceur@example.com"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Code promo *</label>
+                    <input
+                      type="text"
+                      name="code"
+                      value={form.code}
+                      onChange={handleChange}
+                      placeholder="DEMOFREE1"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm uppercase"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">ID Promotion Code Stripe *</label>
+                    <input
+                      type="text"
+                      name="stripe_promotion_code_id"
+                      value={form.stripe_promotion_code_id}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Date début</label>
+                      <input
+                        type="date"
+                        name="date_debut"
+                        value={form.date_debut}
+                        onChange={handleChange}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Date fin</label>
+                      <input
+                        type="date"
+                        name="date_fin"
+                        value={form.date_fin}
+                        onChange={handleChange}
+                        className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Bonus OK Coins</label>
+                    <input
+                      type="number"
+                      name="ok_coins_bonus"
+                      value={form.ok_coins_bonus}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                      min="0"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mt-4">
+                    <input
+                      id="actif"
+                      type="checkbox"
+                      name="actif"
+                      checked={form.actif}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-green-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="actif" className="text-xs font-medium text-gray-700">
+                      Code actif
+                    </label>
+                  </div>
+                </div>
+
+                <Button type="submit" className="mt-2" disabled={creating}>
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Créer linfluenceur'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         )}
       </div>
     </>
