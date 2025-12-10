@@ -32,16 +32,47 @@ if ('serviceWorker' in navigator && !isIOSNativeApp) {
         .catch((err) => console.error('❌ Erreur SW OneSignal :', err));
     } else if (provider === 'supabase_light') {
       // Désenregistrer d’anciens workers OneSignal (nettoyage cache/canaux)
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        regs.forEach((r) => {
-          if (r.scriptURL.includes('OneSignal')) {
-            console.log('♻️ Unregister OneSignal SW:', r.scriptURL);
-            r.unregister();
-          }
-        });
-      }).catch(() => {});
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => {
+          regs.forEach((r) => {
+            if (r.scriptURL.includes('OneSignal')) {
+              console.log('♻️ Unregister OneSignal SW:', r.scriptURL);
+              r.unregister();
+            }
+          });
+        })
+        .catch(() => {});
     }
   });
+}
+
+// Auto-reload après longue inactivité pour éviter les écrans blancs au retour
+// S'applique au navigateur, PWA et potentiellement au wrapper iOS (si WebView charge onekamer.co)
+const INACTIVITY_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
+
+if (typeof window !== 'undefined') {
+  let lastActive = Date.now();
+
+  const updateActivity = () => {
+    lastActive = Date.now();
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      const now = Date.now();
+      if (now - lastActive > INACTIVITY_LIMIT_MS) {
+        window.location.reload();
+      }
+    }
+  };
+
+  window.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('pageshow', handleVisibilityChange);
+  window.addEventListener('focus', updateActivity);
+  window.addEventListener('touchstart', updateActivity, { passive: true });
+  window.addEventListener('click', updateActivity);
+  window.addEventListener('keydown', updateActivity);
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
