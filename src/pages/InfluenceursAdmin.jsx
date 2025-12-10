@@ -193,7 +193,7 @@ const InfluenceursAdmin = () => {
 
         {!showForm && (
           <div className="pt-2">
-            <Button type="button" variant="outline" onClick={() => setShowForm(true)}>
+            <Button type="button" className="mt-2" onClick={() => setShowForm(true)}>
               Ajouter un influenceur
             </Button>
           </div>
