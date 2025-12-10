@@ -140,6 +140,44 @@ const Compte = () => {
           </CardContent>
         </Card>
 
+        {profile.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Influenceurs & codes promo</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p className="text-gray-600">
+                Accédez à la vue globale des influenceurs et de leurs codes promo.
+              </p>
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={() => navigate('/compte/influenceurs-admin')}
+              >
+                Gérer les influenceurs
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Espace influenceur</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p className="text-gray-600">
+              Si vous disposez d'un code promo, consultez vos statistiques d'influenceur.
+            </p>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => navigate('/compte/mes-stats-influenceur')}
+            >
+              Voir mes stats d'influenceur
+            </Button>
+          </CardContent>
+        </Card>
+
         <div className="flex justify-center">
           <Button variant="destructive" onClick={handleLogout} className="w-full max-w-sm">
             <LogOut className="mr-2 h-4 w-4" /> Se déconnecter

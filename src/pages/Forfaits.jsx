@@ -14,6 +14,7 @@ const Forfaits = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState(null);
+  const [promoCode, setPromoCode] = useState('');
 
   const handleChoosePlan = async (plan) => {
     if (!user) {
@@ -35,7 +36,7 @@ const Forfaits = () => {
       response = await fetch(`${API_URL}/create-subscription-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, planKey: plan.key, priceId: plan.priceId }),
+        body: JSON.stringify({ userId: user.id, planKey: plan.key, priceId: plan.priceId, promoCode: promoCode || null }),
       });
 
       const data = await response.json();
@@ -118,6 +119,19 @@ const Forfaits = () => {
         <div className="text-center">
           <h1 className="text-4xl font-bold text-[#2BA84A]">Nos Forfaits</h1>
           <p className="text-lg text-gray-600 mt-2">Accédez à plus de fonctionnalités et soutenez la communauté.</p>
+        </div>
+
+        <div className="max-w-md mx-auto flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Code promo (optionnel)</label>
+            <input
+              type="text"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              placeholder="Ex: WILLYFREE"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BA84A] focus:border-[#2BA84A]"
+            />
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
