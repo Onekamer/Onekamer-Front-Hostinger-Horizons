@@ -162,10 +162,18 @@ import React, { useState, useEffect, useCallback } from 'react';
                 />
 
                 <div className="flex gap-2 pt-2">
-                    {reservationLink ? (
-                        <Button asChild className="flex-1 bg-[#E0222A] hover:bg-[#E0222A]/90 text-white"><a href={reservationLink} target="_blank" rel="noopener noreferrer"><Ticket className="h-4 w-4 mr-2" /> Réserver</a></Button>
-                    ) : (
-                        <Button className="flex-1 bg-[#E0222A]/50 cursor-not-allowed text-white"><Ticket className="h-4 w-4 mr-2" /> Pas de réservation</Button>
+                    <Button
+                      className="flex-1 bg-[#E0222A] hover:bg-[#E0222A]/90 text-white"
+                      onClick={() => navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(event.id)}`)}
+                    >
+                      <Ticket className="h-4 w-4 mr-2" /> Mon QRcode
+                    </Button>
+                    {reservationLink && (
+                      <Button asChild variant="outline" className="flex-1">
+                        <a href={reservationLink} target="_blank" rel="noopener noreferrer">
+                          <Ticket className="h-4 w-4 mr-2" /> Contacter
+                        </a>
+                      </Button>
                     )}
                     <Button variant="outline" className="flex-1" onClick={handleAddToCalendar}><Calendar className="h-4 w-4 mr-2" /> Ajouter au calendrier</Button>
                 </div>
