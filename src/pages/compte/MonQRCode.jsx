@@ -24,6 +24,7 @@ const MonQRCode = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [myQrs, setMyQrs] = useState([]);
+  const [didPrefillFromEventId, setDidPrefillFromEventId] = useState(false);
 
   const formatMinorAmount = (minor, currency) => {
     const cur = (currency || '').toLowerCase();
@@ -86,6 +87,37 @@ const MonQRCode = () => {
       if (qEventId) setEventId(qEventId);
     } catch {}
   }, [location.search]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const run = async () => {
+      if (!API_PREFIX) return;
+      if (!eventId) return;
+      if (didPrefillFromEventId) return;
+
+      try {
+        const res = await fetch(`${API_PREFIX}/events/${encodeURIComponent(eventId)}`, { signal: ctrl.signal });
+        const data = await res.json();
+        if (!res.ok) return;
+        if (data?.title) {
+          setSearch(String(data.title));
+          setSuggestions([
+            {
+              id: data.id,
+              title: data.title,
+              date: data.date,
+              location: data.location,
+            },
+          ]);
+        }
+        setDidPrefillFromEventId(true);
+      } catch {
+        // ignore
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, [eventId, didPrefillFromEventId]);
 
   useEffect(() => {
     const ctrl = new AbortController();

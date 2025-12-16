@@ -161,21 +161,21 @@ import React, { useState, useEffect, useCallback } from 'react';
                   location={event.location}
                 />
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button
-                      className="flex-1 bg-[#E0222A] hover:bg-[#E0222A]/90 text-white"
+                      className="w-full sm:flex-1 bg-[#E0222A] hover:bg-[#E0222A]/90 text-white"
                       onClick={() => navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(event.id)}`)}
                     >
                       <Ticket className="h-4 w-4 mr-2" /> Mon QRcode
                     </Button>
                     {reservationLink && (
-                      <Button asChild variant="outline" className="flex-1">
+                      <Button asChild variant="outline" className="w-full sm:flex-1">
                         <a href={reservationLink} target="_blank" rel="noopener noreferrer">
                           <Ticket className="h-4 w-4 mr-2" /> Contacter
                         </a>
                       </Button>
                     )}
-                    <Button variant="outline" className="flex-1" onClick={handleAddToCalendar}><Calendar className="h-4 w-4 mr-2" /> Ajouter au calendrier</Button>
+                    <Button variant="outline" className="w-full sm:flex-1" onClick={handleAddToCalendar}><Calendar className="h-4 w-4 mr-2" /> Ajouter au calendrier</Button>
                 </div>
               </CardContent>
             </Card>
