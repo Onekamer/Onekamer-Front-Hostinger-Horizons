@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,16 +11,42 @@ const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL 
 
 const MonQRCode = () => {
   const { user, session, loading } = useAuth();
+  const location = useLocation();
   const [eventId, setEventId] = useState('');
   const [qrImage, setQrImage] = useState(null);
   const [status, setStatus] = useState(null);
   const [value, setValue] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [myQrs, setMyQrs] = useState([]);
+
+  const formatMinorAmount = (minor, currency) => {
+    const cur = (currency || '').toLowerCase();
+    const amount = typeof minor === 'number' ? minor : 0;
+    const major = ['eur', 'usd', 'cad'].includes(cur) ? amount / 100 : amount;
+    try {
+      return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: (cur || 'eur').toUpperCase(),
+      }).format(major);
+    } catch {
+      return `${major} ${cur || ''}`.trim();
+    }
+  };
+
+  const getPaymentLabel = (p) => {
+    const s = p?.status;
+    if (s === 'paid') return 'PAYÉ';
+    if (s === 'deposit_paid') return 'ACOMPTE PAYÉ';
+    if (s === 'unpaid') return 'DOIT PAYER';
+    if (s === 'free') return 'GRATUIT';
+    return null;
+  };
 
   const isExpiredDate = (iso) => {
     if (!iso) return false;
@@ -53,6 +80,14 @@ const MonQRCode = () => {
   }, [cacheKey]);
 
   useEffect(() => {
+    try {
+      const query = new URLSearchParams(location.search);
+      const qEventId = query.get('eventId');
+      if (qEventId) setEventId(qEventId);
+    } catch {}
+  }, [location.search]);
+
+  useEffect(() => {
     const ctrl = new AbortController();
     if (!API_PREFIX) return;
     const q = search.trim();
@@ -82,6 +117,52 @@ const MonQRCode = () => {
     };
     run();
   }, [session]);
+
+  const onPay = async (mode) => {
+    if (!API_PREFIX) {
+      setError('API non configurée (VITE_API_URL)');
+      return;
+    }
+    if (!eventId) {
+      setError("Veuillez saisir un identifiant d'événement");
+      return;
+    }
+    if (!session?.access_token) {
+      setError('Vous devez être connecté');
+      return;
+    }
+
+    setError(null);
+    setPaying(true);
+    try {
+      const res = await fetch(`${API_PREFIX}/events/${eventId}/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ payment_mode: mode === 'deposit' ? 'deposit' : 'full' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      if (data?.alreadyPaid) {
+        setError('Déjà payé');
+        return;
+      }
+
+      throw new Error('Réponse invalide du serveur');
+    } catch (e) {
+      setError(e?.message || 'Erreur interne');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const onGenerate = async () => {
     if (!API_PREFIX) {
@@ -169,6 +250,15 @@ const MonQRCode = () => {
             <Button disabled={submitting || !eventId} onClick={onGenerate} className="bg-[#2BA84A] text-white w-full">
               {submitting ? 'Génération…' : '🎟 Obtenir mon QR Code'}
             </Button>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={() => onPay('full')} disabled={paying || !eventId} className="bg-[#2BA84A] text-white w-full">
+                {paying ? 'Redirection…' : 'Payer maintenant'}
+              </Button>
+              <Button onClick={() => onPay('deposit')} disabled={paying || !eventId} variant="outline" className="w-full">
+                {paying ? 'Redirection…' : 'Payer acompte'}
+              </Button>
+            </div>
             {error && <div className="text-sm text-red-600">{error}</div>}
           </CardContent>
         </Card>
@@ -188,6 +278,16 @@ const MonQRCode = () => {
                   <span className="ml-2 text-xs font-semibold text-red-600">Expiré</span>
                 )}
               </div>
+              {selectedPayment && (
+                <div className="text-sm text-center">
+                  Statut paiement: <span className="font-medium">{getPaymentLabel(selectedPayment) || '—'}</span>
+                  {typeof selectedPayment?.remaining === 'number' && selectedPayment.remaining > 0 && (
+                    <span className="ml-2 text-xs text-gray-600">
+                      (reste: {formatMinorAmount(selectedPayment.remaining, selectedPayment.currency || selectedPayment?.currency)})
+                    </span>
+                  )}
+                </div>
+              )}
               {value && (
                 <div className="text-xs text-center text-gray-500 break-all">{value}</div>
               )}
@@ -219,9 +319,17 @@ const MonQRCode = () => {
                   </div>
                   <div className="text-xs text-gray-500">{row.evenements?.date} • {row.evenements?.location}</div>
                   <div className="text-xs">Statut: <span className="font-medium capitalize">{row.status}</span></div>
+                  {row.payment && (
+                    <div className="text-xs">
+                      Paiement: <span className="font-medium">{getPaymentLabel(row.payment) || '—'}</span>
+                      {typeof row.payment?.remaining === 'number' && row.payment.remaining > 0 && (
+                        <span className="ml-2 text-gray-600">• reste {formatMinorAmount(row.payment.remaining, row.payment.currency)}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex w-full md:w-auto flex-row md:flex-col gap-2 md:ml-auto md:items-end shrink-0">
-                  <Button size="sm" className="whitespace-nowrap" variant="outline" onClick={() => { setEventId(row.event_id); setQrImage(row.qrImage || null); setStatus(row.status); setValue(row.qrcode_value); }}>
+                  <Button size="sm" className="whitespace-nowrap" variant="outline" onClick={() => { setEventId(row.event_id); setQrImage(row.qrImage || null); setStatus(row.status); setValue(row.qrcode_value); setSelectedPayment(row.payment || null); }}>
                     Ouvrir
                   </Button>
                   <Button

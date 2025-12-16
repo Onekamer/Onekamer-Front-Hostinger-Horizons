@@ -12,6 +12,7 @@ const PaiementSuccess = () => {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const packId = query.get('packId');
+  const eventId = query.get('eventId');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -39,21 +40,33 @@ const PaiementSuccess = () => {
             </div>
             <CardTitle className="text-2xl font-bold mt-4">Paiement validé !</CardTitle>
             <CardDescription className="text-gray-600 mt-2">
-              Merci pour votre achat. Vos OK COINS seront crédités automatiquement dans quelques instants.
+              {eventId
+                ? "Merci, votre paiement pour l'évènement a bien été pris en compte."
+                : "Merci pour votre achat. Vos OK COINS seront crédités automatiquement dans quelques instants."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-gray-500">
-              Si votre solde ne se met pas à jour, vous pouvez l'actualiser manuellement.
+              {eventId
+                ? "Vous pouvez retourner à votre QR Code pour voir le statut de paiement."
+                : "Si votre solde ne se met pas à jour, vous pouvez l'actualiser manuellement."}
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button onClick={refreshBalance} className="w-full">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Actualiser mon solde
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/ok-coins">Retourner aux OK Coins</Link>
-              </Button>
+              {eventId ? (
+                <Button asChild className="w-full">
+                  <Link to={`/compte/mon-qrcode?eventId=${encodeURIComponent(eventId)}`}>Aller à mon QR Code</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button onClick={refreshBalance} className="w-full">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Actualiser mon solde
+                  </Button>
+                  <Button asChild variant="outline" className="w-full">
+                    <Link to="/ok-coins">Retourner aux OK Coins</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
