@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { ArrowLeft } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -12,6 +13,7 @@ const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL 
 const MonQRCode = () => {
   const { user, session, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [eventId, setEventId] = useState('');
   const [qrImage, setQrImage] = useState(null);
   const [status, setStatus] = useState(null);
@@ -250,6 +252,10 @@ const MonQRCode = () => {
       </Helmet>
 
       <div className="max-w-xl mx-auto space-y-6">
+        <Button variant="ghost" onClick={() => navigate('/compte')} className="mb-4">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Retour au compte
+        </Button>
         <Card>
           <CardHeader>
             <CardTitle>Mon QR Code</CardTitle>
