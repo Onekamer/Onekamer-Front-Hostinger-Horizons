@@ -200,6 +200,9 @@ const Compte = () => {
             {profile.role === 'admin' && (
               <MenuItem onClick={() => navigate('/compte/emails-admin')} title="Envoyer des emails (admin)" />
             )}
+            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
+              <MenuItem onClick={() => navigate('/compte/moderation')} title="Modération" />
+            )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
             <MenuItem onClick={() => navigate('/forfaits')} title="Changer de forfait" />

@@ -21,6 +21,7 @@ import Compte from '@/pages/Compte';
 import EmailsAdmin from '@/pages/EmailsAdmin';
 import InfluenceursAdmin from '@/pages/InfluenceursAdmin';
 import InfluenceurStats from '@/pages/InfluenceurStats';
+import ModerationAdmin from '@/pages/ModerationAdmin';
 import MonQRCode from '@/pages/compte/MonQRCode';
 import Scan from '@/pages/Scan';
 import Publier from '@/pages/Publier';
@@ -136,6 +137,7 @@ const AppContent = () => {
           <Route path="/compte" element={<Compte />} />
           <Route path="/compte/emails-admin" element={<EmailsAdmin />} />
           <Route path="/compte/influenceurs-admin" element={<InfluenceursAdmin />} />
+          <Route path="/compte/moderation" element={<ModerationAdmin />} />
           <Route path="/compte/mes-stats-influenceur" element={<InfluenceurStats />} />
           <Route path="/compte/mon-qrcode" element={<MonQRCode />} />
           <Route path="/scan" element={<Scan />} />
