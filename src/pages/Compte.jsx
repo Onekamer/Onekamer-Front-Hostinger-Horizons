@@ -248,48 +248,103 @@ const Compte = () => {
 
               {dashError && <div className="text-sm text-red-600">{dashError}</div>}
 
-              {dashStats?.counts && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Card className="text-center">
-                    <CardHeader>
-                      <CardTitle className="text-sm">Attendus (QR actifs)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold text-[#2BA84A]">{dashStats.counts.total_active_qr ?? 0}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="text-center">
-                    <CardHeader>
-                      <CardTitle className="text-sm">Payé</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{dashStats.counts.paid ?? 0}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="text-center">
-                    <CardHeader>
-                      <CardTitle className="text-sm">Acompte</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{dashStats.counts.deposit_paid ?? 0}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="text-center">
-                    <CardHeader>
-                      <CardTitle className="text-sm">Doit payer</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{dashStats.counts.unpaid ?? 0}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="text-center col-span-2">
-                    <CardHeader>
-                      <CardTitle className="text-sm">Gratuit</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{dashStats.counts.free ?? 0}</p>
-                    </CardContent>
-                  </Card>
+              {(dashStats?.attendus || dashStats?.deja_entres) && (
+                <div className="space-y-4">
+                  {dashStats?.attendus && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold">Attendus (QR actifs)</div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Total</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold text-[#2BA84A]">{dashStats.attendus.total ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Payé</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.attendus.paid ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Acompte</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.attendus.deposit_paid ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Doit payer</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.attendus.unpaid ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center col-span-2">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Gratuit</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.attendus.free ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
+
+                  {dashStats?.deja_entres && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold">Déjà entrés (QR scannés)</div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Total</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold text-[#2BA84A]">{dashStats.deja_entres.total ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Payé</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.deja_entres.paid ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Acompte</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.deja_entres.deposit_paid ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Doit payer</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.deja_entres.unpaid ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="text-center col-span-2">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Gratuit</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{dashStats.deja_entres.free ?? 0}</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
