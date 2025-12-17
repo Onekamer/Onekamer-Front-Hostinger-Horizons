@@ -774,6 +774,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, showComments, onToggl
   const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const isMyPost = user?.id === post.user_id;
+  const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
 
   const checkLiked = useCallback(async () => {
     if (!user) return;
@@ -847,7 +848,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, showComments, onToggl
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
               </div>
-              {isMyPost && (
+              {(isMyPost || isAdmin) && (
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => onDelete(post.id, post.image_url, post.video_url)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -901,9 +902,10 @@ const PostCard = ({ post, user, profile, onLike, onDelete, showComments, onToggl
   )
 }
 
-const AudioPostCard = ({ post, user, onDelete }) => {
+const AudioPostCard = ({ post, user, profile, onDelete }) => {
   const navigate = useNavigate();
   const isMyPost = user?.id === post.user_id;
+  const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
 
   return (
     <Card>
@@ -923,7 +925,7 @@ const AudioPostCard = ({ post, user, onDelete }) => {
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
               </div>
-              {isMyPost && (
+              {(isMyPost || isAdmin) && (
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => onDelete(post.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -939,10 +941,12 @@ const AudioPostCard = ({ post, user, onDelete }) => {
 }
 
 const Echange = () => {
-  const { user, profile, refreshBalance } = useAuth();
+  const { user, profile, session, refreshBalance } = useAuth();
   const [feedItems, setFeedItems] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [openComments, setOpenComments] = useState({});
+
+  const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
 
   const handleToggleComments = (postId) => {
     setOpenComments(prev => ({
@@ -1023,13 +1027,55 @@ const Echange = () => {
   };
   
   const handleDeletePost = async (postId, imageUrl, videoUrl) => {
-    const { error } = await supabase.from('posts').delete().eq('id', postId);
-    if(error) toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    try {
+      const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
+      const isMyPost = user?.id && feedItems.find((p) => p.feed_type === 'post' && p.id === postId)?.user_id === user.id;
+
+      if (isAdmin && !isMyPost) {
+        const token = session?.access_token;
+        if (!token) throw new Error('Session expirée');
+        const res = await fetch(`${API_PREFIX}/admin/echange/posts/${encodeURIComponent(postId)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
+        toast({ title: 'Supprimé', description: 'Post supprimé (admin).' });
+        return;
+      }
+
+      const { error } = await supabase.from('posts').delete().eq('id', postId);
+      if (error) throw new Error(error.message);
+      toast({ title: 'Supprimé', description: 'Post supprimé.' });
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+    }
   };
 
   const handleDeleteAudioPost = async (commentId) => {
-    const { error } = await supabase.from('comments').delete().eq('id', commentId);
-    if (error) toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    try {
+      const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
+      const isMyPost = user?.id && feedItems.find((p) => p.feed_type === 'audio_post' && p.id === commentId)?.user_id === user.id;
+
+      if (isAdmin && !isMyPost) {
+        const token = session?.access_token;
+        if (!token) throw new Error('Session expirée');
+        const res = await fetch(`${API_PREFIX}/admin/echange/audio/${encodeURIComponent(commentId)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
+        toast({ title: 'Supprimé', description: 'Post vocal supprimé (admin).' });
+        return;
+      }
+
+      const { error } = await supabase.from('comments').delete().eq('id', commentId);
+      if (error) throw new Error(error.message);
+      toast({ title: 'Supprimé', description: 'Post vocal supprimé.' });
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+    }
   }
 
   return (
@@ -1071,7 +1117,7 @@ const Echange = () => {
                       refreshBalance={refreshBalance}
                     />
                   ) : (
-                    <AudioPostCard post={item} user={user} onDelete={handleDeleteAudioPost} />
+                    <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} />
                   )}
                 </motion.div>
               ))
@@ -1093,7 +1139,7 @@ const Echange = () => {
                       refreshBalance={refreshBalance}
                     />
                   ) : (
-                     <AudioPostCard post={item} user={user} onDelete={handleDeleteAudioPost} />
+                     <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} />
                   )}
                 </motion.div>
               ))
