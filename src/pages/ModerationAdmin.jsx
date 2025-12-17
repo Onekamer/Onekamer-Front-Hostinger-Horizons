@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
 const ModerationAdmin = () => {
-  const { user, profile, session } = useAuth();
+  const { user, profile, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,6 +56,14 @@ const ModerationAdmin = () => {
       run();
     }
   }, [user, profile, isAdmin, session, API_PREFIX]);
+
+  if (authLoading) {
+    return (
+      <div className="space-y-4">
+        <div>Chargement…</div>
+      </div>
+    );
+  }
 
   if (!user || !profile) {
     return <Navigate to="/auth" replace />;
