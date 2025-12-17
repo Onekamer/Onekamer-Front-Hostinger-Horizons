@@ -774,7 +774,11 @@ const PostCard = ({ post, user, profile, onLike, onDelete, showComments, onToggl
   const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const isMyPost = user?.id === post.user_id;
-  const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
+  const isAdmin =
+    profile?.is_admin === true ||
+    profile?.is_admin === 1 ||
+    profile?.is_admin === 'true' ||
+    String(profile?.role || '').toLowerCase() === 'admin';
 
   const checkLiked = useCallback(async () => {
     if (!user) return;
@@ -905,7 +909,11 @@ const PostCard = ({ post, user, profile, onLike, onDelete, showComments, onToggl
 const AudioPostCard = ({ post, user, profile, onDelete }) => {
   const navigate = useNavigate();
   const isMyPost = user?.id === post.user_id;
-  const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
+  const isAdmin =
+    profile?.is_admin === true ||
+    profile?.is_admin === 1 ||
+    profile?.is_admin === 'true' ||
+    String(profile?.role || '').toLowerCase() === 'admin';
 
   return (
     <Card>
@@ -1028,7 +1036,11 @@ const Echange = () => {
   
   const handleDeletePost = async (postId, imageUrl, videoUrl) => {
     try {
-      const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
+      const isAdmin =
+        profile?.is_admin === true ||
+        profile?.is_admin === 1 ||
+        profile?.is_admin === 'true' ||
+        String(profile?.role || '').toLowerCase() === 'admin';
       const isMyPost = user?.id && feedItems.find((p) => p.feed_type === 'post' && p.id === postId)?.user_id === user.id;
 
       if (isAdmin && !isMyPost) {
@@ -1054,7 +1066,11 @@ const Echange = () => {
 
   const handleDeleteAudioPost = async (commentId) => {
     try {
-      const isAdmin = profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true';
+      const isAdmin =
+        profile?.is_admin === true ||
+        profile?.is_admin === 1 ||
+        profile?.is_admin === 'true' ||
+        String(profile?.role || '').toLowerCase() === 'admin';
       const isMyPost = user?.id && feedItems.find((p) => p.feed_type === 'audio_post' && p.id === commentId)?.user_id === user.id;
 
       if (isAdmin && !isMyPost) {
