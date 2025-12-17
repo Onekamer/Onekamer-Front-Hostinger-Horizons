@@ -248,6 +248,12 @@ const Compte = () => {
 
               {dashError && <div className="text-sm text-red-600">{dashError}</div>}
 
+              {typeof dashStats?.capacity === 'number' && (
+                <div className="text-sm text-gray-600">
+                  Capacité : {dashStats.capacity} — Occupées : {dashStats.occupied ?? 0} — Restantes : {dashStats.remaining ?? 0}
+                </div>
+              )}
+
               {(dashStats?.attendus || dashStats?.deja_entres) && (
                 <div className="space-y-4">
                   {dashStats?.attendus && (
