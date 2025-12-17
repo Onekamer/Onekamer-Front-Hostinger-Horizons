@@ -881,11 +881,52 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
               </div>
-              {(isMyPost || isAdmin) && (
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => onDelete(post.id, post.image_url, post.video_url)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {canWarn && (
+                  <Dialog open={warnOpen} onOpenChange={setWarnOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-[#2BA84A]">
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Avertir l’auteur</DialogTitle>
+                        <DialogDescription>Renseigne un motif et un message.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label>Motif</Label>
+                          <Input value={warnReason} onChange={(e) => setWarnReason(e.target.value)} placeholder="Ex: Contenu inapproprié" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Message</Label>
+                          <textarea
+                            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-green-500/40"
+                            value={warnMessage}
+                            onChange={(e) => setWarnMessage(e.target.value)}
+                            placeholder="Explique brièvement la raison de l’avertissement"
+                            rows={5}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setWarnOpen(false)} disabled={warnSending}>
+                          Annuler
+                        </Button>
+                        <Button type="button" onClick={submitWarn} disabled={warnSending}>
+                          {warnSending ? 'Envoi…' : 'Envoyer'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+                {(isMyPost || isAdmin) && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => onDelete(post.id, post.image_url, post.video_url)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -925,45 +966,6 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                 <span>Don</span>
               </button>
             </DonationDialog>
-          )}
-          {canWarn && (
-            <Dialog open={warnOpen} onOpenChange={setWarnOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-[#2BA84A]">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Avertir l’auteur</DialogTitle>
-                  <DialogDescription>Renseigne un motif et un message.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label>Motif</Label>
-                    <Input value={warnReason} onChange={(e) => setWarnReason(e.target.value)} placeholder="Ex: Contenu inapproprié" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Message</Label>
-                    <textarea
-                      className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-green-500/40"
-                      value={warnMessage}
-                      onChange={(e) => setWarnMessage(e.target.value)}
-                      placeholder="Explique brièvement la raison de l’avertissement"
-                      rows={5}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setWarnOpen(false)} disabled={warnSending}>
-                    Annuler
-                  </Button>
-                  <Button type="button" onClick={submitWarn} disabled={warnSending}>
-                    {warnSending ? 'Envoi…' : 'Envoyer'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           )}
         </div>
         <AnimatePresence>
