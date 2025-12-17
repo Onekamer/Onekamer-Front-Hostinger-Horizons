@@ -14,6 +14,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import CreatePost from '@/components/posts/CreatePost';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -774,7 +775,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const [warnOpen, setWarnOpen] = useState(false);
-  const [warnReason, setWarnReason] = useState('');
+  const [warnReason, setWarnReason] = useState('Contenu inapproprié');
   const [warnMessage, setWarnMessage] = useState('');
   const [warnSending, setWarnSending] = useState(false);
   const isMyPost = user?.id === post.user_id;
@@ -892,12 +893,25 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Avertir l’auteur</DialogTitle>
-                        <DialogDescription>Renseigne un motif et un message.</DialogDescription>
+                        <DialogDescription>
+                          Envoyer une notification + un email à l'auteur (expéditeur: L'équipe OneKamer).
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-3">
                         <div className="space-y-1">
                           <Label>Motif</Label>
-                          <Input value={warnReason} onChange={(e) => setWarnReason(e.target.value)} placeholder="Ex: Contenu inapproprié" />
+                          <Select value={warnReason} onValueChange={setWarnReason}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choisir un motif" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Contenu inapproprié">Contenu inapproprié</SelectItem>
+                              <SelectItem value="Spam">Spam</SelectItem>
+                              <SelectItem value="Harcèlement">Harcèlement</SelectItem>
+                              <SelectItem value="Hors sujet">Hors sujet</SelectItem>
+                              <SelectItem value="Autre">Autre</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-1">
                           <Label>Message</Label>
@@ -905,16 +919,13 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                             className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-green-500/40"
                             value={warnMessage}
                             onChange={(e) => setWarnMessage(e.target.value)}
-                            placeholder="Explique brièvement la raison de l’avertissement"
+                            placeholder="Expliquez la raison / l'avertissement..."
                             rows={5}
                           />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setWarnOpen(false)} disabled={warnSending}>
-                          Annuler
-                        </Button>
-                        <Button type="button" onClick={submitWarn} disabled={warnSending}>
+                        <Button type="button" className="w-full" onClick={submitWarn} disabled={warnSending}>
                           {warnSending ? 'Envoi…' : 'Envoyer'}
                         </Button>
                       </DialogFooter>
@@ -979,7 +990,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
 const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
   const navigate = useNavigate();
   const [warnOpen, setWarnOpen] = useState(false);
-  const [warnReason, setWarnReason] = useState('');
+  const [warnReason, setWarnReason] = useState('Contenu inapproprié');
   const [warnMessage, setWarnMessage] = useState('');
   const [warnSending, setWarnSending] = useState(false);
   const isMyPost = user?.id === post.user_id;
@@ -1047,12 +1058,25 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Avertir l’auteur</DialogTitle>
-                      <DialogDescription>Renseigne un motif et un message.</DialogDescription>
+                      <DialogDescription>
+                        Envoyer une notification + un email à l'auteur (expéditeur: L'équipe OneKamer).
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <Label>Motif</Label>
-                        <Input value={warnReason} onChange={(e) => setWarnReason(e.target.value)} placeholder="Ex: Contenu inapproprié" />
+                        <Select value={warnReason} onValueChange={setWarnReason}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choisir un motif" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Contenu inapproprié">Contenu inapproprié</SelectItem>
+                            <SelectItem value="Spam">Spam</SelectItem>
+                            <SelectItem value="Harcèlement">Harcèlement</SelectItem>
+                            <SelectItem value="Hors sujet">Hors sujet</SelectItem>
+                            <SelectItem value="Autre">Autre</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1">
                         <Label>Message</Label>
@@ -1060,16 +1084,13 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
                           className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-green-500/40"
                           value={warnMessage}
                           onChange={(e) => setWarnMessage(e.target.value)}
-                          placeholder="Explique brièvement la raison de l’avertissement"
+                          placeholder="Expliquez la raison / l'avertissement..."
                           rows={5}
                         />
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setWarnOpen(false)} disabled={warnSending}>
-                        Annuler
-                      </Button>
-                      <Button type="button" onClick={submitWarn} disabled={warnSending}>
+                      <Button type="button" className="w-full" onClick={submitWarn} disabled={warnSending}>
                         {warnSending ? 'Envoi…' : 'Envoyer'}
                       </Button>
                     </DialogFooter>
