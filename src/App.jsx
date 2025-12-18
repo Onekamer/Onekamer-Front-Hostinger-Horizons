@@ -56,6 +56,11 @@ import Landing from '@/pages/Landing';
 import PublicHeader from '@/pages/public/PublicHeader';
 import OneSignalInitializer from '@/OneSignalInitializer';
 import IosPwaPrompt from '@/components/IosPwaPrompt';
+import Marketplace from '@/pages/Marketplace';
+import MarketplacePartner from '@/pages/MarketplacePartner';
+import MarketplaceCart from '@/pages/MarketplaceCart';
+import MarketplaceMyShop from '@/pages/MarketplaceMyShop';
+import MarketplaceMyProducts from '@/pages/MarketplaceMyProducts';
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -135,6 +140,11 @@ const AppContent = () => {
           <Route path="/" element={<Home />} />
           <Route path="/annonces" element={<Annonces />} />
           <Route path="/partenaires" element={<Partenaires />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/marketplace/partner/:partnerId" element={<MarketplacePartner />} />
+          <Route path="/marketplace/cart" element={<MarketplaceCart />} />
+          <Route path="/marketplace/ma-boutique" element={<MarketplaceMyShop />} />
+          <Route path="/marketplace/ma-boutique/produits" element={<MarketplaceMyProducts />} />
           <Route path="/echange" element={<Echange />} />
           <Route path="/evenements" element={<Evenements />} />
           <Route path="/rencontre" element={<Rencontre />} />

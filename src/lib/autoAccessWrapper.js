@@ -6,6 +6,7 @@ export const applyAutoAccessProtection = async (user, navigate, currentPath) => 
     { path: "/rencontre", section: "rencontre", action: "read" },
     { path: "/annonces", section: "annonces", action: "read" },
     { path: "/partenaires", section: "partenaires", action: "read" },
+    { path: "/marketplace", section: "partenaires", action: "read" },
     { path: "/evenements", section: "evenements", action: "read" },
 
     // 🧩 Accès publication

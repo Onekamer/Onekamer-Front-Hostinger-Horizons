@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, Users, MessageSquare, Calendar, Heart } from 'lucide-react';
+import { FileText, ShoppingBag, MessageSquare, Calendar, Heart } from 'lucide-react';
 
 const navItems = [
   { path: '/annonces', icon: FileText, label: 'Annonces' },
-  { path: '/partenaires', icon: Users, label: 'Partenaires' },
+  { path: '/marketplace', icon: ShoppingBag, label: 'Marketplace' },
   { path: '/echange', icon: MessageSquare, label: 'Échange', isCentral: true },
   { path: '/evenements', icon: Calendar, label: 'Événements' },
   { path: '/rencontre', icon: Heart, label: 'Rencontre' },
@@ -14,6 +14,12 @@ const navItems = [
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const isPathActive = (basePath) => {
+    if (!basePath) return false;
+    if (location.pathname === basePath) return true;
+    return location.pathname.startsWith(`${basePath}/`);
+  };
 
   const mainNavItems = navItems.filter(item => !item.isCentral);
   const centralItem = navItems.find(item => item.isCentral);
@@ -31,11 +37,12 @@ const BottomNav = () => {
         <div className="container mx-auto px-2 h-full">
           <div className="flex items-center justify-around h-full pt-2 pb-3">
             {leftItems.map(({ path, icon: Icon, label }) => {
-              const isActive = location.pathname === path;
+              const isActive = isPathActive(path);
               return (
                 <Link
                   key={path}
                   to={path}
+
                   className="flex flex-col items-center justify-center flex-1 relative h-full"
                 >
                   <motion.div
@@ -60,11 +67,12 @@ const BottomNav = () => {
             <div className="flex-1" /> {/* Spacer for the central button */}
 
             {rightItems.map(({ path, icon: Icon, label }) => {
-              const isActive = location.pathname === path;
+              const isActive = isPathActive(path);
               return (
                 <Link
                   key={path}
                   to={path}
+
                   className="flex flex-col items-center justify-center flex-1 relative h-full"
                 >
                   <motion.div

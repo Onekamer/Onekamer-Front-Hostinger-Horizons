@@ -261,6 +261,13 @@ export default defineConfig({
 		headers: {
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
+		proxy: {
+			'/api': {
+				target: 'https://onekamer-server.onrender.com',
+				changeOrigin: true,
+				secure: true,
+			},
+		},
 		allowedHosts: true,
 		https: isDev && (httpsConfig || false),
 		host: true,
