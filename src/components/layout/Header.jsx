@@ -180,8 +180,7 @@ const safeAreaStyle = isCapIOS ? { paddingTop: 'var(--safe-top)' } : undefined;
           </DropdownMenu>
         </div>
       </div>
-    </div>                  
-  </div>                     
+    </div>                                       
         
       <NotifDrawer
         open={open}
