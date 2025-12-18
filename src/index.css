@@ -68,3 +68,24 @@ body {
 .mention-suggestion:hover {
   background-color: rgba(43, 168, 74, 0.1);
 }
+
+/* ============================================================
+   ✅ Safe Area – base iOS native (Capacitor)
+   ============================================================ */
+
+html.cap-ios,
+body.cap-ios {
+  height: 100%;
+  margin: 0;
+}
+
+/* ❌ On NE pad PAS le body (sinon conflit avec header fixed) */
+body.cap-ios {
+  padding: 0;
+}
+
+/* Variables safe-area utilisables partout */
+html.cap-ios {
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
