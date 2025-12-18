@@ -14,6 +14,12 @@ const isIOSNativeApp =
   typeof window.Capacitor.getPlatform === 'function' &&
   window.Capacitor.getPlatform() === 'ios';
 
+// ✅ Ajoute une classe uniquement dans l’app iOS native
+if (isIOSNativeApp) {
+  document.documentElement.classList.add('cap-ios'); // <html>
+  document.body.classList.add('cap-ios');            // <body>
+}
+
  //Service Worker PWA + désenregistrement OneSignal (si natif)
 // 👉 On NE fait ça que si on n'est PAS dans l'app iOS native
 if ('serviceWorker' in navigator && !isIOSNativeApp) {
