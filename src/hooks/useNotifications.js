@@ -10,11 +10,14 @@ export function useNotifications(userId) {
   const [cursor, setCursor] = useState(null)
   const [open, setOpen] = useState(false)
   const swListenerAttached = useRef(false)
+  const initialFetchAttempted = useRef(false)
+  const blockedUntilRef = useRef(0)
 
   const canUseApi = !!API_BASE_URL && !!userId
 
   const fetchPage = useCallback(async (isFirst = false) => {
     if (!canUseApi) return { ok: false }
+    if (Date.now() < blockedUntilRef.current) return { ok: false }
     setLoading(true)
     try {
       const params = new URLSearchParams({ userId, limit: '20' })
@@ -30,6 +33,7 @@ export function useNotifications(userId) {
       setCursor(json?.nextCursor || null)
       return { ok: true }
     } catch (_e) {
+      blockedUntilRef.current = Date.now() + 30_000
       return { ok: false }
     } finally {
       setLoading(false)
@@ -92,8 +96,13 @@ export function useNotifications(userId) {
   // Pré-charge les notifications dès que l'API est disponible et qu'un userId est présent
   useEffect(() => {
     if (!canUseApi) return
+    if (initialFetchAttempted.current) return
     // On ne refait pas l'appel si on a déjà des items
-    if (items.length > 0) return
+    if (items.length > 0) {
+      initialFetchAttempted.current = true
+      return
+    }
+    initialFetchAttempted.current = true
     fetchFirst()
   }, [canUseApi, fetchFirst, items.length])
 

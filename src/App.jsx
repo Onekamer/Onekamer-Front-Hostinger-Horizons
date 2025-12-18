@@ -126,7 +126,7 @@ const AppContent = () => {
        </div>
       ) : (
       <main
-  className="container mx-auto px-4 pb-4 pt-20"
+  className="container mx-auto px-4 pb-24 pt-20"
   style={
     isIOSNativeApp
       ? {
