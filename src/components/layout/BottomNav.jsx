@@ -24,12 +24,12 @@ const BottomNav = () => {
   const rightItems = mainNavItems.slice(itemsPerSide);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 h-24">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 h-28">
       <div
-        className="absolute bottom-0 left-0 right-0 h-16 glass-effect border-t border-[#2BA84A]/20 bottom-nav-safe"
+        className="absolute bottom-0 left-0 right-0 h-20 glass-effect border-t border-[#2BA84A]/20 bottom-nav-safe"
       >
         <div className="container mx-auto px-2 h-full">
-          <div className="flex items-center justify-around h-full">
+          <div className="flex items-center justify-around h-full pt-2 pb-3">
             {leftItems.map(({ path, icon: Icon, label }) => {
               const isActive = location.pathname === path;
               return (
@@ -50,7 +50,7 @@ const BottomNav = () => {
                   {isActive && (
                     <motion.div
                       layoutId={`activeTab-${path}`}
-                      className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-1 bg-[#2BA84A] rounded-full"
+                      className="absolute bottom-1 left-1/2 -translate-x-1/2 w-10 h-1 bg-[#2BA84A] rounded-full pointer-events-none"
                     />
                   )}
                 </Link>
@@ -79,7 +79,7 @@ const BottomNav = () => {
                   {isActive && (
                     <motion.div
                       layoutId={`activeTab-${path}`}
-                      className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-1 bg-[#2BA84A] rounded-full"
+                      className="absolute bottom-1 left-1/2 -translate-x-1/2 w-10 h-1 bg-[#2BA84A] rounded-full pointer-events-none"
                     />
                   )}
                 </Link>
