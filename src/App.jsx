@@ -100,6 +100,17 @@ const AppContent = () => {
       {!isPublic ? <Header deferredPrompt={deferredPrompt} /> : <PublicHeader />}
       <AppLayout />
       {isPublic ? (
+       <div
+    className="container mx-auto px-4 min-h-screen"
+    style={
+      isIOSNativeApp
+        ? {
+            paddingTop: 'var(--safe-top)',
+            paddingBottom: 'var(--safe-bottom)',
+          }
+        : undefined
+    }
+  >
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/cgu" element={<CguPage />} />
@@ -107,15 +118,19 @@ const AppContent = () => {
           <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+       </div>
       ) : (
       <main
-          className="container mx-auto px-4 pt-20 pb-4"
-          style={
-            isIOSNativeApp
-              ? { paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }
-              : undefined
-          }
-        >
+  className="container mx-auto px-4 pb-4 pt-20"
+  style={
+    isIOSNativeApp
+      ? {
+          paddingTop: 'calc(4rem + var(--safe-top))', // 4rem = 64px (header)
+          paddingBottom: 'calc(4rem + var(--safe-bottom))', // 4rem = bottom nav
+        }
+      : undefined // équivalent pt-20 (80px) pour le web/PWA
+  }
+>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/annonces" element={<Annonces />} />
@@ -183,7 +198,7 @@ function App() {
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#2BA84A" />
         </Helmet>
-        <div className="min-h-screen bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5] pb-20">
+        <div className="min-h-screen bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5]">
           <AppContent />
           <OneSignalInitializer />
           <IosPwaPrompt />
