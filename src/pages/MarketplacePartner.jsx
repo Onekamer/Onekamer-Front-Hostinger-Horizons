@@ -18,6 +18,8 @@ const MarketplacePartner = () => {
   const { partnerId } = useParams();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
   const [cart, setCart] = useState(() => readMarketplaceCart());
   const [addingItemId, setAddingItemId] = useState(null);
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com';
@@ -115,7 +117,16 @@ const MarketplacePartner = () => {
                   <CardContent className="p-4 pt-0 flex-1 flex flex-col gap-3">
                     <div className="flex items-start gap-3">
                       {imageUrl ? (
-                        <img alt="Produit" src={imageUrl} className="h-12 w-12 rounded-md object-cover border shrink-0" />
+                        <button
+                          type="button"
+                          className="h-12 w-12 rounded-md overflow-hidden border shrink-0"
+                          onClick={() => {
+                            setLightboxSrc(imageUrl);
+                            setLightboxOpen(true);
+                          }}
+                        >
+                          <img alt="Produit" src={imageUrl} className="h-12 w-12 object-cover" />
+                        </button>
                       ) : null}
                       <div className="min-w-0 flex-1">
                         {it.description ? (
@@ -143,6 +154,27 @@ const MarketplacePartner = () => {
           </div>
         )}
       </div>
+
+      {lightboxOpen && lightboxSrc && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+          onClick={() => {
+            setLightboxOpen(false);
+            setLightboxSrc(null);
+          }}
+        >
+          <div
+            className="max-w-[95vw] max-h-[95vh] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxSrc}
+              alt="media"
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 };

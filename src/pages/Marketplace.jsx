@@ -17,6 +17,8 @@ const Marketplace = () => {
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState([]);
   const [search, setSearch] = useState('');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
   const [cartCount, setCartCount] = useState(() => {
     const cart = readMarketplaceCart();
     return getMarketplaceCartCount(cart);
@@ -190,7 +192,16 @@ const Marketplace = () => {
                   <CardHeader className="p-4">
                     <div className="flex items-start gap-3">
                       {p?.logo_url ? (
-                        <img alt="Logo boutique" src={p.logo_url} className="h-12 w-12 rounded-md object-cover border shrink-0" />
+                        <button
+                          type="button"
+                          className="h-12 w-12 rounded-md overflow-hidden border shrink-0"
+                          onClick={() => {
+                            setLightboxSrc(p.logo_url);
+                            setLightboxOpen(true);
+                          }}
+                        >
+                          <img alt="Logo boutique" src={p.logo_url} className="h-12 w-12 object-cover" />
+                        </button>
                       ) : null}
                       <div className="min-w-0">
                         <CardTitle className="text-lg font-semibold">{p.display_name || 'Boutique partenaire'}</CardTitle>
@@ -227,11 +238,11 @@ const Marketplace = () => {
                         {contactUrl ? (
                           <Button
                             type="button"
-                            variant="default"
+                            variant="outline"
                             onClick={() => {
                               window.location.href = contactUrl;
                             }}
-                            className="shrink-0 bg-[#2BA84A] hover:bg-[#2BA84A]/90 text-white"
+                            className="shrink-0"
                           >
                             Contacter
                           </Button>
@@ -252,6 +263,27 @@ const Marketplace = () => {
           </div>
         )}
       </div>
+
+      {lightboxOpen && lightboxSrc && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+          onClick={() => {
+            setLightboxOpen(false);
+            setLightboxSrc(null);
+          }}
+        >
+          <div
+            className="max-w-[95vw] max-h-[95vh] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxSrc}
+              alt="media"
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 };
