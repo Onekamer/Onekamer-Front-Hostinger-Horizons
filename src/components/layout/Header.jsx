@@ -64,6 +64,9 @@ const safeAreaStyle = isCapIOS ? { paddingTop: 'var(--safe-top)' } : undefined;
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem onClick={() => navigate('/partenaires')}>
+                🤝 Partenaires
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/faits-divers')}>
                 📰 Faits Divers
               </DropdownMenuItem>
