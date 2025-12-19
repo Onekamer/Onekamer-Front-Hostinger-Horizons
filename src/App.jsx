@@ -61,6 +61,7 @@ import MarketplacePartner from '@/pages/MarketplacePartner';
 import MarketplaceCart from '@/pages/MarketplaceCart';
 import MarketplaceMyShop from '@/pages/MarketplaceMyShop';
 import MarketplaceMyProducts from '@/pages/MarketplaceMyProducts';
+import MarketplaceAdmin from '@/pages/MarketplaceAdmin';
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -154,6 +155,7 @@ const AppContent = () => {
           <Route path="/marketplace/cart" element={<MarketplaceCart />} />
           <Route path="/marketplace/ma-boutique" element={<MarketplaceMyShop />} />
           <Route path="/marketplace/ma-boutique/produits" element={<MarketplaceMyProducts />} />
+          <Route path="/compte/marketplace-admin" element={<MarketplaceAdmin />} />
           <Route path="/echange" element={<Echange />} />
           <Route path="/evenements" element={<Evenements />} />
           <Route path="/rencontre" element={<Rencontre />} />

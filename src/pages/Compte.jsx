@@ -203,6 +203,9 @@ const Compte = () => {
             {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
               <MenuItem onClick={() => navigate('/compte/moderation')} title="Modération" />
             )}
+            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
+              <MenuItem onClick={() => navigate('/compte/marketplace-admin')} title="Gestion Marketplace" />
+            )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
             <MenuItem onClick={() => navigate('/forfaits')} title="Changer de forfait" />
