@@ -10,7 +10,7 @@ export const applyAutoAccessProtection = async (user, navigate, currentPath) => 
 
     // 🧩 Marketplace : lecture autorisée à tous les plans (auth requis géré dans App.jsx)
     // 🧩 Gestion boutique : réservé VIP/Admin (via règles Supabase partenaires/create)
-    { path: "/marketplace/ma-boutique", section: "partenaires", action: "create" },
+    { path: "/marketplace/ma-boutique", section: "marketplace", action: "create_shop" },
 
     // 🧩 Accès publication
     { path: "/publier/evenement", section: "evenements", action: "create" },

@@ -59,14 +59,14 @@ const MarketplaceMyShop = () => {
 
       setLoading(true);
       try {
-        const allowed = await canUserAccess(profile, 'partenaires', 'create');
+        const allowed = await canUserAccess(profile, 'marketplace', 'create_shop');
         if (!allowed) {
           toast({
             title: 'Accès refusé',
             description: 'La création de boutique est réservée aux VIP.',
             variant: 'destructive',
           });
-          navigate('/marketplace');
+          navigate('/forfaits');
           return;
         }
 
