@@ -31,6 +31,29 @@ const MarketplaceCart = () => {
     return items.reduce((sum, it) => sum + Number(it.base_price_amount || 0) * Number(it.quantity || 1), 0);
   }, [cart]);
 
+  const syncCartToServer = async (nextCart) => {
+    try {
+      if (!session?.access_token) return;
+      const pid = nextCart?.partnerId ? String(nextCart.partnerId) : null;
+      const its = Array.isArray(nextCart?.items) ? nextCart.items : [];
+      if (!pid) return;
+
+      await fetch(`${apiBaseUrl}/api/market/cart`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          partnerId: pid,
+          items: its.map((it) => ({ itemId: it.itemId, quantity: it.quantity })),
+        }),
+      });
+    } catch {
+      // ignore
+    }
+  };
+
   const handlePay = async () => {
     if (!cart?.partnerId || !Array.isArray(cart?.items) || cart.items.length === 0) {
       toast({
@@ -142,6 +165,7 @@ const MarketplaceCart = () => {
                             quantity: e.target.value,
                           });
                           setCart(next);
+                          syncCartToServer(next);
                         }}
                         className="w-20"
                       />
@@ -151,6 +175,7 @@ const MarketplaceCart = () => {
                         onClick={() => {
                           const next = removeMarketplaceCartItem({ cart, itemId: it.itemId });
                           setCart(next);
+                          syncCartToServer(next);
                         }}
                         aria-label="Supprimer"
                       >
@@ -177,7 +202,9 @@ const MarketplaceCart = () => {
                 disabled={!cart?.items?.length}
                 onClick={() => {
                   clearMarketplaceCart();
-                  setCart(readMarketplaceCart());
+                  const next = readMarketplaceCart();
+                  setCart(next);
+                  syncCartToServer(next);
                 }}
                 className="w-full"
               >

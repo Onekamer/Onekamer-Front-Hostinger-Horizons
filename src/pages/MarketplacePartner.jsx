@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, ShoppingBag } from 'lucide-react';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
   addToMarketplaceCart,
   clearMarketplaceCart,
@@ -16,6 +17,7 @@ const MarketplacePartner = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { partnerId } = useParams();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -30,6 +32,29 @@ const MarketplacePartner = () => {
   useEffect(() => {
     setCart(readMarketplaceCart());
   }, []);
+
+  const syncCartToServer = async (nextCart) => {
+    try {
+      if (!session?.access_token) return;
+      const pid = nextCart?.partnerId ? String(nextCart.partnerId) : null;
+      const its = Array.isArray(nextCart?.items) ? nextCart.items : [];
+      if (!pid) return;
+
+      await fetch(`${apiBaseUrl}/api/market/cart`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          partnerId: pid,
+          items: its.map((it) => ({ itemId: it.itemId, quantity: it.quantity })),
+        }),
+      });
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -70,12 +95,14 @@ const MarketplacePartner = () => {
       clearMarketplaceCart();
       const next = addToMarketplaceCart({ cart: { partnerId: null, items: [] }, partnerId, item });
       setCart(next.cart);
+      await syncCartToServer(next.cart);
       toast({ title: 'Ajouté au panier', description: 'Produit ajouté au panier.' });
       setTimeout(() => setAddingItemId(null), 250);
       return;
     }
 
     setCart(result.cart);
+    await syncCartToServer(result.cart);
     toast({ title: 'Ajouté au panier', description: 'Produit ajouté au panier.' });
     setTimeout(() => setAddingItemId(null), 250);
   };
