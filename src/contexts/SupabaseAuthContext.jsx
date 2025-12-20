@@ -172,9 +172,51 @@ export const AuthProvider = ({ children }) => {
 
       const signOut = useCallback(async () => {
         const { error } = await supabase.auth.signOut();
-        if (error) { toast({ variant: "destructive", title: "La déconnexion a échoué", description: error.message || "Quelque chose s'est mal passé" }); } 
-        else { setUser(null); setProfile(null); setBalance(null); setPermissions({}); }
-        return { error };
+        if (!error) {
+          setUser(null);
+          setProfile(null);
+          setBalance(null);
+          setPermissions({});
+          return { error: null };
+        }
+
+        try {
+          // Fallback: si le logout serveur échoue (ex: 403), on force la déconnexion locale.
+          // supabase-js v2 supporte parfois { scope: 'local' }.
+          try {
+            await supabase.auth.signOut({ scope: 'local' });
+          } catch {}
+
+          const keysToRemove = [];
+          for (let i = 0; i < window.localStorage.length; i += 1) {
+            const k = window.localStorage.key(i);
+            if (!k) continue;
+            if ((k.startsWith('sb-') && k.includes('-auth-token')) || k === 'supabase.auth.token') {
+              keysToRemove.push({ storage: 'local', key: k });
+            }
+          }
+          for (let i = 0; i < window.sessionStorage.length; i += 1) {
+            const k = window.sessionStorage.key(i);
+            if (!k) continue;
+            if ((k.startsWith('sb-') && k.includes('-auth-token')) || k === 'supabase.auth.token') {
+              keysToRemove.push({ storage: 'session', key: k });
+            }
+          }
+          keysToRemove.forEach(({ storage, key }) => {
+            if (storage === 'local') window.localStorage.removeItem(key);
+            else window.sessionStorage.removeItem(key);
+          });
+
+          setUser(null);
+          setProfile(null);
+          setBalance(null);
+          setPermissions({});
+          toast({ title: 'Déconnexion réussie', description: 'Session supprimée localement.' });
+          return { error: null };
+        } catch {
+          toast({ variant: "destructive", title: "La déconnexion a échoué", description: error.message || "Quelque chose s'est mal passé" });
+          return { error };
+        }
       }, [toast]);
 
       const updateUser = useCallback(async (updates) => {
