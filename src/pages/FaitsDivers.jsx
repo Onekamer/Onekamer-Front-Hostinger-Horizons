@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, ArrowLeft, Send, Plus, Share2, Loader2, FileImage as ImageIcon, X } from 'lucide-react';
+import { Heart, MessageCircle, ArrowLeft, Send, Plus, Share2, Loader2, FileImage as ImageIcon, X, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -27,7 +27,6 @@ import FavoriteButton from '@/components/FavoriteButton';
 import { canUserAccess } from '@/lib/accessControl';
 import { notifyNewFaitDivers, notifyMentionInComment } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
-
 
 const AddNewsForm = ({ categories, onArticleAdded }) => {
   const { user } = useAuth();
@@ -367,7 +366,7 @@ const CommentSection = ({ articleId }) => {
   );
 };
 
-const NewsDetail = ({ news, onBack, onLikeToggle, isLiked }) => {
+const NewsDetail = ({ news, onBack, onLikeToggle, isLiked, canManage, onEdit, onDelete }) => {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const { toast } = useToast();
 
@@ -429,6 +428,25 @@ const NewsDetail = ({ news, onBack, onLikeToggle, isLiked }) => {
               <button className="flex items-center gap-2 hover:text-[#007AFF] transition-colors" onClick={() => handleShare(news)}>
                 <Share2 className="h-5 w-5" />
               </button>
+              {canManage && (
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => onEdit?.(news)}>
+                    <Pencil className="w-4 h-4 mr-2" /> Modifier
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={async () => {
+                      const ok = window.confirm('Confirmer la suppression de cet article ?');
+                      if (!ok) return;
+                      await onDelete?.(news);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+                  </Button>
+                </div>
+              )}
             </div>
             <AnimatePresence>
               {isCommentsOpen && (
@@ -454,10 +472,31 @@ const FaitsDivers = () => {
   const [loading, setLoading] = useState(true);
   const [selectedNews, setSelectedNews] = useState(null);
   const [userLikes, setUserLikes] = useState({});
-  const { user } = useAuth();
+  const { user, session, profile } = useAuth();
   const { toast } = useToast();
   const [canCreate, setCanCreate] = useState(false);
   const [searchParams] = useSearchParams();
+
+  const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com';
+  const API_PREFIX = `${serverUrl.replace(/\/$/, '')}/api`;
+
+  const isAdmin =
+    profile?.is_admin === true ||
+    profile?.is_admin === 1 ||
+    profile?.is_admin === 'true' ||
+    String(profile?.role || '').toLowerCase() === 'admin';
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingNews, setEditingNews] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    category_id: '',
+    excerpt: '',
+    full_content: '',
+    image_url: '',
+  });
+  const [editImagePreview, setEditImagePreview] = useState(null);
+  const [editUploading, setEditUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -596,6 +635,135 @@ const FaitsDivers = () => {
     }
   };
 
+  const openEditDialog = (news) => {
+    if (!news) return;
+    setEditingNews(news);
+    setEditFormData({
+      title: news.title || '',
+      category_id: news.category_id || news.category?.id || '',
+      excerpt: news.excerpt || '',
+      full_content: news.full_content || '',
+      image_url: news.image_url || '',
+    });
+    setEditImagePreview(null);
+    setEditOpen(true);
+  };
+
+  const handleDeleteNews = async (news) => {
+    if (!news?.id) return;
+    if (!user) {
+      toast({ title: 'Connexion requise', variant: 'destructive' });
+      return;
+    }
+
+    const isOwner = news?.author_id === user.id || news?.author?.id === user.id;
+
+    try {
+      if (isAdmin && !isOwner) {
+        const token = session?.access_token;
+        if (!token) throw new Error('Session expirée');
+        const resp = await fetch(`${API_PREFIX}/admin/faits-divers/${encodeURIComponent(news.id)}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const out = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(out?.error || 'Erreur serveur');
+      } else {
+        const { error } = await supabase.from('faits_divers').delete().eq('id', news.id);
+        if (error) throw error;
+      }
+
+      setNewsList((prev) => (prev || []).filter((n) => String(n.id) !== String(news.id)));
+      setSelectedNews(null);
+      toast({ title: 'Supprimé', description: 'Article supprimé.' });
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Suppression impossible.', variant: 'destructive' });
+    }
+  };
+
+  const handleEditImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+
+    setEditUploading(true);
+    setEditImagePreview(URL.createObjectURL(file));
+
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    };
+
+    try {
+      const compressedFile = await imageCompression(file, options);
+      const fileExt = compressedFile.name.split('.').pop();
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('faits_divers')
+        .upload(filePath, compressedFile);
+
+      if (uploadError) throw uploadError;
+
+      setEditFormData((prev) => ({ ...prev, image_url: uploadData.path }));
+      toast({ title: 'Image prête à être publiée !' });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setEditImagePreview(null);
+      toast({ variant: 'destructive', title: "Erreur lors de l'upload de l'image", description: error.message });
+    } finally {
+      setEditUploading(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!user || !editingNews?.id) return;
+
+    const { title, category_id, excerpt, full_content, image_url } = editFormData;
+    if (!title || !category_id || !excerpt || !full_content) {
+      toast({ variant: 'destructive', title: 'Veuillez remplir tous les champs obligatoires.' });
+      return;
+    }
+
+    const isOwner = editingNews?.author_id === user.id || editingNews?.author?.id === user.id;
+    const payload = { title, category_id, excerpt, full_content, image_url };
+
+    try {
+      if (isAdmin && !isOwner) {
+        const token = session?.access_token;
+        if (!token) throw new Error('Session expirée');
+        const resp = await fetch(`${API_PREFIX}/admin/faits-divers/${encodeURIComponent(editingNews.id)}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        const out = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(out?.error || 'Erreur serveur');
+      } else {
+        const { error } = await supabase
+          .from('faits_divers')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editingNews.id);
+        if (error) throw error;
+      }
+
+      const updatedLocal = { ...editingNews, ...payload };
+      setNewsList((prev) => (prev || []).map((n) => (String(n.id) === String(editingNews.id) ? { ...n, ...payload } : n)));
+      setSelectedNews((cur) => (cur && String(cur.id) === String(editingNews.id) ? updatedLocal : cur));
+      setEditingNews(updatedLocal);
+      setEditOpen(false);
+      toast({ title: 'Succès', description: 'Article modifié.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -622,9 +790,86 @@ const FaitsDivers = () => {
             onBack={() => setSelectedNews(null)} 
             onLikeToggle={handleLikeToggle}
             isLiked={!!userLikes[selectedNews.id]}
+            canManage={Boolean((user && (selectedNews.author_id === user.id || selectedNews.author?.id === user.id)) || isAdmin)}
+            onEdit={openEditDialog}
+            onDelete={handleDeleteNews}
           />
         )}
       </AnimatePresence>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white">
+          <DialogHeader>
+            <DialogTitle>Modifier un fait divers</DialogTitle>
+            <DialogDescription>Modifiez les informations de votre article.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-title" className="text-right">Titre</Label>
+              <Input
+                id="edit-title"
+                value={editFormData.title}
+                onChange={(e) => setEditFormData((p) => ({ ...p, title: e.target.value }))}
+                className="col-span-3"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-category" className="text-right">Catégorie</Label>
+              <select
+                id="edit-category"
+                value={editFormData.category_id}
+                onChange={(e) => setEditFormData((p) => ({ ...p, category_id: e.target.value }))}
+                className="col-span-3 flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
+                required
+              >
+                <option value="" disabled>Choisir une catégorie</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.nom}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-image" className="text-right">Image</Label>
+              <Input id="edit-image" type="file" accept="image/*" onChange={handleEditImageUpload} className="col-span-3" disabled={editUploading} />
+            </div>
+            {editUploading && <p className="col-span-4 text-center text-sm text-gray-500">Téléversement en cours...</p>}
+            {(editImagePreview || editFormData.image_url) && (
+              <div className="col-span-4">
+                {editImagePreview ? (
+                  <img src={editImagePreview} alt="Aperçu" className="rounded-lg mt-2 w-full max-h-40 object-cover" />
+                ) : (
+                  <MediaDisplay bucket="faits_divers" path={editFormData.image_url} alt="Aperçu" className="rounded-lg mt-2 w-full max-h-40 object-cover" />
+                )}
+              </div>
+            )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-excerpt" className="text-right">Extrait</Label>
+              <Textarea
+                id="edit-excerpt"
+                value={editFormData.excerpt}
+                onChange={(e) => setEditFormData((p) => ({ ...p, excerpt: e.target.value }))}
+                className="col-span-3"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-content" className="text-right">Contenu</Label>
+              <Textarea
+                id="edit-content"
+                value={editFormData.full_content}
+                onChange={(e) => setEditFormData((p) => ({ ...p, full_content: e.target.value }))}
+                className="col-span-3 min-h-[120px]"
+                required
+              />
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
+              <Button type="submit" disabled={editUploading}>Enregistrer</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-6">
         <motion.div

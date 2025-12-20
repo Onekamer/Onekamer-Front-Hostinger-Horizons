@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+
 import { ArrowLeft, Building, Phone, MapPin, Tag, Globe, Image as ImageIcon, Loader2, X, Mail } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -30,14 +31,27 @@ const libraries = ['places'];
 
 const ProposerPartenaire = () => {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { user, profile, session } = useAuth();
+  const partnerId = searchParams.get('partnerId');
+  const isEditMode = !!partnerId;
   const [formData, setFormData] = useState({ name: '', category_id: '', address: '', phone: '', website: '', email: '', description: '', recommandation: '' });
   const [categories, setCategories] = useState([]);
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [existingPartner, setExistingPartner] = useState(null);
   const [coords, setCoords] = useState(null);
   const autocompleteRef = useRef(null);
+
+  const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com';
+  const API_PREFIX = `${serverUrl.replace(/\/$/, '')}/api`;
+
+  const isAdmin =
+    profile?.is_admin === true ||
+    profile?.is_admin === 1 ||
+    profile?.is_admin === 'true' ||
+    String(profile?.role || '').toLowerCase() === 'admin';
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -56,11 +70,62 @@ const ProposerPartenaire = () => {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    const run = async () => {
+      if (!isEditMode) return;
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('partenaires')
+          .select('id, user_id, name, category_id, address, phone, website, email, description, recommandation, latitude, longitude, media_url, media_type')
+          .eq('id', partnerId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) {
+          toast({ title: 'Partenaire introuvable', variant: 'destructive' });
+          navigate('/partenaires');
+          return;
+        }
+
+        const isOwner = user?.id === data.user_id;
+        if (!isAdmin && !isOwner) {
+          toast({ title: 'Accès refusé', description: "Vous n'êtes pas autorisé à modifier ce partenaire.", variant: 'destructive' });
+          navigate('/partenaires');
+          return;
+        }
+
+        setExistingPartner(data);
+        setFormData({
+          name: data.name || '',
+          category_id: data.category_id || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          website: data.website || '',
+          email: data.email || '',
+          description: data.description || '',
+          recommandation: data.recommandation || '',
+          latitude: data.latitude ?? null,
+          longitude: data.longitude ?? null,
+        });
+        if (data.latitude && data.longitude) {
+          setCoords({ lat: data.latitude, lng: data.longitude });
+        }
+        setMediaPreview(data.media_url || null);
+        setMediaFile(null);
+      } catch (e) {
+        toast({ title: 'Erreur', description: e?.message || 'Impossible de charger le partenaire.', variant: 'destructive' });
+        navigate('/partenaires');
+      }
+    };
+
+    run();
+  }, [isAdmin, isEditMode, navigate, partnerId, user]);
+
   const handleInputChange = (e) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
-  
+
   const handleMediaChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -85,7 +150,7 @@ const ProposerPartenaire = () => {
       }
     }
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -101,10 +166,10 @@ const ProposerPartenaire = () => {
       toast({ title: 'Erreur', description: 'Veuillez entrer un numéro de téléphone valide au format international (ex: +33612345678).', variant: 'destructive' });
       return;
     }
-    
+
     setIsUploading(true);
-    let mediaUrl = null;
-    let mediaType = null;
+    let mediaUrl = existingPartner?.media_url || null;
+    let mediaType = existingPartner?.media_type || null;
 
     try {
       if (mediaFile) {
@@ -113,7 +178,7 @@ const ProposerPartenaire = () => {
           const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
           finalFile = await imageCompression(mediaFile, options);
         }
-        
+
         const uploadFormData = new FormData();
         const safeFile = new File(
           [finalFile],
@@ -124,9 +189,9 @@ const ProposerPartenaire = () => {
         uploadFormData.append("type", "partenaires");
         uploadFormData.append("recordId", user.id);
 
-        const res = await fetch("https://onekamer-server.onrender.com/api/upload-media", {
-            method: "POST",
-            body: uploadFormData,
+        const res = await fetch(`${API_PREFIX}/upload-media`, {
+          method: "POST",
+          body: uploadFormData,
         });
 
         if (!res.ok) {
@@ -137,34 +202,67 @@ const ProposerPartenaire = () => {
         mediaType = mediaFile.type.startsWith('video') ? 'video' : 'image';
       }
 
-      const { data: newPartner, error } = await supabase
-        .from('partenaires')
-        .insert([{
+      if (isEditMode) {
+        const isOwner = user?.id && existingPartner?.user_id === user.id;
+        const payload = {
           ...formData,
-          user_id: user.id,
           media_url: mediaUrl,
           media_type: mediaType,
-        }])
-        .select()
-        .single();
+        };
 
-      if (error) throw error;
-
-      if (newPartner) {
-        try {
-          await notifyNewPartenaire({
-            partnerId: newPartner.id,
-            name: newPartner.name,
-            city: newPartner.city,
-            authorName: profile?.username || user?.email || 'Un membre OneKamer',
+        if (isAdmin && !isOwner) {
+          const token = session?.access_token;
+          if (!token) throw new Error('Session expirée');
+          const res = await fetch(`${API_PREFIX}/admin/partenaires/${encodeURIComponent(partnerId)}`, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
           });
-        } catch (notificationError) {
-          console.error('Erreur notification OneSignal (partenaire):', notificationError);
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(out?.error || 'La mise à jour du partenaire a échoué');
+        } else {
+          const { error } = await supabase
+            .from('partenaires')
+            .update({ ...payload, updated_at: new Date().toISOString() })
+            .eq('id', partnerId);
+          if (error) throw error;
         }
+
+        toast({ title: 'Succès !', description: 'Votre partenaire a été mis à jour.' });
+        navigate('/partenaires');
+      } else {
+        const { data: newPartner, error } = await supabase
+          .from('partenaires')
+          .insert([{
+            ...formData,
+            user_id: user.id,
+            media_url: mediaUrl,
+            media_type: mediaType,
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (newPartner) {
+          try {
+            await notifyNewPartenaire({
+              partnerId: newPartner.id,
+              name: newPartner.name,
+              city: newPartner.city,
+              authorName: profile?.username || user?.email || 'Un membre OneKamer',
+            });
+          } catch (notificationError) {
+            console.error('Erreur notification OneSignal (partenaire):', notificationError);
+          }
+        }
+
+        toast({ title: 'Succès !', description: 'Votre partenaire a été proposé.' });
+        navigate('/partenaires');
       }
-      
-      toast({ title: 'Succès !', description: 'Votre partenaire a été proposé.' });
-      navigate('/partenaires');
 
     } catch (error) {
       toast({ title: 'Erreur de publication', description: error.message, variant: 'destructive' });
@@ -179,7 +277,7 @@ const ProposerPartenaire = () => {
       <div className="max-w-2xl mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4"><ArrowLeft className="h-4 w-4 mr-2" />Retour</Button>
-          <h1 className="text-3xl font-bold text-[#F9C400] mb-6">Proposer un partenaire</h1>
+          <h1 className="text-3xl font-bold text-[#F9C400] mb-6">{isEditMode ? 'Modifier un partenaire' : 'Proposer un partenaire'}</h1>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -226,7 +324,7 @@ const ProposerPartenaire = () => {
                   <Card className="p-4 border-dashed"><CardContent className="flex flex-col items-center justify-center text-center p-0">
                       {mediaPreview ? (
                         <div className="relative">
-                          {mediaFile.type.startsWith('image') ? <img alt="Aperçu" src={mediaPreview} className="max-h-48 rounded-md mb-4"/> : <video src={mediaPreview} className="max-h-48 rounded-md mb-4" controls />}
+                          {(mediaFile ? mediaFile.type.startsWith('image') : existingPartner?.media_type === 'image') ? <img alt="Aperçu" src={mediaPreview} className="max-h-48 rounded-md mb-4"/> : <video src={mediaPreview} className="max-h-48 rounded-md mb-4" controls />}
                           <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia}><X className="h-4 w-4" /></Button>
                         </div>
                       ) : (<ImageIcon className="h-12 w-12 text-gray-400 mb-2" />)}
@@ -237,7 +335,7 @@ const ProposerPartenaire = () => {
                 <div className="space-y-2"><Label htmlFor="description">Description de l'activité</Label><Textarea id="description" placeholder="Décrivez l'activité du partenaire..." rows={4} required value={formData.description} onChange={handleInputChange} /></div>
                 <div className="space-y-2"><Label htmlFor="recommandation">Pourquoi le recommandez-vous ?</Label><Textarea id="recommandation" placeholder="Expliquez pourquoi vous recommandez ce partenaire..." rows={3} required value={formData.recommandation} onChange={handleInputChange} /></div>
                 <Button type="submit" className="w-full bg-[#F9C400] hover:bg-[#F9C400]/90 text-white" disabled={isUploading}>
-                  {isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Publication...</> : "Envoyer la proposition"}
+                  {isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Publication...</> : isEditMode ? 'Enregistrer' : "Envoyer la proposition"}
                 </Button>
               </CardContent>
             </Card>
