@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Share2, MapPin, ArrowLeft, Phone, MessageSquare, Mail, Plus, Loader2, Trash2, Euro } from 'lucide-react';
+import { Search, Share2, MapPin, ArrowLeft, Phone, MessageSquare, Mail, Plus, Loader2, Trash2, Euro, Pencil } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -40,11 +40,16 @@ const getDefaultAnnonceImage = (categorieNom) => {
         return `${priceNumber.toFixed(2).replace('.', ',')} ${symbol}`;
     };
 
-    const AnnonceDetail = ({ annonce, onBack, onDelete }) => {
-      const { user } = useAuth();
+    const AnnonceDetail = ({ annonce, onBack, onDelete, onEdit }) => {
+      const { user, profile } = useAuth();
       const { toast } = useToast();
       const navigate = useNavigate();
       const isOwner = user?.id === annonce.user_id;
+      const isAdmin =
+        profile?.is_admin === true ||
+        profile?.is_admin === 1 ||
+        profile?.is_admin === 'true' ||
+        String(profile?.role || '').toLowerCase() === 'admin';
 
       const handleShare = async () => {
         const shareData = {
@@ -88,8 +93,26 @@ const getDefaultAnnonceImage = (categorieNom) => {
             </div>
              <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
                 <FavoriteButton contentType="annonce" contentId={annonce.id} />
-                {isOwner && (
-                  <Button variant="ghost" size="icon" className="text-red-500 bg-white/80 backdrop-blur-sm rounded-full h-8 w-8" onClick={() => {onDelete(annonce.id, annonce.media_url); onBack();}}>
+                {(isOwner || isAdmin) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-700 bg-white/80 backdrop-blur-sm rounded-full h-8 w-8"
+                    onClick={() => onEdit(annonce.id)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+                {(isOwner || isAdmin) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500 bg-white/80 backdrop-blur-sm rounded-full h-8 w-8"
+                    onClick={async () => {
+                      await onDelete(annonce.id, annonce.media_url);
+                      onBack();
+                    }}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
@@ -224,9 +247,13 @@ const getDefaultAnnonceImage = (categorieNom) => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [canCreateAd, setCanCreateAd] = useState(false);
+
+  const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
+  const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
+  const API_PREFIX = `${apiBaseUrl}/api`;
 
   // 🟢 Vérifie automatiquement les droits d'accès à la page "Annonces"
   useEffect(() => {
@@ -287,6 +314,27 @@ const getDefaultAnnonceImage = (categorieNom) => {
       const handleDelete = async (annonceId, mediaPath) => {
         if (!user) return;
         try {
+          const isAdmin =
+            profile?.is_admin === true ||
+            profile?.is_admin === 1 ||
+            profile?.is_admin === 'true' ||
+            String(profile?.role || '').toLowerCase() === 'admin';
+          const isOwner = user?.id && annonces.find((a) => a.id === annonceId)?.user_id === user.id;
+
+          if (isAdmin && !isOwner) {
+            const token = session?.access_token;
+            if (!token) throw new Error('Session expirée');
+            const res = await fetch(`${API_PREFIX}/admin/annonces/${encodeURIComponent(annonceId)}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
+            toast({ title: 'Succès', description: 'Annonce supprimée (admin).' });
+            setAnnonces((prev) => (prev || []).filter((a) => a.id !== annonceId));
+            return;
+          }
+
           if (mediaPath) {
             const { error: storageError } = await supabase.storage.from('annonces').remove([mediaPath]);
             if (storageError) console.warn("Storage deletion warning:", storageError.message);
@@ -294,11 +342,15 @@ const getDefaultAnnonceImage = (categorieNom) => {
 
           const { error: dbError } = await supabase.from('annonces').delete().eq('id', annonceId);
           if (dbError) throw dbError;
-          
           toast({ title: 'Succès', description: 'Annonce supprimée.' });
+          setAnnonces((prev) => (prev || []).filter((a) => a.id !== annonceId));
         } catch (error) {
           toast({ title: "Erreur de suppression", description: error.message, variant: "destructive" });
         }
+      };
+
+      const handleEdit = (annonceId) => {
+        navigate(`/publier/annonce?annonceId=${encodeURIComponent(annonceId)}`);
       };
 
       const handleCreateClick = async () => {
@@ -338,6 +390,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
           annonce={selectedAnnonce} 
           onBack={() => setSelectedAnnonce(null)} 
           onDelete={handleDelete}
+          onEdit={handleEdit}
         />
       )}
     </AnimatePresence>
