@@ -346,11 +346,9 @@ const getDefaultAnnonceImage = (categorieNom) => {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-3xl font-bold text-[#2BA84A]">Annonces</h1>
-          {canCreateAd && 
-            <Button onClick={handleCreateClick} className="bg-gradient-to-r from-[#E0222A] to-[#F5C300] text-white">
-              <Plus className="mr-2 h-4 w-4" /> Créer
-            </Button>
-          }
+          <Button onClick={handleCreateClick} className="bg-gradient-to-r from-[#E0222A] to-[#F5C300] text-white">
+            <Plus className="mr-2 h-4 w-4" /> Créer
+          </Button>
         </div>
           
               <div className="relative">

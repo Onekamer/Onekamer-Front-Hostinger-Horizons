@@ -164,9 +164,9 @@ const Groupes = () => {
                 </span>
               )}
             </Button>
-            <Button onClick={handleCreateGroupClick} disabled={!canCreate}>
+            <Button onClick={handleCreateGroupClick}>
               {canCreate ? <PlusCircle className="h-5 w-5 mr-2" /> : <Lock className="h-5 w-5 mr-2" />}
-              {canCreate ? 'Créer' : 'Verrouillé'}
+              Créer
             </Button>
           </div>
         </motion.div>
