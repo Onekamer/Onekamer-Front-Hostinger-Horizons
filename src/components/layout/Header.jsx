@@ -73,12 +73,6 @@ const safeAreaStyle = isCapIOS ? { paddingTop: 'var(--safe-top)' } : undefined;
                <DropdownMenuItem onClick={() => navigate('/groupes')}>
                 <Users className="mr-2 h-4 w-4" /> Groupes
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/publier')}>
-                ✍️ Publier
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/echange')}>
-                💬 Échange Communautaire
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/ok-coins')}>
                 💰 Faire un Don (OK Coins)
               </DropdownMenuItem>
