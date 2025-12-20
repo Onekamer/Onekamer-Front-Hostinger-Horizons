@@ -115,7 +115,7 @@ const Compte = () => {
   const handleLogout = async () => {
     const { error } = await signOut();
     if (!error) {
-      navigate('/');
+      navigate('/auth');
       toast({
         title: "Déconnexion réussie",
         description: "À bientôt sur OneKamer.co !",
