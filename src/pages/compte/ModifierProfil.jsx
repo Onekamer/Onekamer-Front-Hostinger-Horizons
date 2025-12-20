@@ -13,7 +13,6 @@ import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
-import RencontreTypeSelector from '@/components/rencontres/RencontreTypeSelector';
 
 const ModifierProfil = () => {
   const { user, profile, updateUser, refreshProfile } = useAuth();
@@ -44,6 +43,15 @@ const ModifierProfil = () => {
       setEmail(user.email || '');
     }
   }, [user, profile]);
+
+  useEffect(() => {
+    if (window.location.hash !== '#rencontre') return;
+    const t = setTimeout(() => {
+      const el = document.getElementById('rencontre');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleAvatarUpload = async (event) => {
     try {
@@ -347,8 +355,18 @@ const ModifierProfil = () => {
               </form>
             </CardContent>
           </Card>
-          
-          <RencontreTypeSelector />
+
+          <Card id="rencontre">
+            <CardHeader>
+              <CardTitle>Espace Rencontres</CardTitle>
+              <CardDescription>Accédez à votre profil Rencontre.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button type="button" className="w-full" onClick={() => navigate('/rencontre/profil')}>
+                Accéder à mon profil Rencontres
+              </Button>
+            </CardContent>
+          </Card>
 
         </motion.div>
       </div>
@@ -357,4 +375,3 @@ const ModifierProfil = () => {
 };
 
 export default ModifierProfil;
-  
