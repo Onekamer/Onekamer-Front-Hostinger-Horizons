@@ -73,6 +73,18 @@ export const AuthProvider = ({ children }) => {
     return userPermissions;
   }, [checkFeaturePermission]);
 
+  const withTimeout = useCallback(async (promise, ms) => {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('timeout')), ms);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }, []);
+
   const handleSession = useCallback(async (session) => {
     try {
       setSession(session);
@@ -80,14 +92,25 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
 
       if (currentUser) {
-        const [userProfile, userBalance, userPermissions] = await Promise.all([
+        const [userProfile, userBalance] = await Promise.all([
           fetchProfile(currentUser.id),
           fetchBalance(currentUser.id),
-          fetchAllPermissions(currentUser.id),
         ]);
         setProfile(userProfile);
         setBalance(userBalance);
-        setPermissions(userPermissions);
+
+        setLoading(false);
+
+        (async () => {
+          try {
+            const perms = await withTimeout(fetchAllPermissions(currentUser.id), 6000);
+            if (perms && typeof perms === 'object') setPermissions(perms);
+          } catch {
+            // ignore
+          }
+        })();
+
+        return;
       } else {
         setProfile(null);
         setBalance(null);
@@ -103,7 +126,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [fetchProfile, fetchBalance, fetchAllPermissions]);
+  }, [fetchProfile, fetchBalance, fetchAllPermissions, withTimeout]);
 
   useEffect(() => {
     const getSession = async () => {
@@ -177,9 +200,16 @@ export const AuthProvider = ({ children }) => {
     if (user) {
       const userProfile = await fetchProfile(user.id);
       setProfile(userProfile);
-      await fetchAllPermissions(user.id);
+      (async () => {
+        try {
+          const perms = await withTimeout(fetchAllPermissions(user.id), 6000);
+          if (perms && typeof perms === 'object') setPermissions(perms);
+        } catch {
+          // ignore
+        }
+      })();
     }
-  }, [user, fetchProfile, fetchAllPermissions]);
+  }, [user, fetchProfile, fetchAllPermissions, withTimeout]);
 
   useEffect(() => {
     if (!user) return;
