@@ -201,6 +201,9 @@ const Compte = () => {
               <MenuItem onClick={() => navigate('/compte/emails-admin')} title="Envoyer des emails (admin)" />
             )}
             {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
+              <MenuItem onClick={() => navigate('/compte/admin-utilisateurs')} title="Gestion utilisateurs (admin)" />
+            )}
+            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
               <MenuItem onClick={() => navigate('/compte/moderation')} title="Modération" />
             )}
             {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
