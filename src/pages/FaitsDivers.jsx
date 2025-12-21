@@ -412,7 +412,7 @@ const NewsDetail = ({ news, onBack, onLikeToggle, isLiked, canManage, onEdit, on
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-gray-600">{news.full_content}</p>
-            <div className="flex items-center gap-4 text-[#6B6B6B] border-t pt-4">
+            <div className="flex flex-wrap items-center gap-4 text-[#6B6B6B] border-t pt-4">
               <FavoriteButton contentType="fait_divers" contentId={news.id} />
               <button 
                 className={`flex items-center gap-2 hover:text-[#E0222A] transition-colors ${isLiked ? 'text-red-500' : ''}`}
@@ -429,7 +429,7 @@ const NewsDetail = ({ news, onBack, onLikeToggle, isLiked, canManage, onEdit, on
                 <Share2 className="h-5 w-5" />
               </button>
               {canManage && (
-                <div className="flex gap-2">
+                <div className="flex w-full gap-2 sm:w-auto">
                   <Button type="button" variant="outline" className="flex-1" onClick={() => onEdit?.(news)}>
                     <Pencil className="w-4 h-4 mr-2" /> Modifier
                   </Button>
