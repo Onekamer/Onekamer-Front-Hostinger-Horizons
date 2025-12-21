@@ -54,6 +54,7 @@ import CguPage from '@/pages/Cgu';
 import RgpdPage from '@/pages/Rgpd';
 import MentionsLegalesPage from '@/pages/MentionLegales';
 import Landing from '@/pages/Landing';
+import Invite from '@/pages/Invite';
 import PublicHeader from '@/pages/public/PublicHeader';
 import OneSignalInitializer from '@/OneSignalInitializer';
 import IosPwaPrompt from '@/components/IosPwaPrompt';
@@ -83,7 +84,7 @@ const AppContent = () => {
   const { session, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const publicPaths = ['/', '/cgu', '/rgpd', '/mentions-legales'];
+  const publicPaths = ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'];
   const isPublic = !session && publicPaths.includes(location.pathname);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -129,6 +130,7 @@ const AppContent = () => {
   >
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/invite" element={<Invite />} />
           <Route path="/cgu" element={<CguPage />} />
           <Route path="/rgpd" element={<RgpdPage />} />
           <Route path="/mentions-legales" element={<MentionsLegalesPage />} />

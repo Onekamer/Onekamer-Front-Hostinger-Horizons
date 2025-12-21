@@ -11,6 +11,8 @@ import React, { useState } from 'react';
     import { Loader2 } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
 
+    const INVITE_CODE_STORAGE_KEY = 'onekamer_invite_code';
+
     const ForgotPasswordForm = ({ onBack }) => {
         const [email, setEmail] = useState('');
         const [loading, setLoading] = useState(false);
@@ -60,6 +62,9 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+  const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
 
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -111,6 +116,23 @@ const AuthPage = () => {
     );
     if (!error) {
       toast({ title: 'Inscription réussie !', description: 'Veuillez vérifier votre e-mail pour confirmer votre compte.' });
+
+      try {
+        if (!API_PREFIX) return;
+        const code = String(localStorage.getItem(INVITE_CODE_STORAGE_KEY) || '').trim();
+        if (code) {
+          await fetch(`${API_PREFIX}/invites/track`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code,
+              event: 'signup',
+              user_email: registerEmail,
+              user_username: registerUsername,
+            }),
+          });
+        }
+      } catch {}
     }
     setLoading(false);
   };

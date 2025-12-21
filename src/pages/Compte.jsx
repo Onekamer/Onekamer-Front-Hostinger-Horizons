@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
@@ -19,6 +20,13 @@ const Compte = () => {
   const [onlineVisible, setOnlineVisible] = useState(true);
   const [onlineSaving, setOnlineSaving] = useState(false);
 
+  const [inviteCode, setInviteCode] = useState(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteStatsLoading, setInviteStatsLoading] = useState(false);
+  const [inviteStats, setInviteStats] = useState(null);
+  const [inviteRecent, setInviteRecent] = useState([]);
+  const [invitePeriod, setInvitePeriod] = useState('30d');
+
   const [dashSearch, setDashSearch] = React.useState('');
   const [dashSuggestions, setDashSuggestions] = React.useState([]);
   const [dashSuggestLoading, setDashSuggestLoading] = React.useState(false);
@@ -29,6 +37,64 @@ const Compte = () => {
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
   const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
   const navigate = useNavigate();
+
+  const inviteLink = useMemo(() => {
+    if (!inviteCode) return null;
+    return `${window.location.origin}/invite?code=${encodeURIComponent(inviteCode)}`;
+  }, [inviteCode]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!API_PREFIX || !session?.access_token) return;
+
+      try {
+        setInviteLoading(true);
+        const res = await fetch(`${API_PREFIX}/invites/my-code`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || 'Erreur récupération code');
+        }
+        const data = await res.json();
+        setInviteCode(data?.code || null);
+      } catch (e) {
+        toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+      } finally {
+        setInviteLoading(false);
+      }
+    };
+
+    run();
+  }, [API_PREFIX, session?.access_token]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!API_PREFIX || !session?.access_token) return;
+
+      try {
+        setInviteStatsLoading(true);
+        const res = await fetch(`${API_PREFIX}/invites/my-stats?period=${encodeURIComponent(invitePeriod)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || 'Erreur récupération stats');
+        }
+        const data = await res.json();
+        setInviteCode((prev) => prev || data?.code || null);
+        setInviteStats(data?.stats || null);
+        setInviteRecent(Array.isArray(data?.recent) ? data.recent : []);
+      } catch (e) {
+        toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+      } finally {
+        setInviteStatsLoading(false);
+      }
+    };
+
+    run();
+  }, [API_PREFIX, session?.access_token, invitePeriod]);
 
   React.useEffect(() => {
     let aborted = false;
@@ -66,7 +132,7 @@ const Compte = () => {
     return () => { aborted = true; };
   }, [API_PREFIX, session?.access_token]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const ctrl = new AbortController();
     if (!canAccessQrDashboard) return;
     if (!API_PREFIX) return;
@@ -199,6 +265,7 @@ const Compte = () => {
             <CardTitle>Paramètres</CardTitle>
           </CardHeader>
           <CardContent className="divide-y">
+
             <div className="w-full flex justify-between items-center py-4 text-left">
               <div>
                 <div className="font-medium">Apparaître en ligne</div>
@@ -249,6 +316,178 @@ const Compte = () => {
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
             <MenuItem onClick={() => navigate('/forfaits')} title="Changer de forfait" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Partager à mes contacts</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-gray-600">
+              Invitez vos contacts à installer et utiliser OneKamer. Vous pourrez suivre les ouvertures et inscriptions.
+            </p>
+
+            <div className="space-y-2">
+              <div className="text-xs text-gray-500">Votre lien d’invitation</div>
+              <div className="text-sm break-all">{inviteLink || (inviteLoading ? 'Chargement...' : 'Indisponible')}</div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                disabled={!inviteLink}
+                onClick={async () => {
+                  const text = `Rejoins-moi sur OneKamer : ${inviteLink}`;
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({ title: 'OneKamer', text, url: inviteLink });
+                      return;
+                    }
+                    await navigator.clipboard.writeText(text);
+                    toast({ title: 'Copié', description: 'Message d’invitation copié.' });
+                  } catch (e) {
+                    toast({ title: 'Erreur', description: e?.message || 'Impossible de partager.', variant: 'destructive' });
+                  }
+                }}
+              >
+                Partager
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={!inviteLink}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(inviteLink);
+                    toast({ title: 'Lien copié', description: 'Vous pouvez le coller dans un message.' });
+                  } catch (e) {
+                    toast({ title: 'Erreur', description: e?.message || 'Impossible de copier.', variant: 'destructive' });
+                  }
+                }}
+              >
+                Copier le lien
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={!inviteLink || !navigator?.contacts?.select}
+                onClick={async () => {
+                  try {
+                    const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+                    const count = Array.isArray(contacts) ? contacts.length : 0;
+                    toast({ title: 'Contacts sélectionnés', description: `${count} contact(s) sélectionné(s).` });
+                    const text = `Rejoins-moi sur OneKamer : ${inviteLink}`;
+
+                    const tels = (Array.isArray(contacts) ? contacts : [])
+                      .flatMap((c) => (Array.isArray(c?.tel) ? c.tel : []))
+                      .map((t) => String(t || '').trim())
+                      .filter(Boolean);
+
+                    if (tels.length === 0) {
+                      await navigator.clipboard.writeText(text);
+                      toast({ title: 'Copié', description: 'Aucun numéro trouvé sur les contacts sélectionnés. Message copié.' });
+                      return;
+                    }
+
+                    const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent || '');
+                    const recipients = tels.join(',');
+                    const sep = isIOS ? '&' : '?';
+                    const smsUrl = `sms:${recipients}${sep}body=${encodeURIComponent(text)}`;
+                    window.location.href = smsUrl;
+                  } catch (e) {
+                    toast({ title: 'Erreur', description: e?.message || 'Action annulée.', variant: 'destructive' });
+                  }
+                }}
+              >
+                Choisir des contacts
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Dashboard invitations</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="text-gray-600">Période</div>
+              <div className="flex gap-2">
+                <Button type="button" variant={invitePeriod === '7d' ? 'default' : 'outline'} onClick={() => setInvitePeriod('7d')}>
+                  7 jours
+                </Button>
+                <Button type="button" variant={invitePeriod === '30d' ? 'default' : 'outline'} onClick={() => setInvitePeriod('30d')}>
+                  30 jours
+                </Button>
+                <Button type="button" variant={invitePeriod === 'all' ? 'default' : 'outline'} onClick={() => setInvitePeriod('all')}>
+                  Total
+                </Button>
+              </div>
+            </div>
+
+            {inviteStatsLoading ? (
+              <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-green-500" /></div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="text-center">
+                  <CardHeader>
+                    <CardTitle className="text-sm">Ouvertures</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{inviteStats?.click ?? 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="text-center">
+                  <CardHeader>
+                    <CardTitle className="text-sm">Inscriptions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{inviteStats?.signup ?? 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="text-center">
+                  <CardHeader>
+                    <CardTitle className="text-sm">Premières connexions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{inviteStats?.first_login ?? 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="text-center">
+                  <CardHeader>
+                    <CardTitle className="text-sm">Installations</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{inviteStats?.install ?? 0}</div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="font-medium">Dernières activités</div>
+              {inviteRecent.length === 0 ? (
+                <div className="text-gray-500">Aucune activité.</div>
+              ) : (
+                <div className="space-y-2">
+                  {inviteRecent.map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between gap-4">
+                      <div className="text-gray-700">
+                        <div className="font-medium">{ev.event}</div>
+                        <div className="text-xs text-gray-500">{ev.user_username || ev.user_email || ''}</div>
+                      </div>
+                      <div className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
