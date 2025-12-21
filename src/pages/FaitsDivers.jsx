@@ -505,19 +505,26 @@ const FaitsDivers = () => {
   }, [user]);
 
   const fetchNews = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('view_faits_divers_accessible')
-      .select('*, author:profiles(id, username, avatar_url), category:faits_divers_categories(id, nom)')
-      .order('created_at', { ascending: false });
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('view_faits_divers_accessible')
+        .select('*, author:profiles(id, username, avatar_url), category:faits_divers_categories(id, nom)')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching news:', error);
-      toast({ variant: 'destructive', title: 'Erreur de chargement', description: error.message });
-    } else {
-      setNewsList(data || []);
+      if (error) {
+        console.error('Error fetching news:', error);
+        toast({ variant: 'destructive', title: 'Erreur de chargement', description: error.message });
+        setNewsList([]);
+      } else {
+        setNewsList(data || []);
+      }
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur de chargement', description: e?.message || 'Impossible de charger les faits divers.' });
+      setNewsList([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [toast]);
 
   const fetchUserLikes = useCallback(async () => {

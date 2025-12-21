@@ -73,40 +73,70 @@ export const AuthProvider = ({ children }) => {
   }, [checkFeaturePermission]);
 
   const handleSession = useCallback(async (session) => {
-    setSession(session);
-    const currentUser = session?.user ?? null;
-    setUser(currentUser);
+    try {
+      setSession(session);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
 
-    if (currentUser) {
-      const [userProfile, userBalance, userPermissions] = await Promise.all([
-        fetchProfile(currentUser.id),
-        fetchBalance(currentUser.id),
-        fetchAllPermissions(currentUser.id)
-      ]);
-      setProfile(userProfile);
-      setBalance(userBalance);
-      setPermissions(userPermissions);
-    } else {
+      if (currentUser) {
+        const [userProfile, userBalance, userPermissions] = await Promise.all([
+          fetchProfile(currentUser.id),
+          fetchBalance(currentUser.id),
+          fetchAllPermissions(currentUser.id),
+        ]);
+        setProfile(userProfile);
+        setBalance(userBalance);
+        setPermissions(userPermissions);
+      } else {
+        setProfile(null);
+        setBalance(null);
+        setPermissions({});
+      }
+    } catch (e) {
+      console.warn('Auth initialization error:', e?.message || e);
+      setUser(null);
+      setSession(null);
       setProfile(null);
       setBalance(null);
       setPermissions({});
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [fetchProfile, fetchBalance, fetchAllPermissions]);
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      await handleSession(session);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await handleSession(session);
+      } catch (e) {
+        console.warn('supabase.auth.getSession failed:', e?.message || e);
+        setUser(null);
+        setSession(null);
+        setProfile(null);
+        setBalance(null);
+        setPermissions({});
+        setLoading(false);
+      }
     };
 
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session) {
-          await handleSession(session);
-        } else if (event === 'SIGNED_OUT') {
+        try {
+          if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session) {
+            await handleSession(session);
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setSession(null);
+            setProfile(null);
+            setBalance(null);
+            setPermissions({});
+            setLoading(false);
+          }
+        } catch (e) {
+          console.warn('onAuthStateChange handler error:', e?.message || e);
           setUser(null);
           setSession(null);
           setProfile(null);

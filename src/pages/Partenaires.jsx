@@ -208,20 +208,27 @@ const Partenaires = () => {
 
   const fetchPartenaires = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from('view_partenaires_accessible').select('*, partenaires_categories(id, nom, industrie)');
-    if (searchTerm) {
-      query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
-    }
-    query = query.order('created_at', { ascending: false });
+    try {
+      let query = supabase.from('view_partenaires_accessible').select('*, partenaires_categories(id, nom, industrie)');
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+      }
+      query = query.order('created_at', { ascending: false });
 
-    const { data, error } = await query;
-    if (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les partenaires.' });
-      console.error(error);
-    } else {
-      setPartenaires(data);
+      const { data, error } = await query;
+      if (error) {
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les partenaires.' });
+        console.error(error);
+        setPartenaires([]);
+      } else {
+        setPartenaires(data);
+      }
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de charger les partenaires.' });
+      setPartenaires([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [searchTerm, toast]);
 
   useEffect(() => {

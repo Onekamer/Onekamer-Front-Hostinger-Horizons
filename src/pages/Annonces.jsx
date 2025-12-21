@@ -272,18 +272,24 @@ const getDefaultAnnonceImage = (categorieNom) => {
 
       const fetchAnnonces = useCallback(async () => {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('view_annonces_accessible')
-          .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url), devises(symbole)')
-          .order('created_at', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('view_annonces_accessible')
+            .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url), devises(symbole)')
+            .order('created_at', { ascending: false });
 
-        if (error) {
-          toast({ title: "Erreur de chargement", description: error.message, variant: "destructive" });
+          if (error) {
+            toast({ title: "Erreur de chargement", description: error.message, variant: "destructive" });
+            setAnnonces([]);
+          } else {
+            setAnnonces(data);
+          }
+        } catch (e) {
+          toast({ title: "Erreur de chargement", description: e?.message || 'Impossible de charger les annonces.', variant: "destructive" });
           setAnnonces([]);
-        } else {
-          setAnnonces(data);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       }, [toast]);
 
       useEffect(() => {

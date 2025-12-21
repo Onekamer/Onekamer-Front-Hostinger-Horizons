@@ -320,14 +320,24 @@ import React, { useState, useEffect, useCallback } from 'react';
 
       const fetchEvents = useCallback(async () => {
         setLoading(true);
-        const { data, error } = await supabase.from('view_evenements_accessible').select('*, evenements_types(nom), profiles(username), devises(symbole)').order('date', { ascending: true });
-        if (error) {
-          console.error("Error fetching events:", error);
-          toast({ title: 'Erreur', description: "Impossible de charger les événements.", variant: 'destructive' });
-        } else {
-          setEvents(data);
+        try {
+          const { data, error } = await supabase
+            .from('view_evenements_accessible')
+            .select('*, evenements_types(nom), profiles(username), devises(symbole)')
+            .order('date', { ascending: true });
+          if (error) {
+            console.error("Error fetching events:", error);
+            toast({ title: 'Erreur', description: "Impossible de charger les événements.", variant: 'destructive' });
+            setEvents([]);
+          } else {
+            setEvents(data);
+          }
+        } catch (e) {
+          toast({ title: 'Erreur', description: e?.message || "Impossible de charger les événements.", variant: 'destructive' });
+          setEvents([]);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       }, [toast]);
       
       useEffect(() => {
