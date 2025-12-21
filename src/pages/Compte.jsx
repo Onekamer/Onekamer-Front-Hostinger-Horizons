@@ -10,11 +10,15 @@ import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2 } from 'lucide-react'
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
+import { Switch } from '@/components/ui/switch';
 
 const Compte = () => {
-  const { user, profile, signOut, balance, loading, session } = useAuth();
+  const { user, profile, signOut, balance, loading, session, refreshProfile } = useAuth();
   const [isQrAdmin, setIsQrAdmin] = React.useState(false);
   const [canAccessQrDashboard, setCanAccessQrDashboard] = React.useState(false);
+  const [onlineVisible, setOnlineVisible] = useState(true);
+  const [onlineSaving, setOnlineSaving] = useState(false);
+
   const [dashSearch, setDashSearch] = React.useState('');
   const [dashSuggestions, setDashSuggestions] = React.useState([]);
   const [dashSuggestLoading, setDashSuggestLoading] = React.useState(false);
@@ -99,6 +103,10 @@ const Compte = () => {
       setDashStatsLoading(false);
     }
   };
+
+  useEffect(() => {
+    setOnlineVisible(profile?.show_online_status !== false);
+  }, [profile?.show_online_status]);
 
   if (loading) {
     return (
@@ -191,9 +199,38 @@ const Compte = () => {
             <CardTitle>Paramètres</CardTitle>
           </CardHeader>
           <CardContent className="divide-y">
+            <div className="w-full flex justify-between items-center py-4 text-left">
+              <div>
+                <div className="font-medium">Apparaître en ligne</div>
+                <div className="text-xs text-gray-500">Activez pour que les autres membres voient votre statut.</div>
+              </div>
+              <Switch
+                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 border border-gray-300"
+                checked={onlineVisible}
+                disabled={onlineSaving}
+                onCheckedChange={async (checked) => {
+                  try {
+                    setOnlineSaving(true);
+                    setOnlineVisible(Boolean(checked));
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ show_online_status: Boolean(checked), updated_at: new Date().toISOString() })
+                      .eq('id', user.id);
+                    if (error) throw error;
+                    await refreshProfile();
+                  } catch (e) {
+                    toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+                    setOnlineVisible(profile?.show_online_status !== false);
+                  } finally {
+                    setOnlineSaving(false);
+                  }
+                }}
+              />
+            </div>
             <MenuItem onClick={() => navigate('/compte/modifier')} title="Mon profil" />
             <MenuItem onClick={() => navigate('/compte/notifications')} title="Notifications" />
             <MenuItem onClick={() => navigate('/compte/mon-qrcode')} title="Mon QR Code" />
+
             {isQrAdmin && (
               <MenuItem onClick={() => navigate('/scan')} title="Scanner QR (Admin)" />
             )}

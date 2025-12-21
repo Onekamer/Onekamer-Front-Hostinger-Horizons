@@ -7,8 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus, Shield, Award, MessageSquare as MessageSquareQuote, Gem, Star, Crown, Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import MediaDisplay from '@/components/MediaDisplay';
 import { supabase } from '@/lib/customSupabaseClient';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 const Badge = ({ icon, label, colorClass }) => (
   <div className={`flex items-center gap-2 py-1 px-3 rounded-full text-sm font-semibold ${colorClass}`}>
@@ -20,7 +23,8 @@ const Badge = ({ icon, label, colorClass }) => (
 const UserProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  
+  const { onlineUserIds } = useAuth();
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -79,6 +83,21 @@ const UserProfile = () => {
     'vip': 'bg-yellow-200 text-yellow-800',
   };
 
+  const allowsOnline = profile?.show_online_status !== false;
+  const isOnline = Boolean(allowsOnline && userId && (onlineUserIds instanceof Set) && onlineUserIds.has(String(userId)));
+  const statusText = (() => {
+    if (!allowsOnline) return 'Hors ligne';
+    if (isOnline) return 'En ligne';
+    if (profile?.last_seen_at) {
+      try {
+        return `Vu ${formatDistanceToNow(new Date(profile.last_seen_at), { addSuffix: true, locale: fr })}`;
+      } catch {
+        return 'Hors ligne';
+      }
+    }
+    return 'Hors ligne';
+  })();
+
   return (
     <>
       <Helmet>
@@ -115,6 +134,10 @@ const UserProfile = () => {
                   </div>
                 )}
                 <h1 className="text-3xl font-bold text-gray-800">{profile.username || 'Utilisateur'}</h1>
+                <div className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                  <span>{statusText}</span>
+                </div>
                 
                 <div className="flex flex-wrap justify-center gap-2 mt-4">
                   <Badge 

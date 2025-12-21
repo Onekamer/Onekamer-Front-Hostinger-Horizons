@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(null);
   const [permissions, setPermissions] = useState({});
+  const [onlineUserIds, setOnlineUserIds] = useState(() => new Set());
 
   const fetchProfile = useCallback(async (userId) => {
     if (!userId) return null;
@@ -184,9 +185,90 @@ export const AuthProvider = ({ children }) => {
     if (!user) return;
     const balanceChannel = supabase.channel(`balance-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'okcoins_users_balance', filter: `user_id=eq.${user.id}`}, payload => { setBalance(payload.new); toast({ title: 'Solde mis à jour ! 💰', description: `Votre nouveau solde est de ${payload.new.coins_balance} pièces.` }); }).subscribe();
     const notificationChannel = supabase.channel(`notifications-for-${user.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'okcoins_notifications', filter: `user_id=eq.${user.id}`}, payload => { toast({ title: 'Nouvelle notification ! 🔔', description: payload.new.message }); refreshBalance(); }).subscribe();
-    const profileChannel = supabase.channel(`profile-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}`}, payload => { setProfile(payload.new); fetchAllPermissions(user.id); toast({ title: 'Profil mis à jour!', description: 'Votre abonnement a été mis à jour.' }); }).subscribe();
+    const profileChannel = supabase.channel(`profile-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}`}, payload => {
+      const next = payload?.new;
+      setProfile((prev) => {
+        const shouldNotify = Boolean(
+          prev && next && (
+            String(prev.plan || '') !== String(next.plan || '') ||
+            String(prev.role || '') !== String(next.role || '') ||
+            Boolean(prev.is_admin) !== Boolean(next.is_admin)
+          )
+        );
+        if (shouldNotify) {
+          toast({ title: 'Profil mis à jour!', description: 'Votre abonnement a été mis à jour.' });
+          fetchAllPermissions(user.id);
+        }
+        return next;
+      });
+    }).subscribe();
     return () => { supabase.removeChannel(balanceChannel); supabase.removeChannel(notificationChannel); supabase.removeChannel(profileChannel); }
   }, [user, toast, refreshBalance, fetchAllPermissions]);
+
+  useEffect(() => {
+    if (!user) {
+      setOnlineUserIds(new Set());
+      return;
+    }
+
+    if (profile?.show_online_status === false) {
+      setOnlineUserIds(new Set());
+      return;
+    }
+
+    const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
+
+    const presenceChannel = supabase.channel('presence:global', {
+      config: { presence: { key: user.id } },
+    });
+
+    const sync = () => {
+      const state = presenceChannel.presenceState();
+      const ids = Object.keys(state || {});
+      setOnlineUserIds(new Set(ids));
+    };
+
+    presenceChannel.on('presence', { event: 'sync' }, sync);
+    presenceChannel.subscribe(async (status) => {
+      if (status !== 'SUBSCRIBED') return;
+      try {
+        await presenceChannel.track({ user_id: user.id });
+      } catch {
+        // ignore
+      }
+    });
+
+    const beat = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) return;
+        const token = data?.session?.access_token;
+        if (!token) return;
+        await fetch(`${API_PREFIX}/presence/heartbeat`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    beat();
+    const intervalId = setInterval(beat, 60 * 1000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        beat();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(intervalId);
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [user, profile?.show_online_status]);
 
       const signUp = useCallback(async (credentials, {data, emailRedirectTo}) => {
         const { error } = await supabase.auth.signUp({ ...credentials, options: { data, emailRedirectTo } });
@@ -256,8 +338,8 @@ export const AuthProvider = ({ children }) => {
       }, [toast]);
       
       const value = useMemo(() => ({
-        user, session, profile, balance, loading, permissions, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission
-      }), [user, session, profile, balance, loading, permissions, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission]);
+        user, session, profile, balance, loading, permissions, onlineUserIds, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission
+      }), [user, session, profile, balance, loading, permissions, onlineUserIds, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission]);
 
       return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
     };

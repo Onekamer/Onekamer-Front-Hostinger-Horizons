@@ -14,8 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Send } from 'lucide-react';
 
 const MessagesPrives = () => {
-  const { user } = useAuth();
+  const { user, onlineUserIds } = useAuth();
   const navigate = useNavigate();
+
   const [matches, setMatches] = useState([]);
   const [myRencontreId, setMyRencontreId] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
@@ -24,6 +25,7 @@ const MessagesPrives = () => {
   const [loading, setLoading] = useState(true);
   const [otherUsers, setOtherUsers] = useState({});
   const [myRencontreProfile, setMyRencontreProfile] = useState({});
+  const [presenceByUserId, setPresenceByUserId] = useState({});
 
   const fetchMyRencontreId = useCallback(async () => {
     if (!user) return;
@@ -44,23 +46,57 @@ const MessagesPrives = () => {
       .order("created_at", { ascending: false });
 
     if (!error) {
-        setMatches(data);
-        const users = {};
-        data.forEach(match => {
-            const otherUser = match.user1_id === myRencontreId ? match.user2 : match.user1;
-            users[otherUser.id] = otherUser;
-        });
-        setOtherUsers(users);
+      setMatches(data);
+      const users = {};
+      const otherUserIds = [];
+      data.forEach(match => {
+        const otherUser = match.user1_id === myRencontreId ? match.user2 : match.user1;
+        users[otherUser.id] = otherUser;
+        if (otherUser?.user_id) otherUserIds.push(String(otherUser.user_id));
+      });
+      setOtherUsers(users);
+
+      const uniqueIds = Array.from(new Set(otherUserIds));
+      if (uniqueIds.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, show_online_status, last_seen_at')
+          .in('id', uniqueIds);
+        const byId = (profs || []).reduce((acc, p) => {
+          acc[String(p.id)] = p;
+          return acc;
+        }, {});
+        setPresenceByUserId(byId);
+      } else {
+        setPresenceByUserId({});
+      }
     }
     setLoading(false);
   }, [user, myRencontreId]);
+
+  const getStatusLabel = (otherUser) => {
+    const uid = otherUser?.user_id ? String(otherUser.user_id) : null;
+    if (!uid) return null;
+    const p = presenceByUserId[uid];
+    if (p?.show_online_status === false) return 'Hors ligne';
+    const isOnline = onlineUserIds instanceof Set ? onlineUserIds.has(uid) : false;
+    if (isOnline) return 'En ligne';
+    if (p?.last_seen_at) {
+      try {
+        return `Vu ${formatDistanceToNow(new Date(p.last_seen_at), { addSuffix: true, locale: fr })}`;
+      } catch {
+        return 'Hors ligne';
+      }
+    }
+    return 'Hors ligne';
+  };
 
   useEffect(() => {
     fetchMyRencontreId();
   }, [fetchMyRencontreId]);
 
   useEffect(() => {
-    if(myRencontreId) {
+    if (myRencontreId) {
       fetchMatches();
     }
   }, [myRencontreId, fetchMatches]);
@@ -82,7 +118,7 @@ const MessagesPrives = () => {
 
     const currentMatch = matches.find(m => m.id === selectedMatch);
     if (!currentMatch) return;
-    
+
     const receiver_id = currentMatch.user1_id === myRencontreId ? currentMatch.user2_id : currentMatch.user1_id;
 
     const { error } = await supabase.from("messages_rencontres").insert({
@@ -117,7 +153,7 @@ const MessagesPrives = () => {
       supabase.removeChannel(channel);
     };
   }, [selectedMatch]);
-  
+
   if (loading) {
     return <div className="flex justify-center items-center p-16"><Loader2 className="h-8 w-8 animate-spin text-green-500" /></div>
   }
@@ -149,12 +185,12 @@ const MessagesPrives = () => {
       </motion.div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-0 md:p-4 h-[calc(100vh-200px)]">
         <div className="col-span-1 border-r pr-4 overflow-y-auto">
-          <h2 className="font-bold text-lg mb-2">💞 Mes matchs</h2>
+          <h2 className="font-bold text-lg mb-2"> Mes matchs</h2>
           {matches.map((m) => {
-              const otherUser = getOtherUserInMatch(m);
-              if (!otherUser) return null;
-              const photo = getProfilePhoto(otherUser);
-              return (
+            const otherUser = getOtherUserInMatch(m);
+            if (!otherUser) return null;
+            const photo = getProfilePhoto(otherUser);
+            return (
               <div
                 key={m.id}
                 onClick={() => loadMessages(m.id)}
@@ -175,17 +211,24 @@ const MessagesPrives = () => {
                   )}
                 </Avatar>
                 <div>
-                    <p className="font-semibold">{otherUser.name}</p>
-                    <p className="text-xs text-gray-500">Matché {formatDistanceToNow(new Date(m.created_at), { addSuffix: true, locale: fr })}</p>
+                  <p className="font-semibold">{otherUser.name}</p>
+                  <p className="text-xs text-gray-500">Matché {formatDistanceToNow(new Date(m.created_at), { addSuffix: true, locale: fr })}</p>
+                  {getStatusLabel(otherUser) && (
+                    <p className="text-xs text-gray-500 flex items-center gap-2">
+                      <span className={`inline-block h-2 w-2 rounded-full ${getStatusLabel(otherUser) === 'En ligne' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                      <span>{getStatusLabel(otherUser)}</span>
+                    </p>
+                  )}
                 </div>
               </div>
-          )})}
+            )
+          })}
           {matches.length === 0 && (
-              <div className="text-center text-gray-500 py-16">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="font-semibold">Aucun match</p>
-                <p className="text-sm">Continuez à swiper !</p>
-              </div>
+            <div className="text-center text-gray-500 py-16">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="font-semibold">Aucun match</p>
+              <p className="text-sm">Continuez à swiper !</p>
+            </div>
           )}
         </div>
 

@@ -160,13 +160,14 @@ const ArrayDetailItem = ({ icon: Icon, label, values }) => {
 
 
 const Rencontre = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, onlineUserIds } = useAuth();
   const [searchParams] = useSearchParams();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [view, setView] = useState('card');
   const [myProfile, setMyProfile] = useState(null);
+  const [presenceFlagsByUserId, setPresenceFlagsByUserId] = useState({});
   const navigate = useNavigate();
   const [filters, setFilters] = useState({
     sexe: 'all',
@@ -273,6 +274,27 @@ useEffect(() => {
       }));
       setProfiles(normalizedProfiles);
       setCurrentIndex(0);
+
+      const userIds = Array.from(
+        new Set(
+          normalizedProfiles
+            .map((p) => (p?.user_id ? String(p.user_id) : null))
+            .filter(Boolean)
+        )
+      );
+      if (userIds.length > 0) {
+        const { data: prefs } = await supabase
+          .from('profiles')
+          .select('id, show_online_status')
+          .in('id', userIds);
+        const map = (prefs || []).reduce((acc, row) => {
+          acc[String(row.id)] = { show_online_status: row.show_online_status !== false };
+          return acc;
+        }, {});
+        setPresenceFlagsByUserId(map);
+      } else {
+        setPresenceFlagsByUserId({});
+      }
     }
     setLoading(false);
   }, [user, myProfile, filters]);
@@ -306,6 +328,21 @@ useEffect(() => {
         }]);
         setCurrentIndex(0);
         setView('detail');
+
+        const uid = data?.user_id ? String(data.user_id) : null;
+        if (uid) {
+          const { data: pref } = await supabase
+            .from('profiles')
+            .select('id, show_online_status')
+            .eq('id', uid)
+            .maybeSingle();
+          if (pref?.id) {
+            setPresenceFlagsByUserId((prev) => ({
+              ...prev,
+              [String(pref.id)]: { show_online_status: pref.show_online_status !== false },
+            }));
+          }
+        }
       }
       setLoading(false);
     };
@@ -503,6 +540,11 @@ useEffect(() => {
 
 
   const currentProfile = profiles[currentIndex];
+  const currentUserId = currentProfile?.user_id ? String(currentProfile.user_id) : null;
+  const currentAllowsOnline = currentUserId ? (presenceFlagsByUserId?.[currentUserId]?.show_online_status !== false) : true;
+  const currentIsOnline = Boolean(
+    currentAllowsOnline && currentUserId && (onlineUserIds instanceof Set) && onlineUserIds.has(currentUserId)
+  );
   const mainPhoto = (() => {
     if (!currentProfile) return null;
     const firstPhoto = (Array.isArray(currentProfile.photos) && currentProfile.photos.length > 0) ? currentProfile.photos[0] : null;
@@ -598,7 +640,10 @@ if (!myProfile && !searchParams.get('rid')) {
                   <div className="relative h-[55vh] max-h-[450px]" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}>
                     <MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
-                      <h2 className="text-3xl font-bold">{currentProfile.name?.split(' ')[0]}, {currentProfile.age}</h2>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block h-2.5 w-2.5 rounded-full ${currentIsOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                        <h2 className="text-3xl font-bold">{currentProfile.name?.split(' ')[0]}, {currentProfile.age}</h2>
+                      </div>
                       <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4" /><span>{currentProfile.ville?.nom || currentProfile.city}</span></div>
                     </div>
                   </div>
@@ -625,7 +670,10 @@ if (!myProfile && !searchParams.get('rid')) {
               <button onClick={() => setView('card')} className="flex items-center gap-2 text-green-600 font-semibold"><ArrowLeft className="h-5 w-5" />Retour</button>
               <div className="text-center">
                 <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-green-200 cursor-pointer" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}><MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" /></div>
-                <h2 className="text-3xl font-bold text-gray-800">{currentProfile.name?.split(' ')[0]}, {currentProfile.age}</h2>
+                <div className="flex items-center justify-center gap-2">
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${currentIsOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                  <h2 className="text-3xl font-bold text-gray-800">{currentProfile.name?.split(' ')[0]}, {currentProfile.age}</h2>
+                </div>
                 <div className="flex items-center justify-center gap-4 text-gray-500 text-sm mt-2">
                   <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {currentProfile.ville?.nom || currentProfile.city}</span>
                   <span className="flex items-center gap-1.5"><Briefcase className="h-4 w-4" /> {currentProfile.profession}</span>
