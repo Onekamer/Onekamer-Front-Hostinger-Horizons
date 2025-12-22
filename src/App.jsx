@@ -65,6 +65,7 @@ import MarketplaceCart from '@/pages/MarketplaceCart';
 import MarketplaceMyShop from '@/pages/MarketplaceMyShop';
 import MarketplaceMyProducts from '@/pages/MarketplaceMyProducts';
 import MarketplaceAdmin from '@/pages/MarketplaceAdmin';
+import { iosPush } from "@/lib/push/iosPush";
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -83,6 +84,7 @@ const AppLayout = () => {
 const AppContent = () => {
   const { showCharte, acceptCharte } = useCharteValidation();
   const { session } = useAuth();
+  const userId = session?.user?.id;
   const location = useLocation();
   const navigate = useNavigate();
   const publicPaths = ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'];
@@ -97,10 +99,17 @@ const AppContent = () => {
     window.Capacitor.getPlatform() === 'ios';
 
   useEffect(() => {
+  if (userId) {
+    iosPush(userId);
+  }
+}, [userId]);
+
+  useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
+    
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
