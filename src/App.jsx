@@ -82,20 +82,12 @@ const AppLayout = () => {
 
 const AppContent = () => {
   const { showCharte, acceptCharte } = useCharteValidation();
-  const { session, loading } = useAuth();
+  const { session } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const publicPaths = ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'];
   const isPublic = !session && publicPaths.includes(location.pathname);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-
-  useEffect(() => {
-    if (loading) return;
-    if (session) return;
-    if (location.pathname.startsWith('/marketplace')) {
-      navigate('/auth', { replace: true });
-    }
-  }, [loading, session, location.pathname, navigate]);
 
   // 🔍 On détecte si on est dans l’app native iOS (Capacitor + WKWebView)
   const isIOSNativeApp =

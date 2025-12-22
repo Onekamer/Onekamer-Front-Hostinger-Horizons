@@ -175,6 +175,23 @@ export const AuthProvider = ({ children }) => {
   }, [handleSession]);
 
   useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      (async () => {
+        try {
+          const { data } = await withTimeout(supabase.auth.getSession(), 6000);
+          await handleSession(data?.session || null);
+        } catch {
+          // ignore
+        }
+      })();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [handleSession, withTimeout]);
+
+  useEffect(() => {
     const provider = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
     if (provider !== 'supabase_light') return;
     if (!user) return;
