@@ -58,7 +58,7 @@ const Groupes = () => {
         setGroupes(groupesWithCount);
     }
     setLoading(false);
-  }, [user, searchTerm, toast]);
+  }, [user, searchTerm]);
 
   useEffect(() => {
     fetchGroups();

@@ -303,7 +303,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       }, [user, session, authLoading, fetchGroupData, navigate]);
     
       useEffect(() => {
-        if (!user || !groupId) return;
+        if (!user?.id || !groupId) return;
       
         const channel = supabase
           .channel(`group-realtime-${groupId}`)
@@ -340,7 +340,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           .subscribe();
       
         return () => supabase.removeChannel(channel);
-      }, [groupId, user]);
+      }, [groupId, user?.id]);
 
       useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
