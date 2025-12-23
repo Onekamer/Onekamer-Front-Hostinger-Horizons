@@ -36,7 +36,9 @@ const Groupes = () => {
         setLoading(false);
         return;
     }
-    setLoading(true);
+    if (groupes.length === 0) {
+      setLoading(true);
+    }
 
     let query = supabase.from('view_groupes_accessible').select('*');
     
@@ -59,7 +61,7 @@ const Groupes = () => {
         setGroupes(groupesWithCount);
     }
     setLoading(false);
-  }, [userId, searchTerm]);
+  }, [userId, searchTerm, groupes.length]);
 
   useEffect(() => {
     fetchGroups();
