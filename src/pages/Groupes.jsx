@@ -18,6 +18,7 @@ const Groupes = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const userId = user?.id;
   const [groupes, setGroupes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,13 +26,13 @@ const Groupes = () => {
   const [invitationCount, setInvitationCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       canUserAccess(user, 'groupes', 'create').then(setCanCreate);
     }
-  }, [user]);
+  }, [userId]);
 
   const fetchGroups = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
         setLoading(false);
         return;
     }
@@ -58,19 +59,19 @@ const Groupes = () => {
         setGroupes(groupesWithCount);
     }
     setLoading(false);
-  }, [user, searchTerm]);
+  }, [userId, searchTerm]);
 
   useEffect(() => {
     fetchGroups();
   }, [fetchGroups]);
 
   useEffect(() => {
-    if(!user) return;
+    if(!userId) return;
     const fetchInvitationCount = async () => {
         const { count, error: invitationError } = await supabase
           .from('groupes_invitations')
           .select('*', { count: 'exact', head: true })
-          .eq('invited_user_id', user.id)
+          .eq('invited_user_id', userId)
           .eq('status', 'pending');
         
         if (invitationError) {
@@ -80,7 +81,7 @@ const Groupes = () => {
         }
     }
     fetchInvitationCount();
-  }, [user]);
+  }, [userId]);
 
   const handleCreateGroupClick = async () => {
     if (!user) {
