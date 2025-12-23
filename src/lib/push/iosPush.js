@@ -1,7 +1,4 @@
 // src/lib/push/iosPush.js
-import { Capacitor } from "@capacitor/core";
-import { PushNotifications } from "@capacitor/push-notifications";
-
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://onekamer-server.onrender.com";
 let listenersRegistered = false;
@@ -10,8 +7,13 @@ let currentUserId = null;
 export async function iosPush(userId) {
   currentUserId = userId;
 
-  if (!Capacitor.isNativePlatform()) return;
+  const Capacitor = typeof window !== 'undefined' ? window.Capacitor : null;
+  const PushNotifications = Capacitor?.Plugins?.PushNotifications;
+  if (!Capacitor) return;
+  if (!PushNotifications) return;
+  if (!Capacitor.isNativePlatform || !Capacitor.isNativePlatform()) return;
   if (!currentUserId) return;
+  if (typeof Capacitor.getPlatform !== 'function') return;
   if (Capacitor.getPlatform() !== "ios") return;
 
   if (!listenersRegistered) {

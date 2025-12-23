@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Toaster } from '@/components/ui/toaster';
@@ -83,11 +83,11 @@ const AppLayout = () => {
 
 const AppContent = () => {
   const { showCharte, acceptCharte } = useCharteValidation();
-  const { session } = useAuth();
+  const { session, loading } = useAuth();
   const userId = session?.user?.id;
   const location = useLocation();
   const navigate = useNavigate();
-  const publicPaths = ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'];
+  const publicPaths = useMemo(() => ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'], []);
   const isPublic = !session && publicPaths.includes(location.pathname);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -99,10 +99,10 @@ const AppContent = () => {
     window.Capacitor.getPlatform() === 'ios';
 
   useEffect(() => {
-  if (userId) {
-    iosPush(userId);
-  }
-}, [userId]);
+    if (userId) {
+      iosPush(userId);
+    }
+  }, [userId]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -113,6 +113,28 @@ const AppContent = () => {
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    if (session) return;
+
+    const allowNoSessionExact = new Set([
+      ...publicPaths,
+      '/auth',
+      '/reset-password',
+      '/merci-verification',
+      '/verification-sms',
+      '/paiement-success',
+      '/paiement-annule',
+    ]);
+
+    if (allowNoSessionExact.has(location.pathname)) return;
+    if (location.pathname.startsWith('/marketplace')) return;
+    if (location.pathname.startsWith('/forfaits')) return;
+    if (location.pathname.startsWith('/aide')) return;
+
+    navigate('/auth', { replace: true });
+  }, [loading, session, location.pathname, navigate, publicPaths]);
 
   return (
     <>

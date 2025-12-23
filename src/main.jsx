@@ -68,8 +68,9 @@ if (typeof window !== 'undefined') {
     if (document.visibilityState === 'visible') {
       const now = Date.now();
       if (now - lastActive > INACTIVITY_LIMIT_MS) {
-        window.location.reload();
+        // no-op
       }
+      updateActivity();
     }
   };
 
