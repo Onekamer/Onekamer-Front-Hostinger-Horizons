@@ -73,94 +73,42 @@ export const AuthProvider = ({ children }) => {
     return userPermissions;
   }, [checkFeaturePermission]);
 
-  const withTimeout = useCallback(async (promise, ms) => {
-    let timeoutId;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error('timeout')), ms);
-    });
-    try {
-      return await Promise.race([promise, timeoutPromise]);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }, []);
-
   const handleSession = useCallback(async (session) => {
-    try {
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
+    setSession(session);
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
 
-      if (currentUser) {
-        const [userProfile, userBalance] = await Promise.all([
-          fetchProfile(currentUser.id),
-          fetchBalance(currentUser.id),
-        ]);
-        setProfile(userProfile);
-        setBalance(userBalance);
-
-        setLoading(false);
-
-        (async () => {
-          try {
-            const perms = await withTimeout(fetchAllPermissions(currentUser.id), 6000);
-            if (perms && typeof perms === 'object') setPermissions(perms);
-          } catch {
-            // ignore
-          }
-        })();
-
-        return;
-      } else {
-        setProfile(null);
-        setBalance(null);
-        setPermissions({});
-      }
-    } catch (e) {
-      console.warn('Auth initialization error:', e?.message || e);
-      setUser(null);
-      setSession(null);
+    if (currentUser) {
+      const [userProfile, userBalance, userPermissions] = await Promise.all([
+        fetchProfile(currentUser.id),
+        fetchBalance(currentUser.id),
+        fetchAllPermissions(currentUser.id)
+      ]);
+      setProfile(userProfile);
+      setBalance(userBalance);
+      setPermissions(userPermissions);
+    } else {
       setProfile(null);
       setBalance(null);
       setPermissions({});
-    } finally {
-      setLoading(false);
     }
-  }, [fetchProfile, fetchBalance, fetchAllPermissions, withTimeout]);
+
+    setLoading(false);
+  }, [fetchProfile, fetchBalance, fetchAllPermissions]);
 
   useEffect(() => {
     const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        await handleSession(session);
-      } catch (e) {
-        console.warn('supabase.auth.getSession failed:', e?.message || e);
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setBalance(null);
-        setPermissions({});
-        setLoading(false);
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      await handleSession(session);
     };
 
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        try {
-          if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session) {
-            await handleSession(session);
-          } else if (event === 'SIGNED_OUT') {
-            setUser(null);
-            setSession(null);
-            setProfile(null);
-            setBalance(null);
-            setPermissions({});
-            setLoading(false);
-          }
-        } catch (e) {
-          console.warn('onAuthStateChange handler error:', e?.message || e);
+        if (event === 'SIGNED_IN' && session) {
+          await handleSession(session);
+        } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setSession(null);
           setProfile(null);
@@ -173,23 +121,6 @@ export const AuthProvider = ({ children }) => {
 
     return () => subscription.unsubscribe();
   }, [handleSession]);
-
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState !== 'visible') return;
-      (async () => {
-        try {
-          const { data } = await withTimeout(supabase.auth.getSession(), 6000);
-          await handleSession(data?.session || null);
-        } catch {
-          // ignore
-        }
-      })();
-    };
-
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [handleSession, withTimeout]);
 
   useEffect(() => {
     const provider = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
@@ -250,16 +181,9 @@ export const AuthProvider = ({ children }) => {
     if (user) {
       const userProfile = await fetchProfile(user.id);
       setProfile(userProfile);
-      (async () => {
-        try {
-          const perms = await withTimeout(fetchAllPermissions(user.id), 6000);
-          if (perms && typeof perms === 'object') setPermissions(perms);
-        } catch {
-          // ignore
-        }
-      })();
+      await fetchAllPermissions(user.id);
     }
-  }, [user, fetchProfile, fetchAllPermissions, withTimeout]);
+  }, [user, fetchProfile, fetchAllPermissions]);
 
   useEffect(() => {
     if (!user) return;
