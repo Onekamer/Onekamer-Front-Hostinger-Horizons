@@ -3,6 +3,40 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, ImageOff } from 'lucide-react';
 import { normalizeMediaUrl } from '@/utils/normalizeMediaUrl';
 
+ const MEDIA_CACHE_TTL_MS = 5 * 60 * 1000;
+ const mediaCache = new Map();
+
+ const getCacheKey = (bucket, path) => {
+   if (!bucket || !path) return null;
+   if (typeof path !== 'string') return `${bucket}|${String(path)}`;
+ 
+   if (/^https?:\/\//i.test(path)) {
+     try {
+       const u = new URL(normalizeMediaUrl(path));
+       // Ancienne URL signée Supabase : on ignore le token et on se base sur bkt+chemin
+       if (/\/storage\/v1\/object\/sign\//.test(u.pathname)) {
+         const signedPath = u.pathname.replace(/\/storage\/v1\/object\/sign\//, '');
+         const [bkt, ...restParts] = signedPath.split('/');
+         const rel = restParts.join('/');
+         return `signed|${bkt}|${rel}`;
+       }
+       // Pour les URLs externes/CDN, ignorer la querystring (cache stable)
+       return `url|${u.origin}${u.pathname}`;
+     } catch {
+       return `${bucket}|${path}`;
+     }
+   }
+
+   let p = path.replace(/^\/+/, '');
+   if (bucket && p.startsWith(`${bucket}/${bucket}/`)) {
+     p = p.replace(new RegExp(`^${bucket}/`), '');
+   }
+   if (bucket && p.startsWith(`${bucket}/`)) {
+     p = p.slice(bucket.length + 1);
+   }
+   return `sb|${bucket}|${p}`;
+ };
+
 const defaultImages = {
   // Fallback générique: on réutilise une image Bunny déjà connue
   annonces: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
@@ -22,6 +56,19 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
 
   useEffect(() => {
     const loadMedia = async () => {
+      const cacheKey = getCacheKey(bucket, path);
+      if (cacheKey) {
+        const hit = mediaCache.get(cacheKey);
+        if (hit && Date.now() - hit.ts < MEDIA_CACHE_TTL_MS) {
+          setBackupUrl(null);
+          setErrorState(false);
+          setMediaUrl(hit.mediaUrl);
+          setMediaType(hit.mediaType);
+          setLoading(false);
+          return;
+        }
+      }
+
       setLoading(true);
       setErrorState(false);
 
@@ -64,6 +111,10 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
                 setMediaUrl(data.signedUrl);
                 const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
                 setMediaType(isVideo ? 'video' : 'image');
+                const cacheKey = getCacheKey(bucket, path);
+                if (cacheKey) {
+                  mediaCache.set(cacheKey, { mediaUrl: data.signedUrl, mediaType: isVideo ? 'video' : 'image', ts: Date.now() });
+                }
                 setLoading(false);
                 return;
               }
@@ -72,6 +123,10 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
               setMediaUrl(cdnUrl);
               const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
               setMediaType(isVideo ? 'video' : 'image');
+              const cacheKey = getCacheKey(bucket, path);
+              if (cacheKey) {
+                mediaCache.set(cacheKey, { mediaUrl: cdnUrl, mediaType: isVideo ? 'video' : 'image', ts: Date.now() });
+              }
               setLoading(false);
               return;
             } catch (e) {
@@ -79,6 +134,10 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
               setMediaUrl(cdnUrl);
               const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
               setMediaType(isVideo ? 'video' : 'image');
+              const cacheKey = getCacheKey(bucket, path);
+              if (cacheKey) {
+                mediaCache.set(cacheKey, { mediaUrl: cdnUrl, mediaType: isVideo ? 'video' : 'image', ts: Date.now() });
+              }
               setLoading(false);
               return;
             }
@@ -88,6 +147,12 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         setMediaUrl(normalized);
         const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(normalized);
         setMediaType(isVideo ? 'video' : 'image');
+        {
+          const cacheKey = getCacheKey(bucket, path);
+          if (cacheKey) {
+            mediaCache.set(cacheKey, { mediaUrl: normalized, mediaType: isVideo ? 'video' : 'image', ts: Date.now() });
+          }
+        }
         setLoading(false);
         return;
       }
@@ -127,6 +192,12 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         setMediaUrl(signed);
         const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(signPath);
         setMediaType(isVideo ? 'video' : 'image');
+        {
+          const cacheKey = getCacheKey(bucket, path);
+          if (cacheKey) {
+            mediaCache.set(cacheKey, { mediaUrl: signed, mediaType: isVideo ? 'video' : 'image', ts: Date.now() });
+          }
+        }
       } catch (err) {
         console.warn('⚠️ Erreur media Supabase:', err?.message || err);
         // Fallback BunnyCDN si possible
@@ -146,6 +217,12 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
             const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(cdnRel);
             setMediaType(isVideo ? 'video' : 'image');
             setErrorState(false);
+            {
+              const cacheKey = getCacheKey(bucket, path);
+              if (cacheKey) {
+                mediaCache.set(cacheKey, { mediaUrl: cdnUrl, mediaType: isVideo ? 'video' : 'image', ts: Date.now() });
+              }
+            }
           } else {
             setMediaUrl(defaultImages[bucket] || null);
             setErrorState(false);
