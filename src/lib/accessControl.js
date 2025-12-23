@@ -33,7 +33,7 @@ export async function canUserAccess(user, section, action = "read") {
 
     // 2️⃣ Cas spécial : section "rencontre"
     if (section === 'rencontre') {
-      if (['view', 'create'].includes(action)) {
+      if (['view', 'create', 'read'].includes(action)) {
         console.log(`✅ Accès autorisé → Tous les plans peuvent ${action} la section Rencontre.`);
         accessCache.set(cacheKey, { v: true, t: Date.now() });
         return true;
