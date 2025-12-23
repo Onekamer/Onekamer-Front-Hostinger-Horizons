@@ -67,6 +67,13 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
                 setLoading(false);
                 return;
               }
+
+              const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${bkt}/${rel}`;
+              setMediaUrl(cdnUrl);
+              const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
+              setMediaType(isVideo ? 'video' : 'image');
+              setLoading(false);
+              return;
             } catch (e) {
               const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${bkt}/${rel}`;
               setMediaUrl(cdnUrl);
