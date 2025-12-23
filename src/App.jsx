@@ -76,7 +76,7 @@ const AppLayout = () => {
     if (profile) {
       applyAutoAccessProtection(profile, navigate, location.pathname);
     }
-  }, [profile, navigate, location]);
+  }, [profile, navigate, location.pathname]);
 
   return null;
 };

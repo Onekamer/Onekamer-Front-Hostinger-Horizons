@@ -1,9 +1,18 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
+const accessCache = new Map();
+const ACCESS_CACHE_TTL_MS = 30 * 1000;
+
 export async function canUserAccess(user, section, action = "read") {
   if (!user?.id) {
     console.warn("⚠️ Aucun utilisateur connecté, accès refusé.");
     return false;
+  }
+
+  const cacheKey = `${user.id}:${section}:${action}`;
+  const cached = accessCache.get(cacheKey);
+  if (cached && Date.now() - cached.t < ACCESS_CACHE_TTL_MS) {
+    return cached.v;
   }
 
   try {
@@ -26,6 +35,7 @@ export async function canUserAccess(user, section, action = "read") {
     if (section === 'rencontre') {
       if (['view', 'create'].includes(action)) {
         console.log(`✅ Accès autorisé → Tous les plans peuvent ${action} la section Rencontre.`);
+        accessCache.set(cacheKey, { v: true, t: Date.now() });
         return true;
       }
 
@@ -34,6 +44,7 @@ export async function canUserAccess(user, section, action = "read") {
         console.log(allowed 
           ? "✅ Accès autorisé → VIP/Admin peuvent interagir."
           : "⛔ Accès refusé → Interactions réservées aux VIP/Admin.");
+        accessCache.set(cacheKey, { v: allowed, t: Date.now() });
         return allowed;
       }
     }
@@ -48,13 +59,17 @@ export async function canUserAccess(user, section, action = "read") {
 
     if (error) {
       console.error("❌ Erreur RPC check_user_access:", error.message);
+      accessCache.set(cacheKey, { v: false, t: Date.now() });
       return false;
     }
 
     console.log(`✅ Résultat Supabase :`, data);
-    return data === true;
+    const allowed = data === true;
+    accessCache.set(cacheKey, { v: allowed, t: Date.now() });
+    return allowed;
   } catch (error) {
     console.error("💥 Erreur inattendue dans canUserAccess :", error.message);
+    accessCache.set(cacheKey, { v: false, t: Date.now() });
     return false;
   }
 }
