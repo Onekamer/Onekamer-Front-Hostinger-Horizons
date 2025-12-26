@@ -99,11 +99,16 @@ const AppContent = () => {
     window.Capacitor.getPlatform() === 'ios';
 
   useEffect(() => {
-    if (userId) {
-      iosPush(userId);
-    }
-  }, [userId]);
+  if (!userId) return;
+  if (!isIOSNativeApp) return;
 
+  const t = setTimeout(() => {
+    iosPush(userId);
+  }, 800);
+
+  return () => clearTimeout(t);
+}, [userId, isIOSNativeApp, iosPush]);
+  
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
