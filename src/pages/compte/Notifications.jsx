@@ -117,7 +117,7 @@ useEffect(() => {
         try { localStorage.setItem("ios_push_enabled", "1"); } catch {}
         setIosEnabled(true);
 
-        const res = await fetch(`${API_BASE}/push/send-ios`, {
+        const res = await fetch(`${API_BASE}/api/push/send-ios`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
