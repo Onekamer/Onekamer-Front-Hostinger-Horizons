@@ -61,6 +61,8 @@ console.log("🧪 [iOS Push] PAYLOAD KEYS =", Object.keys(payload));
        const endpoint = `${API_BASE}/api/push/register-device?cb=${Date.now()}`;
 console.log("[iOS Push] endpoint =", endpoint);
 
+console.log("[iOS Push] FINAL URL =", endpoint);
+
 const res = await fetch(endpoint, {
   method: "POST",
   headers: {
@@ -81,6 +83,8 @@ console.log("[iOS Push] register-device status:", res.status);
 console.log("[iOS Push] register-device body:", text);
       } catch (e) {
         console.error("[iOS Push] erreur register-device", e);
+        console.error("[iOS Push] erreur register-device message =", e?.message);
+        console.error("[iOS Push] erreur register-device stack =", e?.stack);
       }
     });
 
