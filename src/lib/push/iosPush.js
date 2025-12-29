@@ -28,6 +28,10 @@ export async function iosPush(userId) {
         const uid = currentUserId;
 
         console.log("[iOS Push] ✅ registration event fired, token=", token);
+        console.log("[iOS Push] token typeof =", typeof token);
+        console.log("[iOS Push] token keys =", token ? Object.keys(token) : null);
+        console.log("[iOS Push] token raw =", token);
+        console.log("[iOS Push] token.value typeof =", typeof token?.value);
 
         const tokenValue = token?.value;
         if (!uid) {
@@ -39,22 +43,27 @@ export async function iosPush(userId) {
           return;
         }
 
-        console.log("[iOS Push] token.value (prefix) =", tokenValue.slice(0, 16) + "...");
+        console.log("[iOS Push] token.value (prefix) =", String(tokenValue).slice(0, 16) + "...");
         
         console.log("[iOS Push] API_BASE =", API_BASE);
         console.log("[iOS Push] register-device url =", `${API_BASE}/push/register-device`);
 
+        const payload = {
+          user_id: uid,
+          device_token: String(tokenValue),
+          platform: "ios",
+          apns_environment: "sandbox",
+          device_id: "ios-real-device",
+        };
+
+console.log("🧪 [iOS Push] PAYLOAD SENT TO SERVER =", JSON.stringify(payload, null, 2));
+console.log("🧪 [iOS Push] PAYLOAD KEYS =", Object.keys(payload));
+
         const res = await fetch(`${API_BASE}/push/register-device`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: uid,
-            device_token: tokenValue,
-            platform: "ios",
-            apns_environment: "sandbox",
-            device_id: "ios-real-device",
-          }),
-        });
+          body: JSON.stringify(payload),
+          });
 
         console.log("[iOS Push] X-Push-Version =", res.headers.get("X-Push-Version"));
         console.log("[iOS Push] X-Push-File =", res.headers.get("X-Push-File"));
