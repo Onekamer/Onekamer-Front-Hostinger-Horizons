@@ -40,6 +40,9 @@ export async function iosPush(userId) {
         }
 
         console.log("[iOS Push] token.value (prefix) =", tokenValue.slice(0, 16) + "...");
+        
+        console.log("[iOS Push] API_BASE =", API_BASE);
+        console.log("[iOS Push] register-device url =", `${API_BASE}/push/register-device`);
 
         const res = await fetch(`${API_BASE}/push/register-device`, {
           method: "POST",
