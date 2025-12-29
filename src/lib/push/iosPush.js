@@ -46,8 +46,7 @@ export async function iosPush(userId) {
         console.log("[iOS Push] token.value (prefix) =", String(tokenValue).slice(0, 16) + "...");
         
         console.log("[iOS Push] API_BASE =", API_BASE);
-        console.log("[iOS Push] register-device url =", `${API_BASE}/api/push/register-device`);
-
+    
         const payload = {
           user_id: uid,
           device_token: String(tokenValue),
@@ -59,18 +58,27 @@ export async function iosPush(userId) {
 console.log("🧪 [iOS Push] PAYLOAD SENT TO SERVER =", JSON.stringify(payload, null, 2));
 console.log("🧪 [iOS Push] PAYLOAD KEYS =", Object.keys(payload));
 
-        const res = await fetch(`${API_BASE}/push/register-device`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          });
+       const endpoint = `${API_BASE}/api/push/register-device?cb=${Date.now()}`;
+console.log("[iOS Push] endpoint =", endpoint);
 
-        console.log("[iOS Push] X-Push-Version =", res.headers.get("X-Push-Version"));
-        console.log("[iOS Push] X-Push-File =", res.headers.get("X-Push-File"));
+const res = await fetch(endpoint, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store",
+    "Pragma": "no-cache",
+  },
+  cache: "no-store",
+  body: JSON.stringify(payload),
+});
 
-        const text = await res.text();
-        console.log("[iOS Push] register-device status:", res.status);
-        console.log("[iOS Push] register-device body:", text);
+console.log("[iOS Push] res.url =", res.url);
+console.log("[iOS Push] X-Push-Version =", res.headers.get("X-Push-Version"));
+console.log("[iOS Push] X-Push-File =", res.headers.get("X-Push-File"));
+
+const text = await res.text();
+console.log("[iOS Push] register-device status:", res.status);
+console.log("[iOS Push] register-device body:", text);
       } catch (e) {
         console.error("[iOS Push] erreur register-device", e);
       }
