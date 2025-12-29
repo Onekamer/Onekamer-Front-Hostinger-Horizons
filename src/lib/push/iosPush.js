@@ -46,7 +46,7 @@ export async function iosPush(userId) {
         console.log("[iOS Push] token.value (prefix) =", String(tokenValue).slice(0, 16) + "...");
         
         console.log("[iOS Push] API_BASE =", API_BASE);
-        console.log("[iOS Push] register-device url =", `${API_BASE}/push/register-device`);
+        console.log("[iOS Push] register-device url =", `${API_BASE}/api/push/register-device`);
 
         const payload = {
           user_id: uid,
