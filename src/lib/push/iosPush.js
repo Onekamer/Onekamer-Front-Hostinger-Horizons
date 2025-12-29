@@ -56,6 +56,9 @@ export async function iosPush(userId) {
           }),
         });
 
+        console.log("[iOS Push] X-Push-Version =", res.headers.get("X-Push-Version"));
+        console.log("[iOS Push] X-Push-File =", res.headers.get("X-Push-File"));
+
         const text = await res.text();
         console.log("[iOS Push] register-device status:", res.status);
         console.log("[iOS Push] register-device body:", text);
