@@ -20,9 +20,11 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Capacitor } from '@capacitor/core';
+import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 
 const OKCoins = () => {
-  const { user, profile, balance, refreshBalance } = useAuth();
+  const { user, profile, balance, refreshBalance, session } = useAuth();
   const [packs, setPacks] = useState([]);
   const [levels, setLevels] = useState([]);
   const [topDonors, setTopDonors] = useState([]);
@@ -34,6 +36,7 @@ const OKCoins = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
   const [buyingPackId, setBuyingPackId] = useState(null);
+  const isIOS = Capacitor.getPlatform() === 'ios';
   
   const [receiverSuggestions, setReceiverSuggestions] = useState([]);
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
@@ -155,7 +158,42 @@ const OKCoins = () => {
 
   const handleBuyPack = async (pack) => {
     if (!user) return toast({ title: "Veuillez vous connecter", variant: "destructive" });
-    
+
+    if (isIOS && Number(pack?.coins) === 1000) {
+      setBuyingPackId(pack.id);
+      try {
+        const result = await NativePurchases.purchaseProduct({
+          productIdentifier: 'onekamer_okcoins_pack_10',
+          productType: PURCHASE_TYPE.INAPP,
+          quantity: 1
+        });
+        const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
+        const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+        const res = await fetch(`${API_PREFIX}/iap/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+          },
+          body: JSON.stringify({
+            platform: 'ios',
+            provider: 'apple',
+            userId: user.id,
+            transactionId: result.transactionId
+          })
+        });
+        const dataVerify = await res.json().catch(() => ({}));
+        if (!res.ok || !dataVerify?.ok) throw new Error(dataVerify?.error || 'Échec vérification');
+        await refreshBalance();
+        toast({ title: 'Achat réussi', description: 'Vos OK Coins ont été crédités.' });
+      } catch (error) {
+        toast({ title: 'Erreur de paiement', description: error.message || 'Achat in-app échoué', variant: 'destructive' });
+      } finally {
+        setBuyingPackId(null);
+      }
+      return;
+    }
+
     setBuyingPackId(pack.id);
     try {
       const response = await fetch('https://onekamer-server.onrender.com/create-checkout-session', {
@@ -166,14 +204,14 @@ const OKCoins = () => {
         body: JSON.stringify({ packId: pack.id, userId: user.id }),
       });
 
-      const session = await response.json();
+      const checkoutSession = await response.json();
 
       if (!response.ok) {
-        throw new Error(session.error || 'Une erreur est survenue.');
+        throw new Error(checkoutSession.error || 'Une erreur est survenue.');
       }
 
-      if (session.url) {
-        window.location.href = session.url;
+      if (checkoutSession.url) {
+        window.location.href = checkoutSession.url;
       }
 
     } catch (error) {
@@ -394,7 +432,7 @@ const OKCoins = () => {
                         <div className={`text-3xl mb-2 ${coinColorClass}`}>
                            🪙
                         </div>
-                        <div className="font-bold text-lg">{pack.price_eur}€</div>
+                        <div className="font-bold text-lg">{isIOS && Number(pack?.coins) === 1000 ? '11,99€' : `${pack.price_eur}€`}</div>
                         <div className="text-sm text-[#6B6B6B] mb-2">{pack.coins.toLocaleString()} pièces</div>
                         <div className="text-xs text-[#2BA84A] font-semibold">+{pack.points} points</div>
                       </div>

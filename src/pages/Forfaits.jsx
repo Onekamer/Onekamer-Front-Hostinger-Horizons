@@ -6,15 +6,18 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 
 const API_URL = 'https://onekamer-server.onrender.com';
 
 const Forfaits = () => {
   const { toast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, session, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [promoCode, setPromoCode] = useState('');
+  const isIOS = Capacitor.getPlatform() === 'ios';
 
   const handleChoosePlan = async (plan) => {
     if (!user) {
@@ -26,6 +29,42 @@ const Forfaits = () => {
     setLoadingPlan(plan.key);
 
     try {
+      if (isIOS && plan.key === 'vip') {
+        try {
+          const result = await NativePurchases.purchaseProduct({
+            productIdentifier: 'onekamer_vip_monthly',
+            productType: PURCHASE_TYPE.SUBS,
+            quantity: 1
+          });
+          const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || API_URL;
+          const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+          const res = await fetch(`${API_PREFIX}/iap/verify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+            },
+            body: JSON.stringify({
+              platform: 'ios',
+              provider: 'apple',
+              userId: user.id,
+              transactionId: result.transactionId
+            })
+          });
+          const dataVerify = await res.json().catch(() => ({}));
+          if (!res.ok || !dataVerify?.ok) {
+            throw new Error(dataVerify?.error || 'Échec vérification IAP');
+          }
+          await refreshProfile();
+          toast({ title: "Abonnement activé", description: "Votre plan a été mis à jour." });
+        } catch (e) {
+          toast({ title: "Erreur", description: e?.message || "Achat in-app échoué", variant: "destructive" });
+        } finally {
+          setLoadingPlan(null);
+        }
+        return;
+      }
+
       let response;
       if (plan.key === 'free') {
         toast({ title: "Déjà sur le plan gratuit", description: "Vous utilisez déjà le plan gratuit.", variant: "info" });
@@ -155,7 +194,7 @@ const Forfaits = () => {
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-between space-y-4">
                 <div>
-                  <p className="text-3xl font-bold">{plan.price} <span className="text-sm font-normal">/ mois</span></p>
+                  <p className="text-3xl font-bold">{isIOS && plan.key === 'vip' ? '6,49€' : plan.price} <span className="text-sm font-normal">/ mois</span></p>
                   <ul className="space-y-2 text-sm mt-4">
                     {plan.features?.map(feat => <li key={feat} className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> {feat}</li>)}
                     {plan.nonFeatures?.map(feat => <li key={feat} className="flex items-center"><XCircle className="h-4 w-4 mr-2 text-red-500" /> {feat}</li>)}
