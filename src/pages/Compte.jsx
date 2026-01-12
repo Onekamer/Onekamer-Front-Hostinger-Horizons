@@ -25,6 +25,30 @@ const Compte = () => {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
 
+  const fetchSubscription = React.useCallback(async () => {
+    try {
+      if (!API_PREFIX || !session?.access_token || !user?.id) return;
+      const res = await fetch(`${API_PREFIX}/iap/subscription?userId=${encodeURIComponent(user.id)}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.status === 404) { setSubInfo(null); return; }
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.subscription) setSubInfo(data.subscription);
+    } catch {}
+  }, [API_PREFIX, session?.access_token, user?.id]);
+
+  const effectivePlan = useMemo(() => {
+    try {
+      if (subInfo?.end_date) {
+        const active = new Date(subInfo.end_date).getTime() > Date.now();
+        return active ? (subInfo.plan_name || profile.plan || 'free') : 'free';
+      }
+      return profile.plan || 'free';
+    } catch {
+      return profile.plan || 'free';
+    }
+  }, [subInfo?.plan_name, subInfo?.end_date, profile.plan]);
+
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteStatsLoading, setInviteStatsLoading] = useState(false);
@@ -84,19 +108,8 @@ const Compte = () => {
   }, [API_PREFIX, session?.access_token]);
 
   useEffect(() => {
-    const run = async () => {
-      try {
-        if (!API_PREFIX || !session?.access_token || !user?.id) return;
-        const res = await fetch(`${API_PREFIX}/iap/subscription?userId=${encodeURIComponent(user.id)}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.status === 404) { setSubInfo(null); return; }
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data?.subscription) setSubInfo(data.subscription);
-      } catch {}
-    };
-    run();
-  }, [API_PREFIX, session?.access_token, user?.id]);
+    fetchSubscription();
+  }, [fetchSubscription]);
 
   useEffect(() => {
     const run = async () => {
@@ -266,6 +279,7 @@ const Compte = () => {
       if (ok) {
         toast({ title: 'Restauration réussie', description: "Votre abonnement a été resynchronisé." });
         await refreshProfile();
+        await fetchSubscription();
       } else {
         const firstErr = items.find((it) => it?.error);
         if (firstErr?.error) {
@@ -312,6 +326,7 @@ const Compte = () => {
       }
       toast({ title: 'Abonnement résilié', description: 'Votre abonnement est désormais annulé côté OneKamer.' });
       await refreshProfile();
+      await fetchSubscription();
     } catch (e) {
       toast({ title: 'Erreur', description: e?.message || 'Erreur résiliation', variant: 'destructive' });
     } finally {
@@ -367,7 +382,7 @@ const Compte = () => {
               <CardTitle className="text-lg">Forfait</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-[#2BA84A] capitalize">{profile.plan || 'Free'}</p>
+              <p className="text-2xl font-bold text-[#2BA84A] capitalize">{effectivePlan}</p>
               {subInfo && subInfo.plan_name && subInfo.end_date && (
                 <div className="text-xs text-gray-500 mt-1">
                   {new Date(subInfo.end_date).getTime() > Date.now()
