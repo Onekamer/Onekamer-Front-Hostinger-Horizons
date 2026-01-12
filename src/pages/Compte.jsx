@@ -25,6 +25,9 @@ const Compte = () => {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+  const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
+
   const fetchSubscription = React.useCallback(async () => {
     try {
       if (!API_PREFIX || !session?.access_token || !user?.id) return;
@@ -63,8 +66,6 @@ const Compte = () => {
   const [dashStats, setDashStats] = React.useState(null);
   const [dashStatsLoading, setDashStatsLoading] = React.useState(false);
   const [dashError, setDashError] = React.useState(null);
-  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
-  const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
   const navigate = useNavigate();
 
   const isNativeApp = useMemo(() => {
@@ -383,13 +384,11 @@ const Compte = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-[#2BA84A] capitalize">{effectivePlan}</p>
-              {subInfo && subInfo.plan_name && subInfo.end_date && (
+              {subInfo && subInfo.plan_name && subInfo.end_date && effectivePlan !== 'free' && (new Date(subInfo.end_date).getTime() > Date.now()) && (
                 <div className="text-xs text-gray-500 mt-1">
-                  {new Date(subInfo.end_date).getTime() > Date.now()
-                    ? (subInfo.auto_renew === false
-                        ? `L’abonnement sera résilié le ${new Date(subInfo.end_date).toLocaleString()}`
-                        : `Actif jusqu’au ${new Date(subInfo.end_date).toLocaleString()}`)
-                    : `Expiré le ${new Date(subInfo.end_date).toLocaleString()}`}
+                  {subInfo.auto_renew === false
+                    ? `L’abonnement sera résilié le ${new Date(subInfo.end_date).toLocaleString()}`
+                    : `Actif jusqu’au ${new Date(subInfo.end_date).toLocaleString()}`}
                 </div>
               )}
             </CardContent>
