@@ -225,13 +225,17 @@ const Compte = () => {
       try {
         const got = await NativePurchases.getPurchases();
         const purchases = Array.isArray(got?.purchases) ? got.purchases : [];
+        // Ne filtre plus par état: laissons le backend décider de ce qui est restorable
         txIds = purchases
-          .filter((it) => it?.transactionId && (it?.isActive === true || (it?.subscriptionState && it.subscriptionState !== 'expired' && it.subscriptionState !== 'revoked')))
+          .filter((it) => it?.transactionId)
           .map((it) => String(it.transactionId));
       } catch {}
       if (txIds.length === 0) {
         const tx = window.prompt("Entrez l'identifiant de transaction Apple à restaurer");
-        if (!tx) return;
+        if (!tx) {
+          toast({ title: 'Aucun achat à restaurer', description: "Aucun identifiant de transaction fourni." });
+          return;
+        }
         txIds = [String(tx).trim()].filter(Boolean);
       }
       const res = await fetch(`${API_PREFIX}/iap/restore`, {
@@ -247,7 +251,13 @@ const Compte = () => {
         toast({ title: 'Restauration réussie', description: "Votre abonnement a été resynchronisé." });
         await refreshProfile();
       } else {
-        toast({ title: 'Aucun achat à restaurer', description: "Aucun abonnement restorable n'a été trouvé." });
+        const firstErr = items.find((it) => it?.error);
+        if (firstErr?.error) {
+          console.warn('[IAP][restore] errors=', items);
+          toast({ title: 'Restauration impossible', description: firstErr.error, variant: 'destructive' });
+        } else {
+          toast({ title: 'Aucun achat à restaurer', description: "Aucun abonnement restorable n'a été trouvé." });
+        }
       }
     } catch (e) {
       toast({ title: 'Erreur', description: e?.message || 'Erreur restauration', variant: 'destructive' });
