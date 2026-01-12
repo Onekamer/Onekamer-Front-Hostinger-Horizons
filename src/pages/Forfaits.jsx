@@ -36,6 +36,22 @@ const Forfaits = () => {
             productType: PURCHASE_TYPE.SUBS,
             quantity: 1
           });
+          // Récupération robuste du transactionId: résultat direct, fallback via getPurchases, puis prompt
+          let txId = String(result?.transactionId || '').trim();
+          if (!txId) {
+            try {
+              const got = await NativePurchases.getPurchases();
+              const purchases = Array.isArray(got?.purchases) ? got.purchases : [];
+              const match = purchases.find((it) => String(it?.productId || it?.productIdentifier) === 'onekamer_vip_monthly' && it?.transactionId);
+              if (match?.transactionId) txId = String(match.transactionId);
+            } catch {}
+          }
+          if (!txId) {
+            const manual = window.prompt("Entrez l'identifiant de transaction Apple (transactionId)");
+            if (!manual) throw new Error("Achat confirmé mais identifiant de transaction introuvable");
+            txId = String(manual).trim();
+          }
+
           const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || API_URL;
           const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
           const res = await fetch(`${API_PREFIX}/iap/verify`, {
@@ -48,7 +64,7 @@ const Forfaits = () => {
               platform: 'ios',
               provider: 'apple',
               userId: user.id,
-              transactionId: result.transactionId
+              transactionId: txId
             })
           });
           const dataVerify = await res.json().catch(() => ({}));
