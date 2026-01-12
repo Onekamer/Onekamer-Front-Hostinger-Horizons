@@ -22,6 +22,7 @@ const Compte = () => {
   const [onlineVisible, setOnlineVisible] = useState(true);
   const [onlineSaving, setOnlineSaving] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -77,6 +78,40 @@ const Compte = () => {
         setInviteLoading(false);
       }
     };
+
+  const handleManageSubscriptions = async () => {
+    try {
+      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
+      if (p === 'web') return;
+      await NativePurchases.manageSubscriptions();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible d’ouvrir la gestion des abonnements.', variant: 'destructive' });
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      if (!API_PREFIX || !session?.access_token) return;
+      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
+      if (p === 'web') return;
+      const confirm = window.confirm("Voulez-vous résilier immédiatement votre abonnement côté OneKamer ? (Pensez aussi à arrêter l’auto-renouvellement dans le store.)");
+      if (!confirm) return;
+      setCancelLoading(true);
+      const res = await fetch(`${API_PREFIX}/iap/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Échec résiliation');
+      toast({ title: 'Abonnement résilié', description: 'Votre abonnement est désormais annulé côté OneKamer.' });
+      await refreshProfile();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Erreur résiliation', variant: 'destructive' });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
     run();
   }, [API_PREFIX, session?.access_token]);
@@ -386,6 +421,34 @@ const Compte = () => {
                 <div className="mt-2">
                   <Button type="button" className="w-full sm:w-auto" disabled={restoreLoading} onClick={handleRestorePurchases}>
                     {restoreLoading ? 'Restauration…' : 'Restaurer mes achats'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {isNativeApp && (
+              <div className="py-4">
+                <div className="flex flex-col gap-1">
+                  <div className="font-medium">Gérer mon abonnement</div>
+                  <div className="text-xs text-gray-500">Ouvre la gestion d’abonnement du store (Apple/Google).</div>
+                </div>
+                <div className="mt-2">
+                  <Button type="button" className="w-full sm:w-auto" onClick={handleManageSubscriptions}>
+                    Gérer mon abonnement
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {isNativeApp && (
+              <div className="py-4">
+                <div className="flex flex-col gap-1">
+                  <div className="font-medium">Résilier l’abonnement (OneKamer)</div>
+                  <div className="text-xs text-gray-500">Arrête immédiatement l’accès côté OneKamer. Pensez aussi à arrêter l’auto-renouvellement dans le store.</div>
+                </div>
+                <div className="mt-2">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={cancelLoading} onClick={handleCancelSubscription}>
+                    {cancelLoading ? 'Résiliation…' : 'Résilier maintenant'}
                   </Button>
                 </div>
               </div>
