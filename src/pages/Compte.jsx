@@ -79,40 +79,6 @@ const Compte = () => {
       }
     };
 
-  const handleManageSubscriptions = async () => {
-    try {
-      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
-      if (p === 'web') return;
-      await NativePurchases.manageSubscriptions();
-    } catch (e) {
-      toast({ title: 'Erreur', description: e?.message || 'Impossible d’ouvrir la gestion des abonnements.', variant: 'destructive' });
-    }
-  };
-
-  const handleCancelSubscription = async () => {
-    try {
-      if (!API_PREFIX || !session?.access_token) return;
-      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
-      if (p === 'web') return;
-      const confirm = window.confirm("Voulez-vous résilier immédiatement votre abonnement côté OneKamer ? (Pensez aussi à arrêter l’auto-renouvellement dans le store.)");
-      if (!confirm) return;
-      setCancelLoading(true);
-      const res = await fetch(`${API_PREFIX}/iap/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Échec résiliation');
-      toast({ title: 'Abonnement résilié', description: 'Votre abonnement est désormais annulé côté OneKamer.' });
-      await refreshProfile();
-    } catch (e) {
-      toast({ title: 'Erreur', description: e?.message || 'Erreur résiliation', variant: 'destructive' });
-    } finally {
-      setCancelLoading(false);
-    }
-  };
-
     run();
   }, [API_PREFIX, session?.access_token]);
 
@@ -287,6 +253,40 @@ const Compte = () => {
       toast({ title: 'Erreur', description: e?.message || 'Erreur restauration', variant: 'destructive' });
     } finally {
       setRestoreLoading(false);
+    }
+  };
+
+  const handleManageSubscriptions = async () => {
+    try {
+      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
+      if (p === 'web') return;
+      await NativePurchases.manageSubscriptions();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible d’ouvrir la gestion des abonnements.', variant: 'destructive' });
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      if (!API_PREFIX || !session?.access_token) return;
+      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
+      if (p === 'web') return;
+      const confirm = window.confirm("Voulez-vous résilier immédiatement votre abonnement côté OneKamer ? (Pensez aussi à arrêter l’auto-renouvellement dans le store.)");
+      if (!confirm) return;
+      setCancelLoading(true);
+      const res = await fetch(`${API_PREFIX}/iap/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Échec résiliation');
+      toast({ title: 'Abonnement résilié', description: 'Votre abonnement est désormais annulé côté OneKamer.' });
+      await refreshProfile();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Erreur résiliation', variant: 'destructive' });
+    } finally {
+      setCancelLoading(false);
     }
   };
 
