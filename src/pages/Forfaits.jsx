@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,6 +18,24 @@ const Forfaits = () => {
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [promoCode, setPromoCode] = useState('');
   const isIOS = Capacitor.getPlatform() === 'ios';
+  const [subInfo, setSubInfo] = useState(null);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        if (!user?.id || !session?.access_token) return;
+        const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || API_URL;
+        const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+        const res = await fetch(`${API_PREFIX}/iap/subscription?userId=${encodeURIComponent(user.id)}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.status === 404) { setSubInfo(null); return; }
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.subscription) setSubInfo(data.subscription);
+      } catch {}
+    };
+    run();
+  }, [user?.id, session?.access_token]);
 
   const handleChoosePlan = async (plan) => {
     if (!user) {
@@ -215,6 +233,13 @@ const Forfaits = () => {
                     {plan.features?.map(feat => <li key={feat} className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> {feat}</li>)}
                     {plan.nonFeatures?.map(feat => <li key={feat} className="flex items-center"><XCircle className="h-4 w-4 mr-2 text-red-500" /> {feat}</li>)}
                   </ul>
+                  {subInfo && subInfo.plan_name === plan.key && subInfo.end_date && (
+                    <div className="text-xs text-gray-500 mt-2">
+                      {new Date(subInfo.end_date).getTime() > Date.now()
+                        ? `Actif jusqu’au ${new Date(subInfo.end_date).toLocaleString()}`
+                        : `Expiré le ${new Date(subInfo.end_date).toLocaleString()}`}
+                    </div>
+                  )}
                 </div>
                 <Button 
                   onClick={() => handleChoosePlan(plan)}
