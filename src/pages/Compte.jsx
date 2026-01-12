@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
 import { Switch } from '@/components/ui/switch';
+import { Capacitor } from '@capacitor/core';
 
 const Compte = () => {
   const { user, profile, signOut, balance, loading, session, refreshProfile } = useAuth();
@@ -19,6 +20,7 @@ const Compte = () => {
   const [canAccessQrDashboard, setCanAccessQrDashboard] = React.useState(false);
   const [onlineVisible, setOnlineVisible] = useState(true);
   const [onlineSaving, setOnlineSaving] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
 
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -37,6 +39,15 @@ const Compte = () => {
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
   const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
   const navigate = useNavigate();
+
+  const isNativeApp = useMemo(() => {
+    try {
+      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
+      return p === 'ios' || p === 'android';
+    } catch {
+      return false;
+    }
+  }, []);
 
   const inviteLink = useMemo(() => {
     if (!inviteCode) return null;
@@ -197,6 +208,40 @@ const Compte = () => {
     }
   };
 
+  const handleRestorePurchases = async () => {
+    try {
+      if (!API_PREFIX || !session?.access_token) return;
+      const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
+      if (p === 'android') {
+        toast({ title: 'Bientôt disponible', description: 'La restauration Android sera ajoutée prochainement.' });
+        return;
+      }
+      if (p !== 'ios') return;
+      const tx = window.prompt("Entrez l'identifiant de transaction Apple à restaurer");
+      if (!tx) return;
+      setRestoreLoading(true);
+      const res = await fetch(`${API_PREFIX}/iap/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ platform: 'ios', provider: 'apple', userId: user.id, transactionId: String(tx).trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Échec restauration');
+      const items = Array.isArray(data?.results) ? data.results : [];
+      const ok = items.some((it) => it?.effect?.kind === 'subscription');
+      if (ok) {
+        toast({ title: 'Restauration réussie', description: "Votre abonnement a été resynchronisé." });
+        await refreshProfile();
+      } else {
+        toast({ title: 'Aucun achat à restaurer', description: "Aucun abonnement restorable n'a été trouvé." });
+      }
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Erreur restauration', variant: 'destructive' });
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -318,6 +363,20 @@ const Compte = () => {
             )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
+
+            {isNativeApp && (
+              <div className="py-4">
+                <div className="flex flex-col gap-1">
+                  <div className="font-medium">Restaurer les achats</div>
+                  <div className="text-xs text-gray-500">Restaure l’abonnement lié à votre compte.</div>
+                </div>
+                <div className="mt-2">
+                  <Button type="button" className="w-full sm:w-auto" disabled={restoreLoading} onClick={handleRestorePurchases}>
+                    {restoreLoading ? 'Restauration…' : 'Restaurer mes achats'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
