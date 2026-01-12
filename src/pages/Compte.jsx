@@ -13,6 +13,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
 import { Switch } from '@/components/ui/switch';
 import { Capacitor } from '@capacitor/core';
+import { NativePurchases } from '@capgo/native-purchases';
 
 const Compte = () => {
   const { user, profile, signOut, balance, loading, session, refreshProfile } = useAuth();
@@ -217,13 +218,25 @@ const Compte = () => {
         return;
       }
       if (p !== 'ios') return;
-      const tx = window.prompt("Entrez l'identifiant de transaction Apple à restaurer");
-      if (!tx) return;
       setRestoreLoading(true);
+      let txIds = [];
+      try { await NativePurchases.restorePurchases(); } catch {}
+      try {
+        const got = await NativePurchases.getPurchases();
+        const purchases = Array.isArray(got?.purchases) ? got.purchases : [];
+        txIds = purchases
+          .filter((it) => it?.transactionId && (it?.isActive === true || (it?.subscriptionState && it.subscriptionState !== 'expired' && it.subscriptionState !== 'revoked')))
+          .map((it) => String(it.transactionId));
+      } catch {}
+      if (txIds.length === 0) {
+        const tx = window.prompt("Entrez l'identifiant de transaction Apple à restaurer");
+        if (!tx) return;
+        txIds = [String(tx).trim()].filter(Boolean);
+      }
       const res = await fetch(`${API_PREFIX}/iap/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ platform: 'ios', provider: 'apple', userId: user.id, transactionId: String(tx).trim() }),
+        body: JSON.stringify({ platform: 'ios', provider: 'apple', userId: user.id, transactionIds: txIds }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Échec restauration');
