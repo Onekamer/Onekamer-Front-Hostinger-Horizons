@@ -35,7 +35,7 @@ const Forfaits = () => {
       } catch {}
     };
     run();
-  }, [user?.id, session?.access_token]);
+  }, [user?.id, session?.access_token, profile?.plan]);
 
   const handleChoosePlan = async (plan) => {
     if (!user) {
@@ -208,8 +208,18 @@ const Forfaits = () => {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {plans.map((plan) => (
-            <Card key={plan.key} className={`flex flex-col ${plan.isPopular ? 'border-2 border-[#2BA84A]' : ''} ${profile?.plan === plan.key ? 'bg-green-50' : ''}`}>
+          {plans.map((plan) => {
+            const vipActiveNow = subInfo && subInfo.plan_name === 'vip' && subInfo.end_date && (new Date(subInfo.end_date).getTime() > Date.now());
+            const vipInactiveNow = subInfo && subInfo.plan_name === 'vip' && subInfo.end_date && (new Date(subInfo.end_date).getTime() <= Date.now());
+            const isCurrentPlan = (
+              plan.key === 'vip'
+                ? vipActiveNow
+                : plan.key === 'free'
+                  ? (profile?.plan === 'free' || vipInactiveNow)
+                  : (profile?.plan === plan.key)
+            );
+            return (
+            <Card key={plan.key} className={`flex flex-col ${plan.isPopular ? 'border-2 border-[#2BA84A]' : ''} ${isCurrentPlan ? 'bg-green-50' : ''}`}>
               {plan.isPopular && <div className="absolute top-0 right-4 -mt-3 bg-[#2BA84A] text-white text-xs font-bold px-3 py-1 rounded-full">POPULAIRE</div>}
               <CardHeader>
                 <CardTitle>
@@ -243,19 +253,19 @@ const Forfaits = () => {
                 </div>
                 <Button 
                   onClick={() => handleChoosePlan(plan)}
-                  className={`w-full mt-4 ${profile?.plan === plan.key ? 'bg-gray-400' : (plan.key === 'vip' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#2BA84A] hover:bg-[#24903f]')}`}
+                  className={`w-full mt-4 ${isCurrentPlan ? 'bg-gray-400' : (plan.key === 'vip' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#2BA84A] hover:bg-[#24903f]')}`}
                   variant={'default'}
-                  disabled={loadingPlan === plan.key || profile?.plan === plan.key}
+                  disabled={loadingPlan === plan.key || isCurrentPlan}
                 >
                   {loadingPlan === plan.key ? <Loader2 className="h-4 w-4 animate-spin" /> : 
-                   profile?.plan === plan.key ? 'Votre plan actuel' : 
+                   isCurrentPlan ? 'Votre plan actuel' : 
                    plan.key === 'free' ? 'Gratuit' : 
                    plan.key === 'standard' ? 'Souscrire au forfait Standard' : 
                    'Devenir membre VIP'}
                 </Button>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
       </div>
     </>
