@@ -51,6 +51,14 @@ const Compte = () => {
     }
   }, [subInfo?.plan_name, subInfo?.end_date, profile.plan]);
 
+  const displayPlan = useMemo(() => {
+    const p = String(effectivePlan || '').toLowerCase();
+    if (p === 'vip') return 'VIP';
+    if (p === 'standard') return 'Standard';
+    if (p === 'free') return 'Free';
+    return effectivePlan || 'Free';
+  }, [effectivePlan]);
+
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteStatsLoading, setInviteStatsLoading] = useState(false);
@@ -354,7 +362,7 @@ const Compte = () => {
               <ShieldCheck className="w-3 h-3"/> Niveau 1 - Bronze
             </div>
             <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3"/> {profile.plan || 'Free'}
+              <ShieldCheck className="w-3 h-3"/> {displayPlan}
             </div>
           </CardContent>
         </Card>
@@ -365,12 +373,12 @@ const Compte = () => {
               <CardTitle className="text-lg">Forfait</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-[#2BA84A] capitalize">{effectivePlan}</p>
+              <p className="text-2xl font-bold text-[#2BA84A]">{displayPlan}</p>
               {subInfo && subInfo.plan_name && subInfo.end_date && effectivePlan !== 'free' && (new Date(subInfo.end_date).getTime() > Date.now()) && (
                 <div className="text-xs text-gray-500 mt-1">
                   {subInfo.auto_renew === false
                     ? `L’abonnement sera résilié le ${new Date(subInfo.end_date).toLocaleString()}`
-                    : `Actif jusqu’au ${new Date(subInfo.end_date).toLocaleString()}`}
+                    : `Se renouvelle le ${new Date(subInfo.end_date).toLocaleString()}`}
                 </div>
               )}
             </CardContent>
