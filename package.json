@@ -44,6 +44,8 @@
     "react-helmet": "^6.1.0",
     "react-onesignal": "^3.0.0",
     "react-router-dom": "^6.16.0",
+    "@stripe/react-stripe-js": "^2.4.0",
+    "@stripe/stripe-js": "^2.4.0",
     "tailwind-merge": "^1.14.0",
     "tailwindcss-animate": "^1.0.7"
   },

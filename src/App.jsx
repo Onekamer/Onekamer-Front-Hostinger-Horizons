@@ -26,6 +26,8 @@ import AdminUsers from '@/pages/AdminUsers';
 import AdminInvitations from '@/pages/AdminInvitations';
 import MonQRCode from '@/pages/compte/MonQRCode';
 import Scan from '@/pages/Scan';
+import PayOKCoins from '@/pages/pay/PayOKCoins';
+import PayEvent from '@/pages/pay/PayEvent';
 import Publier from '@/pages/Publier';
 import Rechercher from '@/pages/Rechercher';
 import Messages from '@/pages/Messages';
@@ -201,6 +203,8 @@ const AppContent = () => {
           <Route path="/groupes/invitations" element={<GroupInvitations />} />
           <Route path="/groupes/:groupId" element={<GroupeDetail />} />
           <Route path="/ok-coins" element={<OKCoins />} />
+          <Route path="/pay/okcoins/:packId" element={<PayOKCoins />} />
+          <Route path="/pay/events/:eventId" element={<PayEvent />} />
           <Route path="/forfaits" element={<Forfaits />} />
           <Route path="/compte" element={<Compte />} />
           <Route path="/compte/emails-admin" element={<EmailsAdmin />} />

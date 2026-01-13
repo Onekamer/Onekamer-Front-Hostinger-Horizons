@@ -21,10 +21,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Capacitor } from '@capacitor/core';
+import { useNavigate } from 'react-router-dom';
 import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 
 const OKCoins = () => {
   const { user, profile, balance, refreshBalance, session } = useAuth();
+  const navigate = useNavigate();
   const [packs, setPacks] = useState([]);
   const [levels, setLevels] = useState([]);
   const [topDonors, setTopDonors] = useState([]);
@@ -196,30 +198,7 @@ const OKCoins = () => {
 
     setBuyingPackId(pack.id);
     try {
-      const response = await fetch('https://onekamer-server.onrender.com/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ packId: pack.id, userId: user.id }),
-      });
-
-      const checkoutSession = await response.json();
-
-      if (!response.ok) {
-        throw new Error(checkoutSession.error || 'Une erreur est survenue.');
-      }
-
-      if (checkoutSession.url) {
-        window.location.href = checkoutSession.url;
-      }
-
-    } catch (error) {
-      toast({
-        title: "Erreur de paiement",
-        description: error.message || "Impossible de contacter le serveur de paiement. Veuillez réessayer.",
-        variant: "destructive",
-      });
+      navigate(`/pay/okcoins/${encodeURIComponent(pack.id)}`);
     } finally {
       setBuyingPackId(null);
     }

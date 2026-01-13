@@ -153,46 +153,14 @@ const MonQRCode = () => {
   }, [session]);
 
   const onPay = async (mode) => {
-    if (!API_PREFIX) {
-      setError('API non configurée (VITE_API_URL)');
-      return;
-    }
     if (!eventId) {
       setError("Veuillez saisir un identifiant d'événement");
       return;
     }
-    if (!session?.access_token) {
-      setError('Vous devez être connecté');
-      return;
-    }
-
-    setError(null);
+    const m = mode === 'deposit' ? 'deposit' : 'full';
     setPaying(true);
     try {
-      const res = await fetch(`${API_PREFIX}/events/${eventId}/checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ payment_mode: mode === 'deposit' ? 'deposit' : 'full' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
-
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      if (data?.alreadyPaid) {
-        setError('Déjà payé');
-        return;
-      }
-
-      throw new Error('Réponse invalide du serveur');
-    } catch (e) {
-      setError(e?.message || 'Erreur interne');
+      navigate(`/pay/events/${encodeURIComponent(eventId)}?mode=${encodeURIComponent(m)}`);
     } finally {
       setPaying(false);
     }
