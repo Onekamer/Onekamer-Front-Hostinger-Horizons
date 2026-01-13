@@ -7,6 +7,8 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
+import { ArrowLeft } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -58,6 +60,8 @@ export default function PayOKCoins() {
   const [clientSecret, setClientSecret] = useState(null);
   const [pk, setPk] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pack, setPack] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const run = async () => {
@@ -96,11 +100,19 @@ export default function PayOKCoins() {
         <title>Payer OK Coins - OneKamer</title>
       </Helmet>
       <div className="max-w-md mx-auto">
+        <div className="mb-3">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+          </Button>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>Paiement OK Coins</CardTitle>
           </CardHeader>
           <CardContent>
+            {packId && (
+              <PackInfo packId={packId} pack={pack} setPack={setPack} />
+            )}
             {loading && <div>Chargement…</div>}
             {!loading && (!stripePromise || !clientSecret) && (
               <div className="text-sm text-red-600">Impossible d’initialiser le paiement.</div>
@@ -114,5 +126,34 @@ export default function PayOKCoins() {
         </Card>
       </div>
     </>
+  );
+}
+
+function PackInfo({ packId, pack, setPack }) {
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('okcoins_packs')
+          .select('id, pack_name, coins, price_eur')
+          .eq('id', packId)
+          .maybeSingle();
+        if (!active) return;
+        if (!error) setPack(data || null);
+      } catch {}
+    };
+    run();
+    return () => { active = false; };
+  }, [packId, setPack]);
+
+  if (!pack) return null;
+  return (
+    <div className="mb-3 text-sm text-gray-600">
+      <div className="font-medium">{pack.pack_name || 'Pack OK Coins'}</div>
+      <div>
+        {Number(pack.coins) || 0} pièces • {Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((Number(pack.price_eur) || 0))}
+      </div>
+    </div>
   );
 }

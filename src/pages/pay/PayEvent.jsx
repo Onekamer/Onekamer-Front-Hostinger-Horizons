@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { toast } from '@/components/ui/use-toast';
+import { ArrowLeft } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -107,9 +108,14 @@ export default function PayEvent() {
         <title>Payer mon billet - OneKamer</title>
       </Helmet>
       <div className="max-w-md mx-auto">
+        <div className="mb-3">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+          </Button>
+        </div>
         <Card>
           <CardHeader>
-            <CardTitle>Paiement Évènement</CardTitle>
+            <CardTitle>Paiement Évènement {paymentMode === 'deposit' ? '(Acompte)' : '(Total)'}</CardTitle>
           </CardHeader>
           <CardContent>
             {eventInfo && (
