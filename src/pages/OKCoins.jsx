@@ -415,8 +415,17 @@ const OKCoins = () => {
                         <div className="text-sm text-[#6B6B6B] mb-2">{pack.coins.toLocaleString()} pièces</div>
                         <div className="text-xs text-[#2BA84A] font-semibold">+{pack.points} points</div>
                       </div>
-                      <Button className="w-full mt-4 bg-[#2BA84A]" onClick={() => handleBuyPack(pack)} disabled={buyingPackId === pack.id}>
-                        {buyingPackId === pack.id ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Acheter'}
+                      {/* iOS natif (App Review): désactiver tous les packs sauf 1000 coins (IAP) */}
+                      <Button
+                        className="w-full mt-4 bg-[#2BA84A]"
+                        onClick={() => handleBuyPack(pack)}
+                        disabled={buyingPackId === pack.id || (isIOS && Number(pack?.coins) !== 1000)}
+                      >
+                        {buyingPackId === pack.id
+                          ? <Loader2 className="h-4 w-4 animate-spin"/>
+                          : (isIOS && Number(pack?.coins) !== 1000)
+                            ? 'Bientôt disponible'
+                            : 'Acheter'}
                       </Button>
                     </CardContent>
                   </Card>

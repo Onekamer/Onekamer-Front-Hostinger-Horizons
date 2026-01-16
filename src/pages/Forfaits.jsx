@@ -44,6 +44,12 @@ const Forfaits = () => {
       return;
     }
 
+    // iOS natif: désactivation temporaire du plan Standard (App Review)
+    if (isIOS && plan.key === 'standard') {
+      toast({ title: "Bientôt disponible", description: "Le forfait Standard sera disponible prochainement sur iOS.", variant: "default" });
+      return;
+    }
+
     setLoadingPlan(plan.key);
 
     try {
@@ -251,14 +257,16 @@ const Forfaits = () => {
                     </div>
                   )}
                 </div>
+                {/* iOS natif: bouton Standard désactivé temporairement (App Review) */}
                 <Button 
                   onClick={() => handleChoosePlan(plan)}
                   className={`w-full mt-4 ${isCurrentPlan ? 'bg-gray-400' : (plan.key === 'vip' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#2BA84A] hover:bg-[#24903f]')}`}
                   variant={'default'}
-                  disabled={loadingPlan === plan.key || isCurrentPlan}
+                  disabled={loadingPlan === plan.key || isCurrentPlan || (isIOS && plan.key === 'standard')}
                 >
                   {loadingPlan === plan.key ? <Loader2 className="h-4 w-4 animate-spin" /> : 
                    isCurrentPlan ? 'Votre plan actuel' : 
+                   (isIOS && plan.key === 'standard') ? 'Bientôt disponible' : 
                    plan.key === 'free' ? 'Gratuit' : 
                    plan.key === 'standard' ? 'Souscrire au forfait Standard' : 
                    'Devenir membre VIP'}
