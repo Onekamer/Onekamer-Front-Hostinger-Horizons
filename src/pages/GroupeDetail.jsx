@@ -76,7 +76,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     };
 
     const MessageItem = ({ msg, currentUserId, groupId, onActionComplete }) => {
-      const { user } = useAuth();
+      const { user, onlineUserIds } = useAuth();
       const { toast } = useToast();
       const [isLiked, setIsLiked] = useState(false);
       const [likesCount, setLikesCount] = useState(msg.likes_count || 0);
@@ -164,14 +164,21 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         }
       };
 
+      const isSenderOnline = Boolean(msg?.sender_id && onlineUserIds instanceof Set && onlineUserIds.has(String(msg.sender_id)));
+
       return (
           <Card className="bg-white/80 backdrop-blur-sm border-none shadow-sm mb-4">
               <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                      <Avatar>
-                          <AvatarImage src={msg.sender_avatar} />
-                          <AvatarFallback>{msg.sender_username?.[0] || '?'}</AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar>
+                            <AvatarImage src={msg.sender_avatar} />
+                            <AvatarFallback>{msg.sender_username?.[0] || '?'}</AvatarFallback>
+                        </Avatar>
+                        {isSenderOnline && (
+                          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-white" />
+                        )}
+                      </div>
                       <div className="flex-1">
                           <p className="font-bold">{msg.sender_username || 'Utilisateur inconnu'}</p>
                           <p className="text-xs text-gray-500">
