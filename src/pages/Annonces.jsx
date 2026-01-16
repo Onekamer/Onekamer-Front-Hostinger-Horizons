@@ -86,12 +86,12 @@ const getDefaultAnnonceImage = (categorieNom) => {
         >
           <div className="relative pt-safe">
             <MediaDisplay bucket="annonces" path={annonce.media_url} alt={annonce.titre} className="w-full h-64 object-cover" />
-            <div className="absolute left-4 z-20 top-4">
+            <div className="absolute left-4 z-20 top-4 top-safe-4">
               <button onClick={onBack} className="bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-md">
                 <ArrowLeft className="h-6 w-6 text-gray-800" />
               </button>
             </div>
-             <div className="absolute right-4 flex items-center gap-2 z-20 top-4">
+             <div className="absolute right-4 flex items-center gap-2 z-20 top-4 top-safe-4">
                 <FavoriteButton contentType="annonce" contentId={annonce.id} />
                 {(isOwner || isAdmin) && (
                   <Button
