@@ -121,6 +121,9 @@ html.cap-ios {
 .cap-ios .editable {
   font-size: 16px;
 }
+[data-radix-toast-viewport] {
+  top: calc(env(safe-area-inset-top) + 4rem) !important;
+}
 .cap-ios [data-radix-toast-viewport] {
-  top: calc(var(--safe-top) + 1rem) !important;
+  top: calc(var(--safe-top) + 4rem) !important;
 }
