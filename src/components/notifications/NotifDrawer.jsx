@@ -42,7 +42,7 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
   if (!open) return null
 
   return (
-    <div className="fixed top-16 right-0 z-[60] w-full sm:w-[380px] bg-white shadow-xl border-l border-gray-200">
+    <div className="fixed top-16 top-safe-16 right-0 z-[60] w-full sm:w-[380px] bg-white shadow-xl border-l border-gray-200">
       <div className="flex items-center justify-between p-4 border-b">
         <div className="text-lg font-semibold">Notifications</div>
         <div className="flex items-center gap-2">

@@ -68,7 +68,7 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete }) => {
       initial={{ opacity: 0, x: '100%' }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: '100%' }}
-      className="fixed inset-0 z-50 bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5] overflow-y-auto pt-16 pb-16"
+      className="fixed inset-0 z-50 bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5] overflow-y-auto pt-16 pt-safe-16 pb-16"
     >
       <div className="container mx-auto px-4">
         <Button variant="ghost" onClick={onBack} className="mb-4">

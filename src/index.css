@@ -26,8 +26,21 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 .cap-ios .bottom-nav-inner {
-  align-items: flex-start;
-  padding-top: 10px;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 6px;
+}
+
+.cap-ios .top-safe-4 {
+  top: calc(var(--safe-top) + 1rem) !important;
+}
+
+.cap-ios .pt-safe-16 {
+  padding-top: calc(var(--safe-top) + 4rem) !important;
+}
+
+.cap-ios .top-safe-16 {
+  top: calc(var(--safe-top) + 4rem) !important;
 }
 
 @supports (backdrop-filter: blur(10px)) {
@@ -99,4 +112,7 @@ html.cap-ios {
 .cap-ios select,
 .cap-ios .editable {
   font-size: 16px;
+}
+.cap-ios [data-radix-toast-viewport] {
+  top: calc(var(--safe-top) + 1rem) !important;
 }
