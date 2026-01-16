@@ -96,22 +96,7 @@ const MarketplaceCart = () => {
       const orderId = createData?.orderId;
       if (!orderId) throw new Error('orderId manquant');
 
-      const checkoutRes = await fetch(`${apiBaseUrl}/api/market/orders/${orderId}/checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({}),
-      });
-      const checkoutData = await checkoutRes.json().catch(() => ({}));
-      if (!checkoutRes.ok) throw new Error(checkoutData?.error || 'Erreur création checkout');
-
-      if (checkoutData?.url) {
-        window.location.href = checkoutData.url;
-      } else {
-        throw new Error('URL Stripe manquante');
-      }
+      navigate(`/pay/market/${encodeURIComponent(orderId)}`);
     } catch (e) {
       toast({
         title: 'Erreur',

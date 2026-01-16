@@ -28,6 +28,7 @@ import MonQRCode from '@/pages/compte/MonQRCode';
 import Scan from '@/pages/Scan';
 import PayOKCoins from '@/pages/pay/PayOKCoins';
 import PayEvent from '@/pages/pay/PayEvent';
+import PayMarket from '@/pages/pay/PayMarket';
 import Publier from '@/pages/Publier';
 import Rechercher from '@/pages/Rechercher';
 import Messages from '@/pages/Messages';
@@ -205,6 +206,7 @@ const AppContent = () => {
           <Route path="/ok-coins" element={<OKCoins />} />
           <Route path="/pay/okcoins/:packId" element={<PayOKCoins />} />
           <Route path="/pay/events/:eventId" element={<PayEvent />} />
+          <Route path="/pay/market/:orderId" element={<PayMarket />} />
           <Route path="/forfaits" element={<Forfaits />} />
           <Route path="/compte" element={<Compte />} />
           <Route path="/compte/emails-admin" element={<EmailsAdmin />} />
