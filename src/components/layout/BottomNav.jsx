@@ -35,7 +35,7 @@ const BottomNav = () => {
         className="absolute bottom-0 left-0 right-0 h-20 glass-effect border-t border-[#2BA84A]/20 bottom-nav-safe"
       >
         <div className="container mx-auto px-2 h-full">
-          <div className="flex items-center justify-around h-full pt-2 pb-3">
+          <div className="flex items-center justify-around h-full pt-2 pb-3 bottom-nav-inner">
             {leftItems.map(({ path, icon: Icon, label }) => {
               const isActive = isPathActive(path);
               return (
@@ -43,7 +43,7 @@ const BottomNav = () => {
                   key={path}
                   to={path}
 
-                  className="flex flex-col items-center justify-center flex-1 relative h-full"
+                  className="flex flex-col items-center justify-center flex-1 h-full"
                 >
                   <motion.div
                     whileTap={{ scale: 0.9 }}
@@ -53,13 +53,13 @@ const BottomNav = () => {
                   >
                     <Icon className="h-5 w-5" />
                     <span className="text-xs font-medium">{label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="bottomNavActiveUnderline"
+                        className="mt-1 w-10 h-1 bg-[#2BA84A] rounded-full"
+                      />
+                    )}
                   </motion.div>
-                  {isActive && (
-                    <motion.div
-                      layoutId={`activeTab-${path}`}
-                      className="absolute bottom-1 left-1/2 -translate-x-1/2 w-10 h-1 bg-[#2BA84A] rounded-full pointer-events-none"
-                    />
-                  )}
                 </Link>
               );
             })}
@@ -73,7 +73,7 @@ const BottomNav = () => {
                   key={path}
                   to={path}
 
-                  className="flex flex-col items-center justify-center flex-1 relative h-full"
+                  className="flex flex-col items-center justify-center flex-1 h-full"
                 >
                   <motion.div
                     whileTap={{ scale: 0.9 }}
@@ -83,13 +83,13 @@ const BottomNav = () => {
                   >
                     <Icon className="h-5 w-5" />
                     <span className="text-xs font-medium">{label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="bottomNavActiveUnderline"
+                        className="mt-1 w-10 h-1 bg-[#2BA84A] rounded-full"
+                      />
+                    )}
                   </motion.div>
-                  {isActive && (
-                    <motion.div
-                      layoutId={`activeTab-${path}`}
-                      className="absolute bottom-1 left-1/2 -translate-x-1/2 w-10 h-1 bg-[#2BA84A] rounded-full pointer-events-none"
-                    />
-                  )}
                 </Link>
               );
             })}

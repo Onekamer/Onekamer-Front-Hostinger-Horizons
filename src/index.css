@@ -25,6 +25,10 @@ body {
 .bottom-nav-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
+.cap-ios .bottom-nav-inner {
+  align-items: flex-start;
+  padding-top: 10px;
+}
 
 @supports (backdrop-filter: blur(10px)) {
   .glass-effect {
@@ -88,4 +92,11 @@ body.cap-ios {
 html.cap-ios {
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
+}
+
+.cap-ios input,
+.cap-ios textarea,
+.cap-ios select,
+.cap-ios .editable {
+  font-size: 16px;
 }
