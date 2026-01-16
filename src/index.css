@@ -43,6 +43,14 @@ body {
   top: calc(var(--safe-top) + 4rem) !important;
 }
 
+.cap-ios .mt-safe {
+  margin-top: var(--safe-top) !important;
+}
+
+.cap-ios .pt-safe {
+  padding-top: var(--safe-top) !important;
+}
+
 @supports (backdrop-filter: blur(10px)) {
   .glass-effect {
     backdrop-filter: blur(10px);
