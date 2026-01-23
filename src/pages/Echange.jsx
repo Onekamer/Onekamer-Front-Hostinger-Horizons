@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { getInitials } from '@/lib/utils';
 import { uploadAudioFile, ensurePublicAudioUrl } from '@/utils/audioStorage';
 import { notifyDonationReceived } from '@/services/oneSignalNotifications';
@@ -79,6 +80,7 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [anonymous, setAnonymous] = useState(false);
 
   const handleDonation = async (e) => {
     e.preventDefault();
@@ -89,15 +91,38 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
     }
     setIsSubmitting(true);
     try {
-      const { error: rpcError } = await supabase.rpc('make_donation_with_ledger', {
-        sender: user.id,
-        receiver: post.user_id,
-        amount: donationAmount,
-        msg: message
-      });
-      if (rpcError) throw new Error(rpcError.message);
+      // Appel RPC v2 avec anonymat, fallback si indisponible
+      let rpcErr = null;
+      try {
+        const { error } = await supabase.rpc('make_donation_with_ledger_v2', {
+          sender: user.id,
+          receiver: post.user_id,
+          amount: donationAmount,
+          msg: message,
+          anonymous,
+        });
+        if (error) rpcErr = error;
+      } catch (e) {
+        rpcErr = e;
+      }
 
-      const postContent = `🎉 ${profile.username} a fait un don de ${donationAmount} OK Coins à ${post.profiles.username} ! Merci pour cette générosité qui fait vivre la communauté. 💚`;
+      if (rpcErr) {
+        const msg = String(rpcErr?.message || '');
+        if (/does not exist|No function matches|not found/i.test(msg)) {
+          const { error: fb } = await supabase.rpc('make_donation_with_ledger', {
+            sender: user.id,
+            receiver: post.user_id,
+            amount: donationAmount,
+            msg: message,
+          });
+          if (fb) throw new Error(fb.message);
+        } else {
+          throw new Error(msg);
+        }
+      }
+
+      const donorDisplay = anonymous ? 'Un membre' : (profile.username || 'Un membre');
+      const postContent = `🎉 ${donorDisplay} a fait un don de ${donationAmount} OK Coins à ${post.profiles.username} ! Merci pour cette générosité qui fait vivre la communauté. 💚`;
       await supabase.from('posts').insert({
         user_id: user.id,
         content: postContent,
@@ -110,7 +135,7 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
         try {
           await notifyDonationReceived({
             receiverId: post.user_id,
-            senderName: profile?.username || user?.email || 'Un membre OneKamer',
+            senderName: anonymous ? 'Un membre OneKamer' : (profile?.username || user?.email || 'Un membre OneKamer'),
             amount: donationAmount,
           });
         } catch (notificationError) {
@@ -121,6 +146,7 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
       setOpen(false);
       setAmount('');
       setMessage('');
+      setAnonymous(false);
     } catch (error) {
       toast({ title: "Erreur de don", description: error.message, variant: "destructive" });
     } finally {
@@ -145,6 +171,13 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="message" className="text-right">Message</Label>
               <Input id="message" value={message} onChange={e => setMessage(e.target.value)} className="col-span-3" placeholder="Message (optionnel)" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <div />
+              <div className="col-span-3 flex items-center space-x-2">
+                <Checkbox id="anonymous" checked={anonymous} onCheckedChange={(v) => setAnonymous(Boolean(v))} />
+                <Label htmlFor="anonymous">Don anonyme (votre nom ne sera pas affiché)</Label>
+              </div>
             </div>
           </div>
           <DialogFooter>

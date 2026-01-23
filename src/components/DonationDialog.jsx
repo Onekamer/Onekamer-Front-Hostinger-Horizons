@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -26,6 +27,7 @@ const DonationDialog = ({ receiverId, receiverName, children, groupId, onDonatio
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
+  const [anonymous, setAnonymous] = useState(false);
 
   const handleDonation = async () => {
     if (!user) {
@@ -46,14 +48,36 @@ const DonationDialog = ({ receiverId, receiverName, children, groupId, onDonatio
 
     setLoading(true);
     try {
-      const { error } = await supabase.rpc('make_donation_with_ledger', {
-        sender: user.id,
-        receiver: receiverId,
-        amount: donationAmount,
-        msg: message || `Un petit don pour toi !`,
-      });
+      // Essai v2 avec option anonyme
+      let rpcError = null;
+      try {
+        const { error } = await supabase.rpc('make_donation_with_ledger_v2', {
+          sender: user.id,
+          receiver: receiverId,
+          amount: donationAmount,
+          msg: message || `Un petit don pour toi !`,
+          anonymous,
+        });
+        if (error) rpcError = error;
+      } catch (e) {
+        rpcError = e;
+      }
 
-      if (error) throw error;
+      if (rpcError) {
+        const msg = String(rpcError?.message || '');
+        if (/does not exist|No function matches|not found/i.test(msg)) {
+          // Repli sur l’ancienne RPC (sans anonymat)
+          const { error: fallbackErr } = await supabase.rpc('make_donation_with_ledger', {
+            sender: user.id,
+            receiver: receiverId,
+            amount: donationAmount,
+            msg: message || `Un petit don pour toi !`,
+          });
+          if (fallbackErr) throw fallbackErr;
+        } else {
+          throw rpcError;
+        }
+      }
 
       toast({
         title: 'Don effectué !',
@@ -62,7 +86,7 @@ const DonationDialog = ({ receiverId, receiverName, children, groupId, onDonatio
       try {
         await notifyDonationReceived({
           receiverId,
-          senderName: profile?.username || user?.email || 'Un membre OneKamer',
+          senderName: anonymous ? 'Un membre OneKamer' : (profile?.username || user?.email || 'Un membre OneKamer'),
           amount: donationAmount,
         });
       } catch (notificationError) {
@@ -71,7 +95,8 @@ const DonationDialog = ({ receiverId, receiverName, children, groupId, onDonatio
 
       if (groupId) {
         try {
-          const systemMessage = `${profile?.username || 'Un membre'} a envoyé ${donationAmount} OK Coins à ${receiverName} dans ce groupe. 💚`;
+          const displayName = anonymous ? 'Un membre' : (profile?.username || 'Un membre');
+          const systemMessage = `${displayName} a envoyé ${donationAmount} OK Coins à ${receiverName} dans ce groupe. 💚`;
           const { error: groupError } = await supabase.from('messages_groupes').insert({
             groupe_id: groupId,
             sender_id: user.id,
@@ -93,6 +118,7 @@ const DonationDialog = ({ receiverId, receiverName, children, groupId, onDonatio
       setMessage('');
       setIsOpen(false);
       setStep(1);
+      setAnonymous(false);
     } catch (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     } finally {
@@ -176,6 +202,10 @@ const DonationDialog = ({ receiverId, receiverName, children, groupId, onDonatio
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Pour vous remercier..."
                 />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="anonymous" checked={anonymous} onCheckedChange={(v) => setAnonymous(Boolean(v))} />
+                <Label htmlFor="anonymous" className="text-sm text-gray-700">Don anonyme (votre nom ne sera pas affiché)</Label>
               </div>
             </div>
           )}

@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Capacitor } from '@capacitor/core';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +35,7 @@ const OKCoins = () => {
   const [showDonationDialog, setShowDonationDialog] = useState(false);
   const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
   const [donationData, setDonationData] = useState({ receiverInput: '', amount: '', message: '' });
+  const [donationAnonymous, setDonationAnonymous] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
@@ -175,18 +177,38 @@ const OKCoins = () => {
         throw new Error("Vous ne pouvez pas vous envoyer de pièces à vous-même.");
       }
 
-      const { error: rpcError } = await supabase.rpc('make_donation_with_ledger', {
-        sender: user.id,
-        receiver: receiverId,
-        amount: amount,
-        msg: donationData.message
-      });
-      
-      if (rpcError) {
-        throw new Error(rpcError.message);
+      // RPC v2 (anonyme) avec repli si indisponible
+      let rpcErr = null;
+      try {
+        const { error } = await supabase.rpc('make_donation_with_ledger_v2', {
+          sender: user.id,
+          receiver: receiverId,
+          amount: amount,
+          msg: donationData.message,
+          anonymous: donationAnonymous,
+        });
+        if (error) rpcErr = error;
+      } catch (e2) {
+        rpcErr = e2;
+      }
+
+      if (rpcErr) {
+        const msg = String(rpcErr?.message || '');
+        if (/does not exist|No function matches|not found/i.test(msg)) {
+          const { error: fb } = await supabase.rpc('make_donation_with_ledger', {
+            sender: user.id,
+            receiver: receiverId,
+            amount: amount,
+            msg: donationData.message,
+          });
+          if (fb) throw new Error(fb.message);
+        } else {
+          throw new Error(msg);
+        }
       }
       
-      const postContent = `🎉 ${profile.username} a fait un don de ${amount} OK Coins à ${donationData.receiverInput} ! Merci pour cette générosité qui fait vivre la communauté. 💚`;
+      const donorDisplay = donationAnonymous ? 'Un membre' : (profile.username || 'Un membre');
+      const postContent = `🎉 ${donorDisplay} a fait un don de ${amount} OK Coins à ${donationData.receiverInput} ! Merci pour cette générosité qui fait vivre la communauté. 💚`;
 
       const { error: postError } = await supabase.from('posts').insert({
         user_id: user.id,
@@ -203,8 +225,9 @@ const OKCoins = () => {
       }
 
       await refreshBalance();
-      fetchData(); // Refresh top donors
+      fetchData(); // Refresh top donneurs
       setShowDonationDialog(false);
+      setDonationAnonymous(false);
       setDonationData({ receiverInput: '', amount: '', message: '' });
 
     } catch (error) {
@@ -541,6 +564,10 @@ const OKCoins = () => {
                    <div>
                     <Label htmlFor="message" className="text-left mb-2 block">Message (optionnel)</Label>
                     <Input id="message" value={donationData.message} onChange={e => setDonationData(p => ({...p, message: e.target.value }))} placeholder="Message d'encouragement..." />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="donationAnonymous" checked={donationAnonymous} onCheckedChange={(v) => setDonationAnonymous(Boolean(v))} />
+                    <Label htmlFor="donationAnonymous" className="text-sm text-gray-700">Don anonyme (votre nom ne sera pas affiché)</Label>
                   </div>
                 </div>
                 <DialogFooter>

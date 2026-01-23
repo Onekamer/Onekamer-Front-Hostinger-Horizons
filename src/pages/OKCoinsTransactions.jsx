@@ -105,20 +105,30 @@ const OKCoinsTransactions = () => {
                     {ledgerItems.length === 0 ? (
                       <div className="text-center text-gray-500">Aucun mouvement.</div>
                     ) : (
-                      ledgerItems.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between border-b pb-2">
-                          <div>
-                            <div className="text-sm">{new Date(item.created_at).toLocaleString('fr-FR')}</div>
-                            <div className="text-xs text-[#6B6B6B]">{item.kind}</div>
+                      ledgerItems.map((item) => {
+                        const kind = String(item?.kind || '');
+                        const anon = Boolean(item?.anonymous);
+                        const other = item?.other_username || (kind === 'donation_in' && anon ? 'un membre' : null);
+                        let label = kind;
+                        if (kind === 'donation_in') label = `Don reçu${other ? ` de ${other}` : ''}`;
+                        else if (kind === 'donation_out') label = `Don envoyé${other ? ` à ${other}` : ''}`;
+                        else if (kind === 'withdrawal_processed') label = 'Retrait traité';
+
+                        return (
+                          <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                            <div>
+                              <div className="text-sm">{new Date(item.created_at).toLocaleString('fr-FR')}</div>
+                              <div className="text-xs text-[#6B6B6B]">{label}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className={`font-semibold ${item.delta >= 0 ? 'text-[#2BA84A]' : 'text-[#E0222A]'}`}>{item.delta >= 0 ? '+' : ''}{item.delta}</div>
+                              {item.balance_after != null && (
+                                <div className="text-xs text-[#6B6B6B]">Solde: {item.balance_after}</div>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className={`font-semibold ${item.delta >= 0 ? 'text-[#2BA84A]' : 'text-[#E0222A]'}`}>{item.delta >= 0 ? '+' : ''}{item.delta}</div>
-                            {item.balance_after != null && (
-                              <div className="text-xs text-[#6B6B6B]">Solde: {item.balance_after}</div>
-                            )}
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}
