@@ -22,6 +22,7 @@ import EmailsAdmin from '@/pages/EmailsAdmin';
 import InfluenceursAdmin from '@/pages/InfluenceursAdmin';
 import InfluenceurStats from '@/pages/InfluenceurStats';
 import ModerationAdmin from '@/pages/ModerationAdmin';
+import OKCoinsAdminLab from '@/pages/OKCoinsAdminLab';
 import AdminUsers from '@/pages/AdminUsers';
 import AdminInvitations from '@/pages/AdminInvitations';
 import MonQRCode from '@/pages/compte/MonQRCode';
@@ -214,6 +215,7 @@ const AppContent = () => {
           <Route path="/compte/admin-invitations" element={<AdminInvitations />} />
           <Route path="/compte/influenceurs-admin" element={<InfluenceursAdmin />} />
           <Route path="/compte/moderation" element={<ModerationAdmin />} />
+          <Route path="/compte/okcoins-admin" element={<OKCoinsAdminLab />} />
           <Route path="/compte/mes-stats-influenceur" element={<InfluenceurStats />} />
           <Route path="/compte/mon-qrcode" element={<MonQRCode />} />
           <Route path="/scan" element={<Scan />} />

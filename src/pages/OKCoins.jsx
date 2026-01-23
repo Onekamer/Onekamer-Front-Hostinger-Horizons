@@ -44,7 +44,55 @@ const OKCoins = () => {
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
   const debounceTimeout = useRef(null);
 
-  const serverLabUrl = import.meta.env.VITE_SERVER_LAB_URL || 'https://onekamer-server-lab.onrender.com';
+  const serverLabUrl = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com');
+
+  const [serverOkc, setServerOkc] = useState(null);
+  const [loadingServerBalance, setLoadingServerBalance] = useState(false);
+  const [ledgerItems, setLedgerItems] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+
+  const fetchServerBalance = useCallback(async () => {
+    if (!session?.access_token) return;
+    setLoadingServerBalance(true);
+    try {
+      const res = await fetch(`${serverLabUrl}/api/okcoins/balance`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setServerOkc(data || null);
+    } catch {}
+    finally { setLoadingServerBalance(false); }
+  }, [session?.access_token, serverLabUrl]);
+
+  const loadLedger = useCallback(async () => {
+    if (!session?.access_token) return;
+    setLedgerLoading(true);
+    try {
+      const qs = new URLSearchParams({ limit: '20', offset: '0' });
+      const res = await fetch(`${serverLabUrl}/api/okcoins/ledger?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setLedgerItems(Array.isArray(data?.items) ? data.items : []);
+    } catch {}
+    finally { setLedgerLoading(false); }
+  }, [session?.access_token, serverLabUrl]);
+
+  const loadWithdrawals = useCallback(async () => {
+    if (!session?.access_token) return;
+    setWithdrawalsLoading(true);
+    try {
+      const qs = new URLSearchParams({ limit: '20', offset: '0' });
+      const res = await fetch(`${serverLabUrl}/api/okcoins/withdrawals?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setWithdrawals(Array.isArray(data?.items) ? data.items : []);
+    } catch {}
+    finally { setWithdrawalsLoading(false); }
+  }, [session?.access_token, serverLabUrl]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -67,6 +115,13 @@ const OKCoins = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    fetchServerBalance();
+    loadLedger();
+    loadWithdrawals();
+  }, [session?.access_token, fetchServerBalance, loadLedger, loadWithdrawals]);
 
   const handleReceiverSearch = (searchTerm) => {
     if (debounceTimeout.current) {
@@ -218,43 +273,31 @@ const OKCoins = () => {
       return toast({ title: "Montant invalide", description: "Le montant minimum de retrait est de 1000 pièces.", variant: "destructive" });
     }
 
-    if (balance.coins_balance < amount) {
-      return toast({ title: "Solde insuffisant", description: "Vous n'avez pas assez de pièces pour ce retrait.", variant: "destructive" });
+    const available = Number.isFinite(serverOkc?.available) ? serverOkc.available : balance.coins_balance;
+    if (available < amount) {
+      return toast({ title: "Solde insuffisant", description: "Vous n'avez pas assez de pièces disponibles pour ce retrait.", variant: "destructive" });
     }
     
     setIsSubmittingWithdrawal(true);
     try {
-      const response = await fetch('https://onekamer-server.onrender.com/notify-withdrawal', {
+      const response = await fetch(`${serverLabUrl}/api/okcoins/withdrawals/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({
-          userId: user.id,
-          username: profile?.username || '',
-          email: profile?.email || '',
-          amount,
-        }),
+        body: JSON.stringify({ amount }),
       });
-
-      let data = null;
-      try {
-        data = await response.json();
-      } catch (_e) {
-        // Réponse vide ou non JSON : on ignore, on utilisera juste le status HTTP
-      }
-
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const errorMessage = data?.error || "Erreur lors de l'envoi de la demande de retrait. Veuillez réessayer.";
+        const errorMessage = data?.error || "Erreur lors de la demande de retrait.";
         throw new Error(errorMessage);
       }
-
-      toast({
-        title: "Demande reçue",
-        description: `Votre demande de retrait de ${amount.toLocaleString('fr-FR')} pièces est en cours de traitement. Vous serez notifié.`,
-      });
+      toast({ title: "Demande reçue", description: `Votre demande de retrait de ${amount.toLocaleString('fr-FR')} pièces est en cours de traitement.` });
       setShowWithdrawalDialog(false);
       setWithdrawalAmount('');
+      await fetchServerBalance();
+      await loadWithdrawals();
     } catch (error) {
       console.error('Erreur lors de la demande de retrait :', error);
       toast({
@@ -551,7 +594,7 @@ const OKCoins = () => {
               <div className="flex justify-between"><span className="font-medium">Commission:</span><span>10%</span></div>
               <div className="flex justify-between"><span className="font-medium">Taux:</span><span>0,01€/pièce</span></div>
             </div>
-            <Dialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
+            <Dialog open={showWithdrawalDialog} onOpenChange={(isOpen) => { setShowWithdrawalDialog(isOpen); if (isOpen) fetchServerBalance(); }}>
               <DialogTrigger asChild>
                 <Button className="w-full bg-[#E0222A]" disabled={!user}>
                   Demander un retrait
@@ -569,6 +612,7 @@ const OKCoins = () => {
                       <Input id="withdrawalAmount" type="number" value={withdrawalAmount} onChange={e => setWithdrawalAmount(e.target.value)} className="col-span-3" placeholder="Nombre de pièces" min="1000" />
                     </div>
                     <div className="text-sm text-muted-foreground col-span-4 text-center">Votre solde: {balance?.coins_balance?.toLocaleString() || 0} pièces</div>
+                    <div className="text-sm text-muted-foreground col-span-4 text-center">Disponible: {((serverOkc?.available ?? balance?.coins_balance) || 0).toLocaleString('fr-FR')} pièces</div>
                   </div>
                   <DialogFooter>
                     <Button type="submit" disabled={isSubmittingWithdrawal}>
@@ -581,6 +625,71 @@ const OKCoins = () => {
             </Dialog>
           </CardContent>
         </Card>
+
+        {user && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Historique OK COINS</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ledgerLoading ? (
+                <div className="text-center text-gray-500">Chargement...</div>
+              ) : (
+                <div className="space-y-2">
+                  {ledgerItems.length === 0 ? (
+                    <div className="text-center text-gray-500">Aucun mouvement.</div>
+                  ) : (
+                    ledgerItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                        <div>
+                          <div className="text-sm">{new Date(item.created_at).toLocaleString('fr-FR')}</div>
+                          <div className="text-xs text-[#6B6B6B]">{item.kind}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`font-semibold ${item.delta >= 0 ? 'text-[#2BA84A]' : 'text-[#E0222A]'}`}>{item.delta >= 0 ? '+' : ''}{item.delta}</div>
+                          {item.balance_after != null && (
+                            <div className="text-xs text-[#6B6B6B]">Solde: {item.balance_after}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {user && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Mes retraits</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {withdrawalsLoading ? (
+                <div className="text-center text-gray-500">Chargement...</div>
+              ) : (
+                <div className="space-y-2">
+                  {withdrawals.length === 0 ? (
+                    <div className="text-center text-gray-500">Aucun retrait.</div>
+                  ) : (
+                    withdrawals.map((w) => (
+                      <div key={w.id} className="flex items-center justify-between border-b pb-2">
+                        <div>
+                          <div className="text-sm">{new Date(w.created_at).toLocaleString('fr-FR')}</div>
+                          <div className="text-xs text-[#6B6B6B]">{w.status}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold">{(w?.amount ?? 0).toLocaleString('fr-FR')} 🪙</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );
