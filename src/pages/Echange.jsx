@@ -89,7 +89,7 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
     }
     setIsSubmitting(true);
     try {
-      const { error: rpcError } = await supabase.rpc('make_donation', {
+      const { error: rpcError } = await supabase.rpc('make_donation_with_ledger', {
         sender: user.id,
         receiver: post.user_id,
         amount: donationAmount,

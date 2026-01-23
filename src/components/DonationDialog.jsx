@@ -46,7 +46,7 @@ const DonationDialog = ({ receiverId, receiverName, children, groupId, onDonatio
 
     setLoading(true);
     try {
-      const { error } = await supabase.rpc('make_donation', {
+      const { error } = await supabase.rpc('make_donation_with_ledger', {
         sender: user.id,
         receiver: receiverId,
         amount: donationAmount,
