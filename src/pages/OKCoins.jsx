@@ -175,7 +175,7 @@ const OKCoins = () => {
         throw new Error("Vous ne pouvez pas vous envoyer de pièces à vous-même.");
       }
 
-      const { error: rpcError } = await supabase.rpc('make_donation', {
+      const { error: rpcError } = await supabase.rpc('make_donation_with_ledger', {
         sender: user.id,
         receiver: receiverId,
         amount: amount,
