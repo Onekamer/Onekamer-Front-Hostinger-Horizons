@@ -629,64 +629,11 @@ const OKCoins = () => {
         {user && (
           <Card>
             <CardHeader>
-              <CardTitle>Historique OK COINS</CardTitle>
+              <CardTitle>Mes transactions</CardTitle>
             </CardHeader>
-            <CardContent>
-              {ledgerLoading ? (
-                <div className="text-center text-gray-500">Chargement...</div>
-              ) : (
-                <div className="space-y-2">
-                  {ledgerItems.length === 0 ? (
-                    <div className="text-center text-gray-500">Aucun mouvement.</div>
-                  ) : (
-                    ledgerItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between border-b pb-2">
-                        <div>
-                          <div className="text-sm">{new Date(item.created_at).toLocaleString('fr-FR')}</div>
-                          <div className="text-xs text-[#6B6B6B]">{item.kind}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`font-semibold ${item.delta >= 0 ? 'text-[#2BA84A]' : 'text-[#E0222A]'}`}>{item.delta >= 0 ? '+' : ''}{item.delta}</div>
-                          {item.balance_after != null && (
-                            <div className="text-xs text-[#6B6B6B]">Solde: {item.balance_after}</div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {user && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Mes retraits</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {withdrawalsLoading ? (
-                <div className="text-center text-gray-500">Chargement...</div>
-              ) : (
-                <div className="space-y-2">
-                  {withdrawals.length === 0 ? (
-                    <div className="text-center text-gray-500">Aucun retrait.</div>
-                  ) : (
-                    withdrawals.map((w) => (
-                      <div key={w.id} className="flex items-center justify-between border-b pb-2">
-                        <div>
-                          <div className="text-sm">{new Date(w.created_at).toLocaleString('fr-FR')}</div>
-                          <div className="text-xs text-[#6B6B6B]">{w.status}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">{(w?.amount ?? 0).toLocaleString('fr-FR')} 🪙</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+            <CardContent className="space-y-2">
+              <p className="text-sm text-gray-600">Consultez l’historique (ledger) et vos retraits.</p>
+              <Button className="w-full" onClick={() => navigate('/compte/okcoins-transactions')}>Ouvrir</Button>
             </CardContent>
           </Card>
         )}

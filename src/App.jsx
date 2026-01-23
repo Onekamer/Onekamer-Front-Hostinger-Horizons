@@ -30,6 +30,7 @@ import Scan from '@/pages/Scan';
 import PayOKCoins from '@/pages/pay/PayOKCoins';
 import PayEvent from '@/pages/pay/PayEvent';
 import PayMarket from '@/pages/pay/PayMarket';
+import OKCoinsTransactions from '@/pages/OKCoinsTransactions';
 import Publier from '@/pages/Publier';
 import Rechercher from '@/pages/Rechercher';
 import Messages from '@/pages/Messages';
@@ -216,6 +217,7 @@ const AppContent = () => {
           <Route path="/compte/influenceurs-admin" element={<InfluenceursAdmin />} />
           <Route path="/compte/moderation" element={<ModerationAdmin />} />
           <Route path="/compte/okcoins-admin" element={<OKCoinsAdminLab />} />
+          <Route path="/compte/okcoins-transactions" element={<OKCoinsTransactions />} />
           <Route path="/compte/mes-stats-influenceur" element={<InfluenceurStats />} />
           <Route path="/compte/mon-qrcode" element={<MonQRCode />} />
           <Route path="/scan" element={<Scan />} />
