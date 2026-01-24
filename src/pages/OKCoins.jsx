@@ -46,7 +46,8 @@ const OKCoins = () => {
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
   const debounceTimeout = useRef(null);
 
-  const serverLabUrl = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com');
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
+  const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
 
   const [serverOkc, setServerOkc] = useState(null);
   const [loadingServerBalance, setLoadingServerBalance] = useState(false);
@@ -59,42 +60,42 @@ const OKCoins = () => {
     if (!session?.access_token) return;
     setLoadingServerBalance(true);
     try {
-      const res = await fetch(`${serverLabUrl}/api/okcoins/balance`, {
+      const res = await fetch(`${API_PREFIX}/okcoins/balance`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) setServerOkc(data || null);
     } catch {}
     finally { setLoadingServerBalance(false); }
-  }, [session?.access_token, serverLabUrl]);
+  }, [session?.access_token, API_PREFIX]);
 
   const loadLedger = useCallback(async () => {
     if (!session?.access_token) return;
     setLedgerLoading(true);
     try {
       const qs = new URLSearchParams({ limit: '20', offset: '0' });
-      const res = await fetch(`${serverLabUrl}/api/okcoins/ledger?${qs.toString()}`, {
+      const res = await fetch(`${API_PREFIX}/okcoins/ledger?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) setLedgerItems(Array.isArray(data?.items) ? data.items : []);
     } catch {}
     finally { setLedgerLoading(false); }
-  }, [session?.access_token, serverLabUrl]);
+  }, [session?.access_token, API_PREFIX]);
 
   const loadWithdrawals = useCallback(async () => {
     if (!session?.access_token) return;
     setWithdrawalsLoading(true);
     try {
       const qs = new URLSearchParams({ limit: '20', offset: '0' });
-      const res = await fetch(`${serverLabUrl}/api/okcoins/withdrawals?${qs.toString()}`, {
+      const res = await fetch(`${API_PREFIX}/okcoins/withdrawals?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) setWithdrawals(Array.isArray(data?.items) ? data.items : []);
     } catch {}
     finally { setWithdrawalsLoading(false); }
-  }, [session?.access_token, serverLabUrl]);
+  }, [session?.access_token, API_PREFIX]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -303,7 +304,7 @@ const OKCoins = () => {
     
     setIsSubmittingWithdrawal(true);
     try {
-      const response = await fetch(`${serverLabUrl}/api/okcoins/withdrawals/request`, {
+      const response = await fetch(`${API_PREFIX}/okcoins/withdrawals/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

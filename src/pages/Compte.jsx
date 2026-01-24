@@ -59,6 +59,13 @@ const Compte = () => {
     return effectivePlan || 'Free';
   }, [effectivePlan]);
 
+  const isAdmin = (
+    profile?.is_admin === true ||
+    profile?.is_admin === 1 ||
+    profile?.is_admin === 'true' ||
+    String(profile?.role || '').toLowerCase() === 'admin'
+  );
+
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteStatsLoading, setInviteStatsLoading] = useState(false);

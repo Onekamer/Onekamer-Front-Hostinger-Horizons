@@ -15,7 +15,8 @@ const OKCoinsTransactions = () => {
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const initialTab = params.get('tab') === 'withdrawals' ? 'withdrawals' : 'ledger';
 
-  const serverBaseUrl = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com');
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
+  const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [ledgerItems, setLedgerItems] = useState([]);
@@ -28,28 +29,28 @@ const OKCoinsTransactions = () => {
     setLedgerLoading(true);
     try {
       const qs = new URLSearchParams({ limit: '20', offset: '0' });
-      const res = await fetch(`${serverBaseUrl}/api/okcoins/ledger?${qs.toString()}`, {
+      const res = await fetch(`${API_PREFIX}/okcoins/ledger?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) setLedgerItems(Array.isArray(data?.items) ? data.items : []);
     } catch {}
     finally { setLedgerLoading(false); }
-  }, [session?.access_token, serverBaseUrl]);
+  }, [session?.access_token, API_PREFIX]);
 
   const loadWithdrawals = useCallback(async () => {
     if (!session?.access_token) return;
     setWithdrawalsLoading(true);
     try {
       const qs = new URLSearchParams({ limit: '20', offset: '0' });
-      const res = await fetch(`${serverBaseUrl}/api/okcoins/withdrawals?${qs.toString()}`, {
+      const res = await fetch(`${API_PREFIX}/okcoins/withdrawals?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) setWithdrawals(Array.isArray(data?.items) ? data.items : []);
     } catch {}
     finally { setWithdrawalsLoading(false); }
-  }, [session?.access_token, serverBaseUrl]);
+  }, [session?.access_token, API_PREFIX]);
 
   useEffect(() => {
     if (!session?.access_token) return;
