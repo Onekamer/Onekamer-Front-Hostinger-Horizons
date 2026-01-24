@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Capacitor } from '@capacitor/core';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +35,7 @@ const OKCoins = () => {
   const [showDonationDialog, setShowDonationDialog] = useState(false);
   const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
   const [donationData, setDonationData] = useState({ receiverInput: '', amount: '', message: '' });
+  const [donationAnonymous, setDonationAnonymous] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
@@ -43,6 +45,56 @@ const OKCoins = () => {
   const [receiverSuggestions, setReceiverSuggestions] = useState([]);
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
   const debounceTimeout = useRef(null);
+
+  const serverLabUrl = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com');
+
+  const [serverOkc, setServerOkc] = useState(null);
+  const [loadingServerBalance, setLoadingServerBalance] = useState(false);
+  const [ledgerItems, setLedgerItems] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+
+  const fetchServerBalance = useCallback(async () => {
+    if (!session?.access_token) return;
+    setLoadingServerBalance(true);
+    try {
+      const res = await fetch(`${serverLabUrl}/api/okcoins/balance`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setServerOkc(data || null);
+    } catch {}
+    finally { setLoadingServerBalance(false); }
+  }, [session?.access_token, serverLabUrl]);
+
+  const loadLedger = useCallback(async () => {
+    if (!session?.access_token) return;
+    setLedgerLoading(true);
+    try {
+      const qs = new URLSearchParams({ limit: '20', offset: '0' });
+      const res = await fetch(`${serverLabUrl}/api/okcoins/ledger?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setLedgerItems(Array.isArray(data?.items) ? data.items : []);
+    } catch {}
+    finally { setLedgerLoading(false); }
+  }, [session?.access_token, serverLabUrl]);
+
+  const loadWithdrawals = useCallback(async () => {
+    if (!session?.access_token) return;
+    setWithdrawalsLoading(true);
+    try {
+      const qs = new URLSearchParams({ limit: '20', offset: '0' });
+      const res = await fetch(`${serverLabUrl}/api/okcoins/withdrawals?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setWithdrawals(Array.isArray(data?.items) ? data.items : []);
+    } catch {}
+    finally { setWithdrawalsLoading(false); }
+  }, [session?.access_token, serverLabUrl]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -65,6 +117,13 @@ const OKCoins = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    fetchServerBalance();
+    loadLedger();
+    loadWithdrawals();
+  }, [session?.access_token, fetchServerBalance, loadLedger, loadWithdrawals]);
 
   const handleReceiverSearch = (searchTerm) => {
     if (debounceTimeout.current) {
@@ -118,18 +177,38 @@ const OKCoins = () => {
         throw new Error("Vous ne pouvez pas vous envoyer de pièces à vous-même.");
       }
 
-      const { error: rpcError } = await supabase.rpc('make_donation', {
-        sender: user.id,
-        receiver: receiverId,
-        amount: amount,
-        msg: donationData.message
-      });
-      
-      if (rpcError) {
-        throw new Error(rpcError.message);
+      // RPC v2 (anonyme) avec repli si indisponible
+      let rpcErr = null;
+      try {
+        const { error } = await supabase.rpc('make_donation_with_ledger_v2', {
+          sender: user.id,
+          receiver: receiverId,
+          amount: amount,
+          msg: donationData.message,
+          anonymous: donationAnonymous,
+        });
+        if (error) rpcErr = error;
+      } catch (e2) {
+        rpcErr = e2;
+      }
+
+      if (rpcErr) {
+        const msg = String(rpcErr?.message || '');
+        if (/does not exist|No function matches|not found/i.test(msg)) {
+          const { error: fb } = await supabase.rpc('make_donation_with_ledger', {
+            sender: user.id,
+            receiver: receiverId,
+            amount: amount,
+            msg: donationData.message,
+          });
+          if (fb) throw new Error(fb.message);
+        } else {
+          throw new Error(msg);
+        }
       }
       
-      const postContent = `🎉 ${profile.username} a fait un don de ${amount} OK Coins à ${donationData.receiverInput} ! Merci pour cette générosité qui fait vivre la communauté. 💚`;
+      const donorDisplay = donationAnonymous ? 'Un membre' : (profile.username || 'Un membre');
+      const postContent = `🎉 ${donorDisplay} a fait un don de ${amount} OK Coins à ${donationData.receiverInput} ! Merci pour cette générosité qui fait vivre la communauté. 💚`;
 
       const { error: postError } = await supabase.from('posts').insert({
         user_id: user.id,
@@ -146,8 +225,9 @@ const OKCoins = () => {
       }
 
       await refreshBalance();
-      fetchData(); // Refresh top donors
+      fetchData(); // Refresh top donneurs
       setShowDonationDialog(false);
+      setDonationAnonymous(false);
       setDonationData({ receiverInput: '', amount: '', message: '' });
 
     } catch (error) {
@@ -216,43 +296,31 @@ const OKCoins = () => {
       return toast({ title: "Montant invalide", description: "Le montant minimum de retrait est de 1000 pièces.", variant: "destructive" });
     }
 
-    if (balance.coins_balance < amount) {
-      return toast({ title: "Solde insuffisant", description: "Vous n'avez pas assez de pièces pour ce retrait.", variant: "destructive" });
+    const available = Number.isFinite(serverOkc?.available) ? serverOkc.available : balance.coins_balance;
+    if (available < amount) {
+      return toast({ title: "Solde insuffisant", description: "Vous n'avez pas assez de pièces disponibles pour ce retrait.", variant: "destructive" });
     }
     
     setIsSubmittingWithdrawal(true);
     try {
-      const response = await fetch('https://onekamer-server.onrender.com/notify-withdrawal', {
+      const response = await fetch(`${serverLabUrl}/api/okcoins/withdrawals/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({
-          userId: user.id,
-          username: profile?.username || '',
-          email: profile?.email || '',
-          amount,
-        }),
+        body: JSON.stringify({ amount }),
       });
-
-      let data = null;
-      try {
-        data = await response.json();
-      } catch (_e) {
-        // Réponse vide ou non JSON : on ignore, on utilisera juste le status HTTP
-      }
-
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const errorMessage = data?.error || "Erreur lors de l'envoi de la demande de retrait. Veuillez réessayer.";
+        const errorMessage = data?.error || "Erreur lors de la demande de retrait.";
         throw new Error(errorMessage);
       }
-
-      toast({
-        title: "Demande reçue",
-        description: `Votre demande de retrait de ${amount.toLocaleString('fr-FR')} pièces est en cours de traitement. Vous serez notifié.`,
-      });
+      toast({ title: "Demande reçue", description: `Votre demande de retrait de ${amount.toLocaleString('fr-FR')} pièces est en cours de traitement.` });
       setShowWithdrawalDialog(false);
       setWithdrawalAmount('');
+      await fetchServerBalance();
+      await loadWithdrawals();
     } catch (error) {
       console.error('Erreur lors de la demande de retrait :', error);
       toast({
@@ -497,6 +565,10 @@ const OKCoins = () => {
                     <Label htmlFor="message" className="text-left mb-2 block">Message (optionnel)</Label>
                     <Input id="message" value={donationData.message} onChange={e => setDonationData(p => ({...p, message: e.target.value }))} placeholder="Message d'encouragement..." />
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="donationAnonymous" checked={donationAnonymous} onCheckedChange={(v) => setDonationAnonymous(Boolean(v))} />
+                    <Label htmlFor="donationAnonymous" className="text-sm text-gray-700">Don anonyme (votre nom ne sera pas affiché)</Label>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={isSubmitting} className="w-full">
@@ -549,7 +621,7 @@ const OKCoins = () => {
               <div className="flex justify-between"><span className="font-medium">Commission:</span><span>10%</span></div>
               <div className="flex justify-between"><span className="font-medium">Taux:</span><span>0,01€/pièce</span></div>
             </div>
-            <Dialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
+            <Dialog open={showWithdrawalDialog} onOpenChange={(isOpen) => { setShowWithdrawalDialog(isOpen); if (isOpen) fetchServerBalance(); }}>
               <DialogTrigger asChild>
                 <Button className="w-full bg-[#E0222A]" disabled={!user}>
                   Demander un retrait
@@ -567,6 +639,7 @@ const OKCoins = () => {
                       <Input id="withdrawalAmount" type="number" value={withdrawalAmount} onChange={e => setWithdrawalAmount(e.target.value)} className="col-span-3" placeholder="Nombre de pièces" min="1000" />
                     </div>
                     <div className="text-sm text-muted-foreground col-span-4 text-center">Votre solde: {balance?.coins_balance?.toLocaleString() || 0} pièces</div>
+                    <div className="text-sm text-muted-foreground col-span-4 text-center">Disponible: {((serverOkc?.available ?? balance?.coins_balance) || 0).toLocaleString('fr-FR')} pièces</div>
                   </div>
                   <DialogFooter>
                     <Button type="submit" disabled={isSubmittingWithdrawal}>
@@ -579,6 +652,18 @@ const OKCoins = () => {
             </Dialog>
           </CardContent>
         </Card>
+
+        {user && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Mes transactions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-sm text-gray-600">Consultez l’historique (ledger) et vos retraits.</p>
+              <Button className="w-full" onClick={() => navigate('/compte/okcoins-transactions')}>Ouvrir</Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );
