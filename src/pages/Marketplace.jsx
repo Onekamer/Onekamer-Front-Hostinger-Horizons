@@ -163,8 +163,13 @@ const Marketplace = () => {
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-[#2BA84A]">Marketplace</h1>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="outline" onClick={handleGoMyShop} className="shrink-0">
-              {shopAccess && myPartnerId ? 'Ma boutique' : 'Créer ma boutique'}
+            {shopAccess && (
+              <Button variant="outline" onClick={handleGoMyShop} className="shrink-0">
+                {myPartnerId ? 'Ma boutique' : 'Créer ma boutique'}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => navigate('/market/orders')} className="shrink-0">
+              Mes commandes
             </Button>
             <Button variant="outline" onClick={() => navigate('/marketplace/cart')} className="shrink-0">
               <ShoppingBag className="h-4 w-4 mr-2" />

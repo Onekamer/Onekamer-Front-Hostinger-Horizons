@@ -154,6 +154,9 @@ const safeAreaStyle = isCapIOS ? { paddingTop: 'var(--safe-top)' } : undefined;
                   <DropdownMenuItem onClick={() => navigate('/compte')}>
                     <User className="mr-2 h-4 w-4" /> Mon Compte
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/market/orders')}>
+                    📦 Mes commandes
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/compte/modifier')}>
                     <User className="mr-2 h-4 w-4" /> Mon profil
                   </DropdownMenuItem>
