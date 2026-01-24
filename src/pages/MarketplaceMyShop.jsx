@@ -35,12 +35,26 @@ const MarketplaceMyShop = () => {
   const [ordersError, setOrdersError] = useState(null);
   const [orders, setOrders] = useState([]);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [markingOrderId, setMarkingOrderId] = useState(null);
 
   const [abandonedMinutes, setAbandonedMinutes] = useState(60);
   const [abandonedLoading, setAbandonedLoading] = useState(false);
   const [abandonedError, setAbandonedError] = useState(null);
   const [abandonedCarts, setAbandonedCarts] = useState([]);
   const [expandedCartId, setExpandedCartId] = useState(null);
+
+  // Livraison (options d'expédition)
+  const [shipLoading, setShipLoading] = useState(false);
+  const [shipSaving, setShipSaving] = useState(false);
+  const [shipError, setShipError] = useState(null);
+  const [shipOptions, setShipOptions] = useState({
+    pickup: { label: 'Retrait sur place', price_cents: 0, is_active: true },
+    standard: { label: 'Livraison standard', price_cents: 0, is_active: false },
+    express: { label: 'Livraison express', price_cents: 0, is_active: false },
+    international: { label: 'Livraison internationale', price_cents: 0, is_active: false },
+  });
+  const [shipCurrency, setShipCurrency] = useState('EUR');
+  const [shipPriceUI, setShipPriceUI] = useState({ pickup: '0', standard: '0', express: '0', international: '0' });
 
   const formatEur = (amountMinor) => {
     const v = Number(amountMinor);
@@ -155,7 +169,7 @@ const MarketplaceMyShop = () => {
 
     try {
       const qs = new URLSearchParams();
-      qs.set('status', ordersStatus);
+      qs.set('fulfillment', ordersStatus);
       qs.set('limit', '100');
       qs.set('offset', '0');
 
@@ -231,6 +245,94 @@ const MarketplaceMyShop = () => {
     fetchAbandonedCarts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, partner?.id, abandonedMinutes]);
+
+  const parsePriceToCents = (val) => {
+    if (val === null || val === undefined) return 0;
+    const str = String(val).trim().replace(/\s/g, '').replace(',', '.');
+    if (!str) return 0;
+    const num = Number(str);
+    if (!Number.isFinite(num) || num < 0) return 0;
+    return Math.round(num * 100);
+  };
+
+  const fetchShippingOptions = async () => {
+    if (!session?.access_token) return;
+    if (!partner?.id) return;
+    if (shipLoading) return;
+    setShipLoading(true);
+    setShipError(null);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/shipping-options?t=${Date.now()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur chargement des options de livraison');
+
+      const opts = Array.isArray(data?.options) ? data.options : [];
+      const base = {
+        pickup: { label: 'Retrait sur place', price_cents: 0, is_active: true },
+        standard: { label: 'Livraison standard', price_cents: 0, is_active: false },
+        express: { label: 'Livraison express', price_cents: 0, is_active: false },
+        international: { label: 'Livraison internationale', price_cents: 0, is_active: false },
+      };
+      opts.forEach((o) => {
+        const t = String(o?.shipping_type || '').toLowerCase().trim();
+        if (!['pickup', 'standard', 'express', 'international'].includes(t)) return;
+        base[t] = {
+          label: o?.label || base[t].label,
+          price_cents: Math.max(parseInt(o?.price_cents, 10) || 0, 0),
+          is_active: o?.is_active === true,
+        };
+      });
+      setShipOptions(base);
+      setShipPriceUI({
+        pickup: ((base.pickup?.price_cents || 0) / 100).toFixed(2),
+        standard: ((base.standard?.price_cents || 0) / 100).toFixed(2),
+        express: ((base.express?.price_cents || 0) / 100).toFixed(2),
+        international: ((base.international?.price_cents || 0) / 100).toFixed(2),
+      });
+      if (data?.base_currency) setShipCurrency(String(data.base_currency).toUpperCase());
+    } catch (e) {
+      const msg = e?.message || 'Erreur chargement des options de livraison';
+      setShipError(msg);
+      toast({ title: 'Erreur', description: msg, variant: 'destructive' });
+    } finally {
+      setShipLoading(false);
+    }
+  };
+
+  const saveShippingOptions = async () => {
+    if (!session?.access_token) return;
+    if (!partner?.id) return;
+    if (shipSaving) return;
+    setShipSaving(true);
+    setShipError(null);
+    try {
+      const payload = ['pickup', 'standard', 'express', 'international'].map((t) => ({
+        shipping_type: t,
+        price_cents: Math.max(parsePriceToCents(shipPriceUI[t]), 0),
+        is_active: shipOptions[t]?.is_active === true,
+      }));
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/shipping-options`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur enregistrement options');
+      toast({ title: 'Options de livraison enregistrées' });
+      await fetchShippingOptions();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible d’enregistrer', variant: 'destructive' });
+    } finally {
+      setShipSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'shop') return;
+    if (!partner?.id) return;
+    fetchShippingOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, partner?.id]);
 
   const onChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -433,7 +535,7 @@ const MarketplaceMyShop = () => {
               onClick={() => setActiveTab('orders')}
               className="flex-1"
             >
-              Mes commandes
+              Mes ventes
             </Button>
             <Button
               type="button"
@@ -444,6 +546,40 @@ const MarketplaceMyShop = () => {
               Paniers abandonnés
             </Button>
           </div>
+        ) : null}
+
+        {activeTab === 'shop' ? (
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="text-base font-semibold">Gérer les modes de livraison</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-4">
+              <div className="text-xs text-gray-600">Devise de base: {String(shipCurrency || '—')}</div>
+              {shipError ? <div className="text-sm text-red-600">{shipError}</div> : null}
+
+              <div className="space-y-3">
+                {(['pickup','standard','express','international']).map((t) => (
+                  <div key={t} className="border rounded-md p-3 bg-white">
+                    <div className="text-sm font-medium text-gray-800">{t === 'pickup' ? 'Pickup' : (t === 'standard' ? 'Standard' : (t === 'express' ? 'Express' : 'International'))}</div>
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+                      <div className="space-y-1">
+                        <Label>Prix ({shipCurrency})</Label>
+                        <Input type="text" value={shipPriceUI[t] ?? ''} onChange={(e) => setShipPriceUI((prev) => ({ ...prev, [t]: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Actif</Label>
+                        <div>
+                          <input type="checkbox" checked={shipOptions[t]?.is_active === true} onChange={(e) => setShipOptions((prev) => ({ ...prev, [t]: { ...(prev[t]||{}), is_active: e.target.checked } }))} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button type="button" onClick={saveShippingOptions} disabled={shipSaving} className="w-full">{shipSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+            </CardContent>
+          </Card>
         ) : null}
 
         {activeTab === 'abandoned' ? (
@@ -558,7 +694,7 @@ const MarketplaceMyShop = () => {
         {activeTab === 'orders' ? (
           <Card>
             <CardHeader className="p-4">
-              <CardTitle className="text-base font-semibold">Mes commandes</CardTitle>
+              <CardTitle className="text-base font-semibold">Mes ventes</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -579,15 +715,17 @@ const MarketplaceMyShop = () => {
               </div>
 
               <div className="space-y-2">
-                <div className="text-sm font-medium">Statut</div>
+                <div className="text-sm font-medium">Étape de préparation</div>
                 <select
                   value={ordersStatus}
                   onChange={(e) => setOrdersStatus(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
                 >
-                  <option value="pending">En attente</option>
-                  <option value="paid">Payées</option>
-                  <option value="canceled">Annulées</option>
+                  <option value="sent_to_seller">En attente de préparation</option>
+                  <option value="preparing">En préparation</option>
+                  <option value="shipping">En cours d'envoi</option>
+                  <option value="delivered">Livrée</option>
+                  <option value="completed">Terminée</option>
                   <option value="all">Toutes</option>
                 </select>
               </div>
@@ -614,29 +752,24 @@ const MarketplaceMyShop = () => {
 
                   <div className="divide-y">
                     {orders.map((o) => {
-                      const rawStatus = String(o?.status || '').toLowerCase();
-                      const statusLabel2 =
-                        rawStatus === 'paid'
-                          ? 'Payée'
-                          : rawStatus === 'created' || rawStatus === 'payment_pending'
-                          ? 'En attente'
-                          : rawStatus === 'canceled' || rawStatus === 'cancelled'
-                          ? 'Annulée'
-                          : rawStatus || '—';
+                      const fRaw = String(o?.fulfillment_status || '').toLowerCase();
+                      const statusLabel =
+                        fRaw === 'sent_to_seller' ? 'En attente de préparation' :
+                        fRaw === 'preparing' ? 'En préparation' :
+                        fRaw === 'shipping' ? "En cours d'envoi" :
+                        fRaw === 'delivered' ? 'Livrée' :
+                        fRaw === 'completed' ? 'Terminée' : (fRaw || '—');
 
                       const isExpanded = expandedOrderId && String(expandedOrderId) === String(o.id);
                       const createdAt = o?.created_at ? new Date(o.created_at) : null;
                       const createdLabel = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleString() : '—';
                       const currency = String(o?.charge_currency || '').toUpperCase();
-                      const totalLabel =
-                        currency === 'EUR'
-                          ? formatEur(o?.charge_amount_total)
-                          : currency
-                          ? `${o?.charge_amount_total} ${currency}`
-                          : '—';
+                      const totalLabel = currency === 'EUR' ? formatEur(o?.charge_amount_total) : (currency ? `${o?.charge_amount_total} ${currency}` : '—');
+                      const netLabel = currency === 'EUR' ? formatEur(o?.partner_amount) : (currency ? `${o?.partner_amount} ${currency}` : '—');
+                      const isCompleted = fRaw === 'completed';
 
                       return (
-                        <div key={o.id} className="p-3">
+                        <div key={o.id} className={`p-3 ${isCompleted ? 'opacity-70' : ''}`}>
                           <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-start">
                             <div className="md:col-span-3">
                               <div className="text-sm font-semibold">Commande #{String(o.id).slice(0, 8)}</div>
@@ -649,10 +782,11 @@ const MarketplaceMyShop = () => {
 
                             <div className="md:col-span-2">
                               <div className="text-sm text-gray-800">{totalLabel}</div>
+                              <div className="text-xs text-gray-500">Montant net à recevoir: {netLabel}</div>
                             </div>
 
                             <div className="md:col-span-2">
-                              <div className="text-sm text-gray-800">{statusLabel2}</div>
+                              <div className="text-sm text-gray-800">{statusLabel}</div>
                             </div>
 
                             <div className="md:col-span-2 md:text-right">
@@ -664,6 +798,17 @@ const MarketplaceMyShop = () => {
                               >
                                 {isExpanded ? 'Masquer' : 'Détail'}
                               </Button>
+                              {String(o?.fulfillment_status || '').toLowerCase() === 'sent_to_seller' ? (
+                                <Button
+                                  type="button"
+                                  variant="default"
+                                  className="w-full md:w-auto mt-2"
+                                  onClick={() => handleMarkReceived(o.id)}
+                                  disabled={markingOrderId === o.id}
+                                >
+                                  {markingOrderId === o.id ? 'En cours…' : 'Commande reçue'}
+                                </Button>
+                              ) : null}
                             </div>
                           </div>
 
