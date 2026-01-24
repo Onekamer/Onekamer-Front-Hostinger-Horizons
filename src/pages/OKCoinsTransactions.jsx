@@ -15,7 +15,7 @@ const OKCoinsTransactions = () => {
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const initialTab = params.get('tab') === 'withdrawals' ? 'withdrawals' : 'ledger';
 
-  const serverLabUrl = import.meta.env.VITE_SERVER_LAB_URL || 'https://onekamer-server-lab.onrender.com';
+  const serverBaseUrl = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com');
 
   const [activeTab, setActiveTab] = useState(initialTab);
   const [ledgerItems, setLedgerItems] = useState([]);
@@ -28,28 +28,28 @@ const OKCoinsTransactions = () => {
     setLedgerLoading(true);
     try {
       const qs = new URLSearchParams({ limit: '20', offset: '0' });
-      const res = await fetch(`${serverLabUrl}/api/okcoins/ledger?${qs.toString()}`, {
+      const res = await fetch(`${serverBaseUrl}/api/okcoins/ledger?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) setLedgerItems(Array.isArray(data?.items) ? data.items : []);
     } catch {}
     finally { setLedgerLoading(false); }
-  }, [session?.access_token, serverLabUrl]);
+  }, [session?.access_token, serverBaseUrl]);
 
   const loadWithdrawals = useCallback(async () => {
     if (!session?.access_token) return;
     setWithdrawalsLoading(true);
     try {
       const qs = new URLSearchParams({ limit: '20', offset: '0' });
-      const res = await fetch(`${serverLabUrl}/api/okcoins/withdrawals?${qs.toString()}`, {
+      const res = await fetch(`${serverBaseUrl}/api/okcoins/withdrawals?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) setWithdrawals(Array.isArray(data?.items) ? data.items : []);
     } catch {}
     finally { setWithdrawalsLoading(false); }
-  }, [session?.access_token, serverLabUrl]);
+  }, [session?.access_token, serverBaseUrl]);
 
   useEffect(() => {
     if (!session?.access_token) return;
