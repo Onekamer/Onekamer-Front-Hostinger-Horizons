@@ -10,6 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { canUserAccess } from '@/lib/accessControl';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle as DialogTitleUI, DialogDescription } from '@/components/ui/dialog';
+import { Info } from 'lucide-react';
 
 const MarketplaceMyProducts = () => {
   const { toast } = useToast();
@@ -295,7 +297,24 @@ const MarketplaceMyProducts = () => {
 
         <Card>
           <CardHeader className="p-4">
-            <CardTitle className="text-base font-semibold">{isEditing ? 'Modifier un produit' : 'Ajouter un produit'}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">{isEditing ? 'Modifier un produit' : 'Ajouter un produit'}</CardTitle>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button type="button" aria-label="Informations frais" className="text-gray-500 hover:text-gray-700">
+                    <Info className="h-4 w-4" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitleUI>Information</DialogTitleUI>
+                    <DialogDescription>
+                      Frais de service OneKamer : 10 %. Ils s’appliquent sur le total du panier (article + livraison).
+                    </DialogDescription>
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent className="p-4 pt-0 space-y-4">
             <form onSubmit={handleSave} className="space-y-4">

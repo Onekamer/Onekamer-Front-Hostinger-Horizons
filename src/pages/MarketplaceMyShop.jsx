@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { canUserAccess } from '@/lib/accessControl';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Info } from 'lucide-react';
 
 const CATEGORIES = ['Restauration', 'Mode', 'Beauté', 'Services', 'High-tech', 'Autre'];
 
@@ -45,6 +47,16 @@ const MarketplaceMyShop = () => {
   const [chatMessageText, setChatMessageText] = useState('');
   const [chatSending, setChatSending] = useState(false);
 
+  const [ratingsSummary, setRatingsSummary] = useState({ avg: null, count: 0 });
+  const [ratingsSummaryLoading, setRatingsSummaryLoading] = useState(false);
+  const RATINGS_LIMIT = 20;
+  const [ratings, setRatings] = useState([]);
+  const [ratingsLoading, setRatingsLoading] = useState(false);
+  const [ratingsOffset, setRatingsOffset] = useState(0);
+  const [ratingsHasMore, setRatingsHasMore] = useState(true);
+  const [ratingsPreview, setRatingsPreview] = useState([]);
+  const [ratingsPreviewLoading, setRatingsPreviewLoading] = useState(false);
+
   // Livraison (options d'expédition)
   const [shipLoading, setShipLoading] = useState(false);
   const [shipSaving, setShipSaving] = useState(false);
@@ -62,6 +74,86 @@ const MarketplaceMyShop = () => {
     const v = Number(amountMinor);
     if (!Number.isFinite(v)) return '—';
     return `${(v / 100).toFixed(2)}€`;
+  };
+
+  const formatOrderCode = (shopName, createdAt, orderNumber) => {
+    const raw = String(shopName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z]/g, '').toUpperCase();
+    const prefix = (raw.slice(0, 3) || 'OK');
+    const d = createdAt ? new Date(createdAt) : new Date();
+    const year = Number.isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+    const num = String(Number(orderNumber || 0)).padStart(6, '0');
+    return `${prefix}-${year}-${num}`;
+  };
+
+  const fetchRatingsSummary = async () => {
+    try {
+      if (!session?.access_token || !partner?.id) return;
+      if (ratingsSummaryLoading) return;
+      setRatingsSummaryLoading(true);
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/ratings/summary`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const avg = typeof data?.avg === 'number' ? data.avg : null;
+        const count = parseInt(data?.count, 10) || 0;
+        setRatingsSummary({ avg, count });
+      }
+    } catch {}
+    finally {
+      setRatingsSummaryLoading(false);
+    }
+  };
+
+  const fetchRatingsPage = async (offset = 0) => {
+    if (!session?.access_token || !partner?.id) return;
+    if (ratingsLoading) return;
+    setRatingsLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set('limit', String(RATINGS_LIMIT));
+      qs.set('offset', String(Math.max(offset, 0)));
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/ratings?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur chargement avis');
+      const list = Array.isArray(data?.ratings) ? data.ratings : [];
+      setRatings((prev) => (offset === 0 ? list : [...prev, ...list]));
+      setRatingsOffset(offset + list.length);
+      setRatingsHasMore(list.length === RATINGS_LIMIT);
+    } catch {
+      setRatingsHasMore(false);
+    } finally {
+      setRatingsLoading(false);
+    }
+  };
+
+  const openRatingsDialog = async () => {
+    setRatings([]);
+    setRatingsOffset(0);
+    setRatingsHasMore(true);
+    await fetchRatingsPage(0);
+  };
+
+  const fetchRatingsPreview = async () => {
+    if (!session?.access_token || !partner?.id) return;
+    if (ratingsPreviewLoading) return;
+    setRatingsPreviewLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set('limit', '3');
+      qs.set('offset', '0');
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/ratings?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      const list = Array.isArray(data?.ratings) ? data.ratings : [];
+      setRatingsPreview(list);
+    } catch {}
+    finally {
+      setRatingsPreviewLoading(false);
+    }
   };
 
   const totalSalesEur = useMemo(() => {
@@ -239,15 +331,14 @@ const MarketplaceMyShop = () => {
     setChatError(null);
     try {
       const qs = new URLSearchParams();
-      // commandes payées, non terminées (chat ouvert): on filtre via fulfillment
-      qs.set('fulfillment', 'sent_to_seller,preparing,shipping,delivered');
+      qs.set('status', 'paid');
       qs.set('limit', '100');
       qs.set('offset', '0');
       const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/orders?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Erreur chargement commandes chat');
+      if (!res.ok) throw new Error(data?.error || 'Erreur chargement commandes');
       setChatOrders(Array.isArray(data?.orders) ? data.orders : []);
     } catch (e) {
       const msg = e?.message || 'Erreur chargement commandes';
@@ -400,6 +491,13 @@ const MarketplaceMyShop = () => {
     if (activeTab !== 'shop') return;
     if (!partner?.id) return;
     fetchShippingOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, partner?.id]);
+  useEffect(() => {
+    if (activeTab !== 'shop') return;
+    if (!partner?.id) return;
+    fetchRatingsSummary();
+    fetchRatingsPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, partner?.id]);
 
@@ -620,7 +718,24 @@ const MarketplaceMyShop = () => {
         {activeTab === 'shop' ? (
           <Card>
             <CardHeader className="p-4">
-              <CardTitle className="text-base font-semibold">Gérer les modes de livraison</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">Gérer les modes de livraison</CardTitle>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button type="button" aria-label="Informations frais" className="text-gray-500 hover:text-gray-700">
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Information</DialogTitle>
+                      <DialogDescription>
+                        Frais de service OneKamer : 10 %. Ils s’appliquent sur le total du panier (article + livraison).
+                      </DialogDescription>
+                    </DialogHeader>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-4">
               <div className="text-xs text-gray-600">Devise de base: {String(shipCurrency || '—')}</div>
@@ -633,12 +748,25 @@ const MarketplaceMyShop = () => {
                     <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
                       <div className="space-y-1">
                         <Label>Prix ({shipCurrency})</Label>
-                        <Input type="text" value={shipPriceUI[t] ?? ''} onChange={(e) => setShipPriceUI((prev) => ({ ...prev, [t]: e.target.value }))} />
+                        <Input
+                          type="text"
+                          value={shipPriceUI[t] ?? ''}
+                          onChange={(e) => setShipPriceUI((prev) => ({ ...prev, [t]: e.target.value }))}
+                          disabled={shipLoading || shipSaving}
+                          placeholder="ex: 5,00"
+                        />
+                        <div className="text-xs text-gray-500">Montant en devise (ex: 5,00)</div>
                       </div>
                       <div className="space-y-1">
-                        <Label>Actif</Label>
-                        <div>
-                          <input type="checkbox" checked={shipOptions[t]?.is_active === true} onChange={(e) => setShipOptions((prev) => ({ ...prev, [t]: { ...(prev[t]||{}), is_active: e.target.checked } }))} />
+                        <Label>Activer</Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={shipOptions[t]?.is_active === true}
+                            onChange={(e) => setShipOptions((prev) => ({ ...prev, [t]: { ...(prev[t]||{}), is_active: e.target.checked } }))}
+                            disabled={shipLoading || shipSaving}
+                          />
+                          <span className="text-sm text-gray-700">{shipOptions[t]?.is_active ? 'Activé' : 'Désactivé'}</span>
                         </div>
                       </div>
                     </div>
@@ -654,45 +782,64 @@ const MarketplaceMyShop = () => {
         {activeTab === 'chat' ? (
           <Card>
             <CardHeader className="p-4">
-              <CardTitle className="text-base font-semibold">Chat commandes</CardTitle>
+              <CardTitle className="text-base font-semibold">Chat</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
               <Button type="button" variant="outline" onClick={fetchChatOrders} disabled={chatLoading} className="w-full">
-                {chatLoading ? 'Chargement…' : 'Recharger la liste'}
+                {chatLoading ? 'Chargement…' : 'Recharger'}
               </Button>
-              {chatError ? <div className="text-sm text-red-600">{chatError}</div> : null}
+              {!chatLoading && chatError ? <div className="text-sm text-red-600">{chatError}</div> : null}
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Sélectionner une commande</div>
-                <select
-                  value={chatSelectedOrderId || ''}
-                  onChange={(e) => setChatSelectedOrderId(e.target.value || null)}
-                  className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">—</option>
-                  {(chatOrders || []).map((o) => (
-                    <option key={o.id} value={o.id}>n°{String(o.order_number || '').padStart(6,'0')} — {(o.customer_alias || o.customer_email || '').slice(0,40)}</option>
-                  ))}
-                </select>
-              </div>
+              {!chatLoading && !chatError && chatOrders.length === 0 ? (
+                <div className="text-sm text-gray-600">Aucune commande payée.</div>
+              ) : null}
 
-              {chatSelectedOrderId ? (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Messages</div>
-                  <div className="rounded-md border bg-white p-3 max-h-72 overflow-auto space-y-1">
-                    {(chatMessages || []).length === 0 ? (
-                      <div className="text-sm text-gray-600">Aucun message.</div>
-                    ) : (
-                      chatMessages.map((m) => (
-                        <div key={m.id} className="text-sm text-gray-800">
-                          <span className="text-gray-500">{String(m.sender_id||'').slice(0,6)}:</span> {m.content || m.body}
-                        </div>
-                      ))
-                    )}
+              {!chatLoading && chatOrders.length > 0 ? (
+                <div className="border rounded-md bg-white overflow-hidden">
+                  <div className="hidden md:grid grid-cols-12 gap-3 px-3 py-2 bg-gray-50 text-xs text-gray-600 font-medium">
+                    <div className="col-span-3">Commande</div>
+                    <div className="col-span-4">Client</div>
+                    <div className="col-span-3">Total</div>
+                    <div className="col-span-2 text-right">Actions</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Input value={chatMessageText} onChange={(e) => setChatMessageText(e.target.value)} placeholder="Votre message…" />
-                    <Button onClick={sendChatMessage} disabled={chatSending || !chatMessageText.trim()} className="shrink-0">Envoyer</Button>
+
+                  <div className="divide-y">
+                    {chatOrders.map((o) => {
+                      const createdAt = o?.created_at ? new Date(o.created_at) : null;
+                      const createdLabel = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleString() : '—';
+                      const currency = String(o?.charge_currency || '').toUpperCase();
+                      const totalLabel = currency === 'EUR' ? formatEur(o?.charge_amount_total) : currency ? `${o?.charge_amount_total} ${currency}` : '—';
+                      const isCompleted = String(o?.fulfillment_status || '').toLowerCase() === 'completed';
+
+                      return (
+                        <div key={o.id} className={`p-3 ${isCompleted ? 'opacity-70' : ''}`}>
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-start">
+                            <div className="md:col-span-3">
+                              <div className="text-sm font-semibold">Commande n°{formatOrderCode(partner?.display_name, o.created_at, o.order_number)}</div>
+                              <div className="text-xs text-gray-500">{createdLabel}</div>
+                            </div>
+                            <div className="md:col-span-4">
+                              <div className="text-sm text-gray-800 break-all">{o?.customer_alias || '—'}</div>
+                            </div>
+                            <div className="md:col-span-3">
+                              <div className="text-sm text-gray-800">{totalLabel}</div>
+                            </div>
+                            <div className="md:col-span-2 md:text-right">
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full md:w-auto"
+                                  onClick={() => navigate(`/market/orders/${encodeURIComponent(o.id)}`, { state: { from: 'myshop-chat' } })}
+                                >
+                                  Détail
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
@@ -990,6 +1137,74 @@ const MarketplaceMyShop = () => {
             </CardContent>
           </Card>
         </form>
+
+        <Card>
+          <CardHeader className="p-4">
+            <CardTitle className="text-base font-semibold">Mes avis (aperçu)</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-3">
+            {ratingsPreviewLoading ? (
+              <div className="text-sm text-gray-600">Chargement…</div>
+            ) : ratingsPreview.length === 0 ? (
+              <div className="text-sm text-gray-600">Aucun avis pour le moment.</div>
+            ) : (
+              <div className="space-y-3">
+                {ratingsPreview.map((r) => {
+                  const n = Math.max(Math.min(Number(r?.rating || 0), 5), 0);
+                  const stars = '★'.repeat(n) + '☆'.repeat(5 - n);
+                  const when = r?.created_at ? new Date(r.created_at).toLocaleString() : '';
+                  return (
+                    <div key={r.id} className="border rounded-md p-3 bg-white">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">{stars}</div>
+                        {r?.order_number ? <div className="text-xs text-gray-600">Commande n°{r.order_number}</div> : null}
+                      </div>
+                      {r?.comment ? <div className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{r.comment}</div> : null}
+                      <div className="text-xs text-gray-500 mt-1">{r?.buyer_alias ? `${r.buyer_alias} • ` : ''}{when}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" className="w-full" onClick={openRatingsDialog}>
+                  {ratingsSummaryLoading ? 'Chargement…' : (ratingsSummary?.avg != null ? `${ratingsSummary.avg.toFixed(1)} ★ (${ratingsSummary.count})` : 'Aucune note')}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Tous les avis</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+                  {ratings.length === 0 ? (
+                    <div className="text-sm text-gray-600">Aucun avis pour le moment.</div>
+                  ) : ratings.map((r) => {
+                    const n = Math.max(Math.min(Number(r?.rating||0), 5), 0);
+                    const stars = '★'.repeat(n) + '☆'.repeat(5 - n);
+                    const when = r?.created_at ? new Date(r.created_at).toLocaleString() : '';
+                    return (
+                      <div key={r.id} className="border rounded-md p-3 bg-white">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium">{stars}</div>
+                          {r?.order_number ? <div className="text-xs text-gray-600">Commande n°{r.order_number}</div> : null}
+                        </div>
+                        {r?.comment ? <div className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{r.comment}</div> : null}
+                        <div className="text-xs text-gray-500 mt-1">{r?.buyer_alias ? `${r.buyer_alias} • ` : ''}{when}</div>
+                      </div>
+                    );
+                  })}
+                  {ratingsHasMore ? (
+                    <Button type="button" onClick={() => fetchRatingsPage(ratingsOffset)} disabled={ratingsLoading} className="w-full">
+                      {ratingsLoading ? 'Chargement…' : 'Charger plus'}
+                    </Button>
+                  ) : null}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
       </div>
     </>
   );
