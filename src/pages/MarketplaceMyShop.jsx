@@ -715,69 +715,6 @@ const MarketplaceMyShop = () => {
           </div>
         ) : null}
 
-        {activeTab === 'shop' ? (
-          <Card>
-            <CardHeader className="p-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Gérer les modes de livraison</CardTitle>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <button type="button" aria-label="Informations frais" className="text-gray-500 hover:text-gray-700">
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Information</DialogTitle>
-                      <DialogDescription>
-                        Frais de service OneKamer : 10 %. Ils s’appliquent sur le total du panier (article + livraison).
-                      </DialogDescription>
-                    </DialogHeader>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-4">
-              <div className="text-xs text-gray-600">Devise de base: {String(shipCurrency || '—')}</div>
-              {shipError ? <div className="text-sm text-red-600">{shipError}</div> : null}
-
-              <div className="space-y-3">
-                {(['pickup','standard','express','international']).map((t) => (
-                  <div key={t} className="border rounded-md p-3 bg-white">
-                    <div className="text-sm font-medium text-gray-800">{t === 'pickup' ? 'Pickup' : (t === 'standard' ? 'Standard' : (t === 'express' ? 'Express' : 'International'))}</div>
-                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
-                      <div className="space-y-1">
-                        <Label>Prix ({shipCurrency})</Label>
-                        <Input
-                          type="text"
-                          value={shipPriceUI[t] ?? ''}
-                          onChange={(e) => setShipPriceUI((prev) => ({ ...prev, [t]: e.target.value }))}
-                          disabled={shipLoading || shipSaving}
-                          placeholder="ex: 5,00"
-                        />
-                        <div className="text-xs text-gray-500">Montant en devise (ex: 5,00)</div>
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Activer</Label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={shipOptions[t]?.is_active === true}
-                            onChange={(e) => setShipOptions((prev) => ({ ...prev, [t]: { ...(prev[t]||{}), is_active: e.target.checked } }))}
-                            disabled={shipLoading || shipSaving}
-                          />
-                          <span className="text-sm text-gray-700">{shipOptions[t]?.is_active ? 'Activé' : 'Désactivé'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Button type="button" onClick={saveShippingOptions} disabled={shipSaving} className="w-full">{shipSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
-            </CardContent>
-          </Card>
-        ) : null}
 
         {activeTab === 'chat' ? (
           <Card>
@@ -846,6 +783,9 @@ const MarketplaceMyShop = () => {
             </CardContent>
           </Card>
         ) : null}
+        
+
+        
 
         {activeTab === 'orders' ? (
           <Card>
@@ -1040,6 +980,70 @@ const MarketplaceMyShop = () => {
           </Card>
         ) : null}
 
+        {activeTab === 'shop' ? (
+        <>
+        <Card>
+          <CardHeader className="p-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Gérer les modes de livraison</CardTitle>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button type="button" aria-label="Informations frais" className="text-gray-500 hover:text-gray-700">
+                    <Info className="h-4 w-4" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Information</DialogTitle>
+                    <DialogDescription>
+                      Frais de service OneKamer : 10 %. Ils s’appliquent sur le total du panier (article + livraison).
+                    </DialogDescription>
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-4">
+            <div className="text-xs text-gray-600">Devise de base: {String(shipCurrency || '—')}</div>
+            {shipError ? <div className="text-sm text-red-600">{shipError}</div> : null}
+
+            <div className="space-y-3">
+              {(['pickup','standard','express','international']).map((t) => (
+                <div key={t} className="border rounded-md p-3 bg-white">
+                  <div className="text-sm font-medium text-gray-800">{t === 'pickup' ? 'Pickup' : (t === 'standard' ? 'Standard' : (t === 'express' ? 'Express' : 'International'))}</div>
+                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+                    <div className="space-y-1">
+                      <Label>Prix ({shipCurrency})</Label>
+                      <Input
+                        type="text"
+                        value={shipPriceUI[t] ?? ''}
+                        onChange={(e) => setShipPriceUI((prev) => ({ ...prev, [t]: e.target.value }))}
+                        disabled={shipLoading || shipSaving}
+                        placeholder="ex: 5,00"
+                      />
+                      <div className="text-xs text-gray-500">Montant en devise (ex: 5,00)</div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Activer</Label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={shipOptions[t]?.is_active === true}
+                          onChange={(e) => setShipOptions((prev) => ({ ...prev, [t]: { ...(prev[t]||{}), is_active: e.target.checked } }))}
+                          disabled={shipLoading || shipSaving}
+                        />
+                        <span className="text-sm text-gray-700">{shipOptions[t]?.is_active ? 'Activé' : 'Désactivé'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button type="button" onClick={saveShippingOptions} disabled={shipSaving} className="w-full">{shipSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+          </CardContent>
+        </Card>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <Card>
             <CardHeader className="p-4">
@@ -1137,7 +1141,10 @@ const MarketplaceMyShop = () => {
             </CardContent>
           </Card>
         </form>
+        </>
+        ) : null}
 
+        {activeTab === 'shop' ? (
         <Card>
           <CardHeader className="p-4">
             <CardTitle className="text-base font-semibold">Mes avis (aperçu)</CardTitle>
@@ -1205,6 +1212,7 @@ const MarketplaceMyShop = () => {
             </Dialog>
           </CardContent>
         </Card>
+        ) : null}
       </div>
     </>
   );
