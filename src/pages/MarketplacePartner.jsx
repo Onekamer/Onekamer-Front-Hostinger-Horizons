@@ -41,6 +41,7 @@ const MarketplacePartner = () => {
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
   const [reportSending, setReportSending] = useState(false);
+  const [partnerInfo, setPartnerInfo] = useState(null);
 
   const cartCount = useMemo(() => getMarketplaceCartCount(cart), [cart]);
 
@@ -129,6 +130,23 @@ const MarketplacePartner = () => {
 
     load();
   }, [partnerId, apiBaseUrl, toast]);
+
+  useEffect(() => {
+    const loadPartnerInfo = async () => {
+      if (!partnerId) return;
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/market/partners`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+        const list = Array.isArray(data?.partners) ? data.partners : [];
+        const info = list.find((p) => String(p?.id || '') === String(partnerId || '')) || null;
+        setPartnerInfo(info);
+      } catch {
+        setPartnerInfo(null);
+      }
+    };
+    loadPartnerInfo();
+  }, [partnerId, apiBaseUrl]);
 
   const handleAdd = async (item) => {
     const itemId = item?.id ? String(item.id) : null;
@@ -263,7 +281,7 @@ const MarketplacePartner = () => {
                       <div className="text-sm font-semibold text-gray-800">{Number(it.base_price_amount || 0) / 100} €</div>
                       <Button
                         onClick={() => handleAdd(it)}
-                        disabled={String(addingItemId || '') === String(it.id || '')}
+                        disabled={String(addingItemId || '') === String(it.id || '') || partnerInfo?.commandable === false}
                         className="shrink-0"
                       >
                         {String(addingItemId || '') === String(it.id || '') ? 'Ajout…' : 'Ajouter'}

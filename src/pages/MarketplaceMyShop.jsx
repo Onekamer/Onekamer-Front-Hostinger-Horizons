@@ -29,6 +29,8 @@ const MarketplaceMyShop = () => {
   const [uploading, setUploading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [managing, setManaging] = useState(false);
+  const [togglingOpen, setTogglingOpen] = useState(false);
 
   const [partner, setPartner] = useState(null);
 
@@ -546,6 +548,59 @@ const MarketplaceMyShop = () => {
     setPartner(me);
   };
 
+  const handleConnectLoginLink = async () => {
+    if (!partner?.id) return;
+    if (!session?.access_token) return;
+    if (managing) return;
+
+    setManaging(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/partner/connect/login-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ partnerId: partner.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur Stripe Connect');
+      if (!data?.url) throw new Error('URL Stripe manquante');
+      window.location.href = data.url;
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible d’ouvrir le tableau de bord Stripe', variant: 'destructive' });
+    } finally {
+      setManaging(false);
+    }
+  };
+
+  const handleToggleOpen = async () => {
+    if (!partner?.id) return;
+    if (!session?.access_token) return;
+    if (togglingOpen) return;
+
+    setTogglingOpen(true);
+    try {
+      const next = partner?.is_open === true ? false : true;
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ is_open: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur mise à jour disponibilité');
+      await reloadPartner();
+      toast({ title: 'Disponibilité mise à jour', description: next ? 'Boutique ouverte' : 'Boutique fermée' });
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || "Impossible de mettre à jour la disponibilité", variant: 'destructive' });
+    } finally {
+      setTogglingOpen(false);
+    }
+  };
+
   const handleConnectOnboarding = async () => {
     if (!partner?.id) return;
     if (!session?.access_token) return;
@@ -951,18 +1006,31 @@ const MarketplaceMyShop = () => {
                   <span className="text-gray-600">Paiements : </span>
                   <span>{payoutLabel}</span>
                 </div>
+                <div>
+                  <span className="text-gray-600">Disponibilité : </span>
+                  <span>{partner?.is_open ? 'Ouverte' : 'Indisponible'}</span>
+                </div>
               </div>
 
               {partner?.id ? (
-                <div className="space-y-2">
+                <div className="mt-3 space-y-2">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleConnectOnboarding}
-                    disabled={connecting}
+                    onClick={handleToggleOpen}
+                    disabled={togglingOpen}
                     className="w-full"
                   >
-                    {connecting ? 'Redirection…' : 'Activer mes paiements'}
+                    {togglingOpen ? 'Mise à jour…' : (partner?.is_open ? 'Fermer la boutique' : 'Ouvrir la boutique')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={String(partner?.payout_status || '').toLowerCase() === 'complete' ? handleConnectLoginLink : handleConnectOnboarding}
+                    disabled={String(partner?.payout_status || '').toLowerCase() === 'complete' ? managing : connecting}
+                    className="w-full"
+                  >
+                    {String(partner?.payout_status || '').toLowerCase() === 'complete' ? (managing ? 'Redirection…' : 'Gérer mes paiements') : (connecting ? 'Redirection…' : 'Activer mes paiements')}
                   </Button>
                   <Button
                     type="button"
