@@ -37,11 +37,13 @@ const MarketplaceMyShop = () => {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [markingOrderId, setMarkingOrderId] = useState(null);
 
-  const [abandonedMinutes, setAbandonedMinutes] = useState(60);
-  const [abandonedLoading, setAbandonedLoading] = useState(false);
-  const [abandonedError, setAbandonedError] = useState(null);
-  const [abandonedCarts, setAbandonedCarts] = useState([]);
-  const [expandedCartId, setExpandedCartId] = useState(null);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState(null);
+  const [chatOrders, setChatOrders] = useState([]);
+  const [chatSelectedOrderId, setChatSelectedOrderId] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatMessageText, setChatMessageText] = useState('');
+  const [chatSending, setChatSending] = useState(false);
 
   // Livraison (options d'expédition)
   const [shipLoading, setShipLoading] = useState(false);
@@ -202,49 +204,89 @@ const MarketplaceMyShop = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, partner?.id, ordersStatus]);
 
-  const fetchAbandonedCarts = async () => {
+  const fetchChatOrders = async () => {
     if (!session?.access_token) return;
     if (!partner?.id) return;
-    if (abandonedLoading) return;
-
-    setAbandonedLoading(true);
-    setAbandonedError(null);
-
+    if (chatLoading) return;
+    setChatLoading(true);
+    setChatError(null);
     try {
-      const mins = Math.min(Math.max(parseInt(abandonedMinutes, 10) || 60, 5), 4320);
       const qs = new URLSearchParams();
-      qs.set('minutes', String(mins));
+      // commandes payées, non terminées (chat ouvert): on filtre via fulfillment
+      qs.set('fulfillment', 'sent_to_seller,preparing,shipping,delivered');
       qs.set('limit', '100');
       qs.set('offset', '0');
-
-      const res = await fetch(
-        `${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/abandoned-carts?${qs.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/orders?${qs.toString()}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Erreur chargement paniers');
-
-      setAbandonedCarts(Array.isArray(data?.carts) ? data.carts : []);
+      if (!res.ok) throw new Error(data?.error || 'Erreur chargement commandes chat');
+      setChatOrders(Array.isArray(data?.orders) ? data.orders : []);
     } catch (e) {
-      const msg = e?.message || 'Erreur chargement paniers';
-      setAbandonedError(msg);
+      const msg = e?.message || 'Erreur chargement commandes';
+      setChatError(msg);
       toast({ title: 'Erreur', description: msg, variant: 'destructive' });
     } finally {
-      setAbandonedLoading(false);
+      setChatLoading(false);
+    }
+  };
+
+  const loadChatMessages = async (orderId) => {
+    if (!orderId || !session?.access_token) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/messages`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur chargement messages');
+      setChatMessages(Array.isArray(data?.messages) ? data.messages : []);
+    } catch (e) {
+      setChatMessages([]);
+    }
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatSelectedOrderId) return;
+    const txt = String(chatMessageText || '').trim();
+    if (!txt || chatSending) return;
+    setChatSending(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(chatSelectedOrderId)}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ content: txt }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur envoi message');
+      setChatMessageText('');
+      await loadChatMessages(chatSelectedOrderId);
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || "Impossible d'envoyer le message", variant: 'destructive' });
+    } finally {
+      setChatSending(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab !== 'abandoned') return;
+    if (activeTab !== 'chat') return;
     if (!partner?.id) return;
-    fetchAbandonedCarts();
+    fetchChatOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, partner?.id, abandonedMinutes]);
+  }, [activeTab, partner?.id]);
+
+  useEffect(() => {
+    if (activeTab !== 'chat') return;
+    if (!chatSelectedOrderId) return;
+    let id;
+    const start = async () => {
+      await loadChatMessages(chatSelectedOrderId);
+      id = setInterval(() => loadChatMessages(chatSelectedOrderId), 4000);
+    };
+    start();
+    return () => { if (id) clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, chatSelectedOrderId]);
 
   const parsePriceToCents = (val) => {
     if (val === null || val === undefined) return 0;
@@ -539,11 +581,11 @@ const MarketplaceMyShop = () => {
             </Button>
             <Button
               type="button"
-              variant={activeTab === 'abandoned' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('abandoned')}
+              variant={activeTab === 'chat' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('chat')}
               className="flex-1"
             >
-              Paniers abandonnés
+              Chat
             </Button>
           </div>
         ) : null}
@@ -582,108 +624,48 @@ const MarketplaceMyShop = () => {
           </Card>
         ) : null}
 
-        {activeTab === 'abandoned' ? (
+        {activeTab === 'chat' ? (
           <Card>
             <CardHeader className="p-4">
-              <CardTitle className="text-base font-semibold">Paniers abandonnés</CardTitle>
+              <CardTitle className="text-base font-semibold">Chat commandes</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
+              <Button type="button" variant="outline" onClick={fetchChatOrders} disabled={chatLoading} className="w-full">
+                {chatLoading ? 'Chargement…' : 'Recharger la liste'}
+              </Button>
+              {chatError ? <div className="text-sm text-red-600">{chatError}</div> : null}
+
               <div className="space-y-2">
-                <div className="text-sm font-medium">Seuil d’abandon</div>
+                <div className="text-sm font-medium">Sélectionner une commande</div>
                 <select
-                  value={String(abandonedMinutes)}
-                  onChange={(e) => setAbandonedMinutes(parseInt(e.target.value, 10) || 60)}
+                  value={chatSelectedOrderId || ''}
+                  onChange={(e) => setChatSelectedOrderId(e.target.value || null)}
                   className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
                 >
-                  <option value="30">30 min</option>
-                  <option value="60">1 h</option>
-                  <option value="180">3 h</option>
-                  <option value="1440">24 h</option>
+                  <option value="">—</option>
+                  {(chatOrders || []).map((o) => (
+                    <option key={o.id} value={o.id}>n°{String(o.order_number || '').padStart(6,'0')} — {(o.customer_alias || o.customer_email || '').slice(0,40)}</option>
+                  ))}
                 </select>
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={fetchAbandonedCarts}
-                disabled={abandonedLoading}
-                className="w-full"
-              >
-                {abandonedLoading ? 'Chargement…' : 'Recharger'}
-              </Button>
-
-              {!abandonedLoading && abandonedError ? <div className="text-sm text-red-600">{abandonedError}</div> : null}
-
-              {!abandonedLoading && !abandonedError && abandonedCarts.length === 0 ? (
-                <div className="text-sm text-gray-600">Aucun panier abandonné.</div>
-              ) : null}
-
-              {!abandonedLoading && abandonedCarts.length > 0 ? (
-                <div className="border rounded-md bg-white overflow-hidden">
-                  <div className="hidden md:grid grid-cols-12 gap-3 px-3 py-2 bg-gray-50 text-xs text-gray-600 font-medium">
-                    <div className="col-span-3">Dernière activité</div>
-                    <div className="col-span-4">Client</div>
-                    <div className="col-span-2">Total estimé</div>
-                    <div className="col-span-1">Articles</div>
-                    <div className="col-span-2 text-right">Actions</div>
-                  </div>
-
-                  <div className="divide-y">
-                    {abandonedCarts.map((c) => {
-                      const isExpanded = expandedCartId && String(expandedCartId) === String(c.id);
-                      const updatedAt = c?.updated_at ? new Date(c.updated_at) : null;
-                      const updatedLabel = updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt.toLocaleString() : '—';
-                      const its = Array.isArray(c?.items) ? c.items : [];
-                      const totalMinor = Number(c?.total_minor || 0);
-                      const totalLabel = `${(totalMinor / 100).toFixed(2)}€`;
-
-                      return (
-                        <div key={c.id} className="p-3">
-                          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-start">
-                            <div className="md:col-span-3">
-                              <div className="text-sm font-semibold">{updatedLabel}</div>
-                            </div>
-                            <div className="md:col-span-4">
-                              <div className="text-sm text-gray-800 break-all">{c?.customer_email || '—'}</div>
-                            </div>
-                            <div className="md:col-span-2">
-                              <div className="text-sm text-gray-800">{totalLabel}</div>
-                            </div>
-                            <div className="md:col-span-1">
-                              <div className="text-sm text-gray-800">{its.length}</div>
-                            </div>
-                            <div className="md:col-span-2 md:text-right">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full md:w-auto"
-                                onClick={() => setExpandedCartId(isExpanded ? null : c.id)}
-                              >
-                                {isExpanded ? 'Masquer' : 'Détail'}
-                              </Button>
-                            </div>
-                          </div>
-
-                          {isExpanded ? (
-                            <div className="mt-3 rounded-md border bg-gray-50 p-3 space-y-2">
-                              <div className="text-xs text-gray-600 font-medium">Produits</div>
-                              {its.length === 0 ? (
-                                <div className="text-sm text-gray-600">Aucun article.</div>
-                              ) : (
-                                <div className="space-y-2">
-                                  {its.map((it) => (
-                                    <div key={it.id} className="flex items-start justify-between gap-2 text-sm">
-                                      <div className="text-gray-800">{it.title_snapshot || 'Produit'}</div>
-                                      <div className="text-gray-600">x{it.quantity || 1}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ) : null}
+              {chatSelectedOrderId ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Messages</div>
+                  <div className="rounded-md border bg-white p-3 max-h-72 overflow-auto space-y-1">
+                    {(chatMessages || []).length === 0 ? (
+                      <div className="text-sm text-gray-600">Aucun message.</div>
+                    ) : (
+                      chatMessages.map((m) => (
+                        <div key={m.id} className="text-sm text-gray-800">
+                          <span className="text-gray-500">{String(m.sender_id||'').slice(0,6)}:</span> {m.content || m.body}
                         </div>
-                      );
-                    })}
+                      ))
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input value={chatMessageText} onChange={(e) => setChatMessageText(e.target.value)} placeholder="Votre message…" />
+                    <Button onClick={sendChatMessage} disabled={chatSending || !chatMessageText.trim()} className="shrink-0">Envoyer</Button>
                   </div>
                 </div>
               ) : null}

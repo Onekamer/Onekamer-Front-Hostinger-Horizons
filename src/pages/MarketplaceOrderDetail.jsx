@@ -158,6 +158,10 @@ const MarketplaceOrderDetail = () => {
     return role === 'buyer' && s === 'paid' && f === 'completed' && !rating;
   }, [order, role, rating]);
 
+  const canShowRatingCard = useMemo(() => {
+    return ratingLoading || Boolean(rating) || canRate;
+  }, [ratingLoading, rating, canRate]);
+
   const submitRating = async () => {
     if (ratingSubmitting) return;
     setRatingSubmitting(true);
@@ -244,31 +248,31 @@ const MarketplaceOrderDetail = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="p-4">
-                <CardTitle className="text-base">Avis</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
-                {ratingLoading ? (
-                  <div className="text-gray-600 text-sm">Chargement…</div>
-                ) : rating ? (
-                  <div className="text-sm text-gray-800">Note: {rating.rating}★{rating.comment ? ` — ${rating.comment}` : ''}</div>
-                ) : canRate ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm">Note</label>
-                      <select value={ratingValue} onChange={(e) => setRatingValue(parseInt(e.target.value, 10) || 5)} className="flex h-10 rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
-                        {[5,4,3,2,1].map((n)=> (<option key={n} value={n}>{n}</option>))}
-                      </select>
+            {canShowRatingCard ? (
+              <Card>
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base">Avis</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  {ratingLoading ? (
+                    <div className="text-gray-600 text-sm">Chargement…</div>
+                  ) : rating ? (
+                    <div className="text-sm text-gray-800">Note: {rating.rating}★{rating.comment ? ` — ${rating.comment}` : ''}</div>
+                  ) : canRate ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm">Note</label>
+                        <select value={ratingValue} onChange={(e) => setRatingValue(parseInt(e.target.value, 10) || 5)} className="flex h-10 rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
+                          {[5,4,3,2,1].map((n)=> (<option key={n} value={n}>{n}</option>))}
+                        </select>
+                      </div>
+                      <textarea value={ratingComment} onChange={(e) => setRatingComment(e.target.value)} className="w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm min-h-[80px]" placeholder="Votre avis (optionnel)" />
+                      <Button onClick={submitRating} disabled={ratingSubmitting} className="w-full">{ratingSubmitting ? 'Envoi…' : 'Enregistrer l\'avis'}</Button>
                     </div>
-                    <textarea value={ratingComment} onChange={(e) => setRatingComment(e.target.value)} className="w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm min-h-[80px]" placeholder="Votre avis (optionnel)" />
-                    <Button onClick={submitRating} disabled={ratingSubmitting} className="w-full">{ratingSubmitting ? 'Envoi…' : 'Enregistrer l\'avis'}</Button>
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-600">Aucun avis à afficher.</div>
-                )}
-              </CardContent>
-            </Card>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : null}
           </>
         )}
       </div>
