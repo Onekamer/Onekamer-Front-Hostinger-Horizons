@@ -33,6 +33,7 @@ const MarketplaceCart = () => {
     international: null,
   });
   const [deliveryMode, setDeliveryMode] = useState('pickup');
+  const [customerNote, setCustomerNote] = useState('');
 
   const cartCount = useMemo(() => getMarketplaceCartCount(cart), [cart]);
 
@@ -280,6 +281,16 @@ const MarketplaceCart = () => {
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-900 font-semibold">Total</div>
               <div className="text-base font-bold text-gray-900">{totalWithShipping / 100} €</div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm text-gray-700 font-medium">Note pour le vendeur</div>
+              <textarea
+                value={customerNote}
+                onChange={(e) => setCustomerNote(e.target.value)}
+                placeholder="Ex: précisions de taille, remise en main propre, etc. (optionnel)"
+                className="w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm min-h-[80px]"
+              />
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2">

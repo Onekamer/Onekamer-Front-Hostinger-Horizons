@@ -128,7 +128,7 @@ const MarketplaceOrders = () => {
   return (
     <>
       <Helmet>
-        <title>Mes commandes - Marketplace - OneKamer.co</title>
+        <title>Mes commandes - OneKamer.co</title>
       </Helmet>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
@@ -145,7 +145,7 @@ const MarketplaceOrders = () => {
         {loading ? (
           <div className="text-gray-600">Chargement…</div>
         ) : (Array.isArray(orders) ? orders : []).length === 0 ? (
-          <div className="text-gray-600">Aucune commande trouvée.</div>
+          <div className="text-gray-600">Aucune commande.</div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {groups.map((g) => (

@@ -1,15 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const MarketplaceOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { session } = useAuth();
 
@@ -31,15 +33,17 @@ const MarketplaceOrderDetail = () => {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
+  const listRef = useRef(null);
 
   const [rating, setRating] = useState(null);
   const [ratingLoading, setRatingLoading] = useState(false);
-  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   const [accepting, setAccepting] = useState(false);
   const [updatingFulfill, setUpdatingFulfill] = useState(false);
+  const [actioning, setActioning] = useState(null);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -93,6 +97,12 @@ const MarketplaceOrderDetail = () => {
     start();
     return () => { if (id) clearInterval(id); };
   }, [loadMessages]);
+
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+  }, [messages.length]);
 
   const acceptOrder = async () => {
     if (!order?.id || !order?.partner_id) return;
@@ -181,6 +191,17 @@ const MarketplaceOrderDetail = () => {
     return role === 'buyer' && f === 'delivered';
   }, [order, role]);
 
+  const effectiveRole = useMemo(() => {
+    const fromChat = location?.state && location.state.from === 'myshop-chat';
+    if (fromChat) return 'seller';
+    return role;
+  }, [location?.state, role]);
+
+  const chatLocked = useMemo(() => {
+    const fs = String(order?.fulfillment_status || '').toLowerCase();
+    return fs === 'completed';
+  }, [order?.fulfillment_status]);
+
   const canAcceptOrder = useMemo(() => {
     const f = String(order?.fulfillment_status || '').toLowerCase();
     return role === 'seller' && f === 'sent_to_seller';
@@ -216,6 +237,24 @@ const MarketplaceOrderDetail = () => {
     return ratingLoading || Boolean(rating) || canRate;
   }, [ratingLoading, rating, canRate]);
 
+  const autoCompleteDate = useMemo(() => {
+    const s = String(order?.status || '').toLowerCase();
+    const f = String(order?.fulfillment_status || '').toLowerCase();
+    if (s !== 'paid' || f !== 'delivered') return null;
+    const base = order?.payout_release_at ? new Date(order.payout_release_at) : (order?.fulfillment_updated_at ? new Date(order.fulfillment_updated_at) : null);
+    if (!base || Number.isNaN(base.getTime())) return null;
+    if (!order?.payout_release_at) {
+      base.setDate(base.getDate() + 14);
+    }
+    return base;
+  }, [order?.status, order?.fulfillment_status, order?.payout_release_at, order?.fulfillment_updated_at]);
+
+  const formatLongDate = (d) => {
+    try {
+      return d?.toLocaleString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
+  };
+
   const submitRating = async () => {
     if (ratingSubmitting) return;
     setRatingSubmitting(true);
@@ -236,16 +275,74 @@ const MarketplaceOrderDetail = () => {
     }
   };
 
+  const formatOrderCode = (shopName, createdAt, orderNumber) => {
+    const raw = String(shopName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z]/g, '').toUpperCase();
+    const prefix = (raw.slice(0, 3) || 'OK');
+    const d = createdAt ? new Date(createdAt) : new Date();
+    const year = Number.isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+    const num = String(Number(orderNumber || 0)).padStart(6, '0');
+    return `${prefix}-${year}-${num}`;
+  };
+
+  const handleResumePayment = async () => {
+    if (!orderId || !session?.access_token) return;
+    setActioning('pay');
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/pay`, {
+        method: 'GET',
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) throw new Error(data?.error || 'Impossible de relancer le paiement');
+      window.location.href = data.url;
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Échec du paiement', variant: 'destructive' });
+    } finally {
+      setActioning(null);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!orderId || !session?.access_token) return;
+    setActioning('cancel');
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/cancel`, {
+        method: 'POST',
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Annulation impossible');
+      await loadOrder();
+      toast({ title: 'Commande annulée' });
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || "Impossible d'annuler la commande", variant: 'destructive' });
+    } finally {
+      setActioning(null);
+    }
+  };
+
   return (
     <>
       <Helmet>
-        <title>Commande - Marketplace - OneKamer.co</title>
+        <title>{order ? `Commande n°${formatOrderCode(order.partner_display_name, order.created_at, order.order_number)} - OneKamer.co` : 'Commande - OneKamer.co'}</title>
       </Helmet>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <Button variant="ghost" onClick={() => navigate('/market/orders')} className="px-2">Retour</Button>
-          <div />
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (effectiveRole === 'seller') {
+                navigate('/marketplace/ma-boutique?tab=chat');
+              } else {
+                navigate('/market/orders');
+              }
+            }}
+            className="px-2"
+          >
+            Retour
+          </Button>
+          <div className="text-sm text-gray-600">{effectiveRole ? (effectiveRole === 'buyer' ? 'Acheteur' : 'Vendeur') : ''}</div>
         </div>
 
         {loading ? (
@@ -256,26 +353,69 @@ const MarketplaceOrderDetail = () => {
           <>
             <Card>
               <CardHeader className="p-4">
-                <CardTitle className="text-base">Commande #{String(order.id).slice(0,8)}</CardTitle>
+                <CardTitle className="text-base font-semibold">
+                  {order ? `Commande n°${formatOrderCode(order.partner_display_name, order.created_at, order.order_number)}` : 'Commande'}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
-                <div className="text-sm text-gray-700">Statut: <span className="font-semibold">{order.status}</span></div>
-                <div className="text-sm text-gray-700">Exécution: <span className="font-semibold">{order.fulfillment_status || '—'}</span></div>
-                <div className="text-sm text-gray-700">Total: <span className="font-semibold">{(Number(order.charge_amount_total||0)/100).toFixed(2)} {String(order.charge_currency||'').toUpperCase()}</span></div>
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Articles</div>
-                  <div className="space-y-1">
-                    {(items||[]).map((it) => (
-                      <div key={it.id} className="text-sm text-gray-700 flex items-center justify-between">
+              <CardContent className="p-4 pt-0 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-gray-700 font-medium">Statut de paiement</div>
+                  <div>{String(order.status || '').toLowerCase().replace('_', ' ')}</div>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="text-gray-700 font-medium">Montant</div>
+                  <div>{(Number(order.charge_amount_total||0)/100).toFixed(2)} {String(order.charge_currency||'').toUpperCase()}</div>
+                </div>
+                {effectiveRole === 'seller' ? (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="text-gray-700 font-medium">Montant net à recevoir</div>
+                    <div>{(Number(order.partner_amount||0)/100).toFixed(2)} {String(order.charge_currency||'').toUpperCase()}</div>
+                  </div>
+                ) : null}
+                {effectiveRole === 'seller' ? (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="text-gray-700 font-medium">Client</div>
+                    <div className="truncate max-w-[60%]">{order?.customer_alias || '—'}</div>
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="text-gray-700 font-medium">Livraison</div>
+                    <div className="capitalize">{String(order.delivery_mode || '—')}</div>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="text-gray-700 font-medium">Statut</div>
+                    <div>{String(order.status || '').toLowerCase() === 'pending' ? 'Waiting for payment' : String(order.fulfillment_status || '—')}</div>
+                  </div>
+                </div>
+                {order?.customer_note ? (
+                  <div className="pt-2">
+                    <div className="text-gray-700 font-medium text-sm mb-1">Note client</div>
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{order.customer_note}</div>
+                  </div>
+                ) : null}
+                <div className="pt-2">
+                  <div className="text-gray-700 font-medium text-sm mb-1">Articles</div>
+                  <div className="space-y-2">
+                    {items.map((it) => (
+                      <div key={it.id} className="flex items-center justify-between text-sm">
                         <div className="truncate">{it.title_snapshot || 'Article'}</div>
-                        <div className="shrink-0">x{it.quantity}</div>
+                        <div className="text-gray-600">x{it.quantity}</div>
                       </div>
                     ))}
                   </div>
                 </div>
-                {canConfirmReceived ? (
-                  <Button onClick={confirmReceived} className="w-full">Confirmer réception</Button>
-                ) : null}
+                {(() => {
+                  const s = String(order?.status || '').toLowerCase();
+                  if (effectiveRole !== 'buyer') return null;
+                  if (s === 'paid' || s === 'cancelled' || s === 'canceled') return null;
+                  return (
+                    <div className="pt-2 space-y-2">
+                      <Button onClick={handleResumePayment} disabled={actioning === 'pay'} className="w-full">Reprendre le paiement</Button>
+                      <Button onClick={handleCancelOrder} disabled={actioning === 'cancel'} variant="outline" className="w-full">Annuler la commande</Button>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -306,50 +446,118 @@ const MarketplaceOrderDetail = () => {
               </Card>
             ) : null}
 
-            <Card>
-              <CardHeader className="p-4">
-                <CardTitle className="text-base">Messages</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
-                {messages.length === 0 ? (
-                  <div className="text-sm text-gray-600">Aucun message.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {messages.map((m) => (
-                      <div key={m.id} className="text-sm text-gray-800">
-                        <span className="text-gray-500">{String(m.sender_id||m.senderId||m.author_id||m.authorId||'').slice(0,6)}:</span> {m.content || m.body}
+            {chatLocked ? (
+              messages.length > 0 ? (
+                <Card className="h-[60vh] flex flex-col">
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 flex-1 flex flex-col">
+                    <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+                      {messages.map((m) => (
+                        <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 text-sm ${String(m.sender_id||'')===String(session?.user?.id||'') ? 'bg-[#DCFCE7] ml-auto' : 'bg-white border'}`}>
+                          <div className="whitespace-pre-wrap break-words">{m.content || m.body}</div>
+                          <div className="text-[11px] text-gray-500 mt-1">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t p-3">
+                      <div className="text-sm font-medium text-red-600">La commande est terminée. Le chat n'est plus disponible.</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <div className="text-sm text-gray-600">La commande est terminée. Le chat n'est plus disponible.</div>
+                  </CardContent>
+                </Card>
+              )
+            ) : String(order?.status||'').toLowerCase() === 'paid' ? (
+              <Card className="h-[60vh] flex flex-col">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 flex-1 flex flex-col">
+                  <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {messages.length === 0 ? (
+                      <div className="text-gray-500 text-sm">Aucun message pour le moment.</div>
+                    ) : messages.map((m) => (
+                      <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 text-sm ${String(m.sender_id||'')===String(session?.user?.id||'') ? 'bg-[#DCFCE7] ml-auto' : 'bg-white border'}`}>
+                        <div className="whitespace-pre-wrap break-words">{m.content || m.body}</div>
+                        <div className="text-[11px] text-gray-500 mt-1">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
                       </div>
                     ))}
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Input value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Votre message…" />
-                  <Button onClick={sendMessage} disabled={sending || !messageText.trim()} className="shrink-0">Envoyer</Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="border-t p-3 flex items-center gap-2">
+                    <Input value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Votre message…" onKeyDown={(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } }} />
+                    <Button onClick={sendMessage} disabled={sending || !messageText.trim()} className="shrink-0">Envoyer</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="text-sm text-gray-600">Le chat sera disponible une fois le paiement validé.</div>
+                </CardContent>
+              </Card>
+            )}
 
             {canShowRatingCard ? (
               <Card>
                 <CardHeader className="p-4">
-                  <CardTitle className="text-base">Avis</CardTitle>
+                  <CardTitle className="text-base font-semibold">Noter la commande</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 pt-0 space-y-3">
                   {ratingLoading ? (
-                    <div className="text-gray-600 text-sm">Chargement…</div>
+                    <div className="text-sm text-gray-600">Chargement…</div>
                   ) : rating ? (
-                    <div className="text-sm text-gray-800">Note: {rating.rating}★{rating.comment ? ` — ${rating.comment}` : ''}</div>
-                  ) : canRate ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm">Note</label>
-                        <select value={ratingValue} onChange={(e) => setRatingValue(parseInt(e.target.value, 10) || 5)} className="flex h-10 rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
-                          {[5,4,3,2,1].map((n)=> (<option key={n} value={n}>{n}</option>))}
-                        </select>
+                    <div className="space-y-2 text-sm text-gray-700">
+                      <div>
+                        {(() => {
+                          const n = Number(rating?.rating || 0);
+                          const clamped = Math.max(Math.min(n, 5), 0);
+                          return '★'.repeat(clamped) + '☆'.repeat(5 - clamped);
+                        })()}
                       </div>
-                      <textarea value={ratingComment} onChange={(e) => setRatingComment(e.target.value)} className="w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm min-h-[80px]" placeholder="Votre avis (optionnel)" />
-                      <Button onClick={submitRating} disabled={ratingSubmitting} className="w-full">{ratingSubmitting ? 'Envoi…' : 'Enregistrer l\'avis'}</Button>
+                      {rating?.comment ? (
+                        <div className="whitespace-pre-wrap">{rating.comment}</div>
+                      ) : null}
                     </div>
+                  ) : canRate ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        {[1,2,3,4,5].map((n) => (
+                          <Button key={n} type="button" variant={ratingValue >= n ? 'default' : 'outline'} size="sm" onClick={() => setRatingValue(n)}>
+                            {n}
+                          </Button>
+                        ))}
+                      </div>
+                      <Textarea value={ratingComment} onChange={(e) => setRatingComment(e.target.value)} placeholder="Votre avis (optionnel)" />
+                      <Button type="button" onClick={submitRating} disabled={ratingSubmitting || !ratingValue} className="w-full">
+                        {ratingSubmitting ? 'Envoi…' : 'Envoyer mon avis'}
+                      </Button>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {effectiveRole === 'buyer' && String(order?.fulfillment_status || '').toLowerCase() === 'delivered' && !order?.buyer_received_at ? (
+              <Card>
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base font-semibold">Réception</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-2">
+                  <Button onClick={confirmReceived} className="w-full">J'ai bien reçu la commande</Button>
+                  {String(order?.status||'').toLowerCase() === 'paid' && autoCompleteDate ? (
+                    <div className="text-xs text-gray-500 text-center">La commande sera considérée automatiquement terminée au bout de 14 jours — soit le {formatLongDate(autoCompleteDate)}.</div>
                   ) : null}
                 </CardContent>
               </Card>
