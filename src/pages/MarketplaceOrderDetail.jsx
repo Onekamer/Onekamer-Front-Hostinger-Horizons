@@ -38,6 +38,9 @@ const MarketplaceOrderDetail = () => {
   const [ratingComment, setRatingComment] = useState('');
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
+  const [accepting, setAccepting] = useState(false);
+  const [updatingFulfill, setUpdatingFulfill] = useState(false);
+
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
     setLoading(true);
@@ -91,6 +94,47 @@ const MarketplaceOrderDetail = () => {
     return () => { if (id) clearInterval(id); };
   }, [loadMessages]);
 
+  const acceptOrder = async () => {
+    if (!order?.id || !order?.partner_id) return;
+    if (accepting) return;
+    setAccepting(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(order.partner_id)}/orders/${encodeURIComponent(order.id)}/mark-received`, {
+        method: 'POST',
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Action impossible');
+      toast({ title: 'Commande acceptée', description: 'Statut: en préparation' });
+      await loadOrder();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible d’accepter la commande', variant: 'destructive' });
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const updateFulfillment = async (next) => {
+    if (!order?.id) return;
+    if (updatingFulfill) return;
+    setUpdatingFulfill(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(order.id)}/fulfillment`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: next })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur mise à jour');
+      toast({ title: 'Préparation mise à jour' });
+      await loadOrder();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible de mettre à jour', variant: 'destructive' });
+    } finally {
+      setUpdatingFulfill(false);
+    }
+  };
+
   const loadRating = useCallback(async () => {
     if (!orderId || !session?.access_token) return;
     try {
@@ -135,6 +179,16 @@ const MarketplaceOrderDetail = () => {
   const canConfirmReceived = useMemo(() => {
     const f = String(order?.fulfillment_status || '').toLowerCase();
     return role === 'buyer' && f === 'delivered';
+  }, [order, role]);
+
+  const canAcceptOrder = useMemo(() => {
+    const f = String(order?.fulfillment_status || '').toLowerCase();
+    return role === 'seller' && f === 'sent_to_seller';
+  }, [order, role]);
+
+  const canManageFulfillment = useMemo(() => {
+    const f = String(order?.fulfillment_status || '').toLowerCase();
+    return role === 'seller' && ['preparing','shipping','delivered'].includes(f);
   }, [order, role]);
 
   const confirmReceived = async () => {
@@ -224,6 +278,33 @@ const MarketplaceOrderDetail = () => {
                 ) : null}
               </CardContent>
             </Card>
+
+            {role === 'seller' ? (
+              <Card>
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base">Gérer la préparation</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  {canAcceptOrder ? (
+                    <Button onClick={acceptOrder} disabled={accepting} className="w-full">{accepting ? 'En cours…' : 'Accepter la commande'}</Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="text-sm">Étape</div>
+                      <select
+                        value={String(order?.fulfillment_status || '')}
+                        onChange={(e) => updateFulfillment(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
+                        disabled={updatingFulfill}
+                      >
+                        <option value="preparing">En préparation</option>
+                        <option value="shipping">En cours d'envoi</option>
+                        <option value="delivered">Livrée</option>
+                      </select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
 
             <Card>
               <CardHeader className="p-4">

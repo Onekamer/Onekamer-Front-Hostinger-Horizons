@@ -30,7 +30,7 @@ const MarketplaceMyShop = () => {
 
   const [partner, setPartner] = useState(null);
 
-  const [ordersStatus, setOrdersStatus] = useState('pending');
+  const [ordersStatus, setOrdersStatus] = useState('sent_to_seller');
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -194,6 +194,33 @@ const MarketplaceMyShop = () => {
       toast({ title: 'Erreur', description: msg, variant: 'destructive' });
     } finally {
       setOrdersLoading(false);
+    }
+  };
+
+  const handleMarkReceived = async (orderId) => {
+    if (!orderId) return;
+    if (!session?.access_token) return;
+    if (!partner?.id) return;
+    if (markingOrderId) return;
+
+    setMarkingOrderId(orderId);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/orders/${encodeURIComponent(orderId)}/mark-received`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Action impossible");
+      toast({ title: 'Commande acceptée', description: 'Statut: en préparation' });
+      await fetchOrders();
+      if (activeTab === 'chat') await fetchChatOrders();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || "Impossible d’accepter la commande", variant: 'destructive' });
+    } finally {
+      setMarkingOrderId(null);
     }
   };
 
@@ -788,7 +815,7 @@ const MarketplaceMyShop = () => {
                                   onClick={() => handleMarkReceived(o.id)}
                                   disabled={markingOrderId === o.id}
                                 >
-                                  {markingOrderId === o.id ? 'En cours…' : 'Commande reçue'}
+                                  {markingOrderId === o.id ? 'En cours…' : 'Accepter la commande'}
                                 </Button>
                               ) : null}
                             </div>
