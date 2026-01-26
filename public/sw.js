@@ -115,7 +115,11 @@ self.addEventListener('push', (event) => {
 // Clic sur la notification (focus/navigate robuste vers l'origine cible)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = event.notification?.data?.url || 'https://onekamer.co';
+  const raw = event.notification?.data?.url || 'https://onekamer.co';
+  let target = 'https://onekamer.co';
+  try {
+    target = new URL(raw, self.location.origin).href;
+  } catch (_) {}
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       const targetOrigin = new URL(target).origin;

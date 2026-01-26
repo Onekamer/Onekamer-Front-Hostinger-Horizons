@@ -27,12 +27,20 @@ const postNotification = async (payload = {}) => {
             // Pas d'audience explicite: on évite une 400 côté serveur natif
             return null;
           }
+          // Normalise l'URL en absolue pour les deep-links (PWA, FCM, APNs)
+          const base = (typeof window !== 'undefined' && window.location?.origin) || 'https://onekamer.co';
+          let absoluteUrl = '/';
+          try {
+            absoluteUrl = new URL(url || '/', base).href;
+          } catch (_e) {
+            absoluteUrl = `${base}/`;
+          }
           return {
             title: title || 'Notification',
             message: message || '',
             targetUserIds,
             data: data || {},
-            url: url || '/',
+            url: absoluteUrl,
           };
         })()
       : payload;

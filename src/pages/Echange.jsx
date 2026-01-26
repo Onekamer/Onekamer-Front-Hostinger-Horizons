@@ -8,7 +8,7 @@ import { Heart, MessageCircle, Share2, Send, Loader2, Trash2, Image as ImageIcon
 import { toast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -907,7 +907,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   };
 
   return (
-    <Card>
+    <Card id={`feed-item-post-`}>
       <CardContent className="pt-6">
         <div className="flex items-start gap-3 mb-4">
           <div
@@ -1073,7 +1073,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
   };
 
   return (
-    <Card>
+    <Card id={`feed-item-audio_post-`}>
       <CardContent className="pt-6">
         <div className="flex items-start gap-3">
           <div
@@ -1162,6 +1162,7 @@ const Echange = () => {
   const [feedItems, setFeedItems] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [openComments, setOpenComments] = useState({});
+  const location = useLocation();
 
   const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
 
@@ -1261,6 +1262,28 @@ const Echange = () => {
       supabase.removeChannel(channel);
     }
   }, [fetchFeed]);
+
+  // Deep-link: scroll to targeted item and open comments when applicable
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search || "");
+      let targetId = null;
+      let feedType = "post";
+      if (params.get("postId")) {
+        targetId = params.get("postId");
+        feedType = "post";
+      } else if (params.get("audioId")) {
+        targetId = params.get("audioId");
+        feedType = "audio_post";
+      }
+      if (!targetId || loadingPosts) return;
+      const el = document.getElementById(`feed-item--`);
+      if (el) {
+        try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_e) { el.scrollIntoView(); }
+        if (feedType === "post") { setOpenComments((prev) => ({ ...prev, [targetId]: true })); }
+      }
+    } catch (_e) {}
+  }, [location.search, loadingPosts, feedItems]);
 
   const handleLike = async (postId, isCurrentlyLiked) => {
     if (!user) return;
