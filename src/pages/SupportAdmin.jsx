@@ -50,6 +50,14 @@ const SupportAdmin = () => {
   const [delLoading, setDelLoading] = useState(false);
   const [deletions, setDeletions] = useState([]);
 
+  const displayUser = (username, email, uid) => {
+    const parts = [];
+    if (username) parts.push(`@${username}`);
+    if (email) parts.push(email);
+    const text = parts.length ? parts.join(' • ') : (uid || '—');
+    return text;
+  };
+
   const authHeaders = useMemo(() => ({
     Authorization: session?.access_token ? `Bearer ${session.access_token}` : undefined,
     'Content-Type': 'application/json',
@@ -201,7 +209,15 @@ const SupportAdmin = () => {
                         </div>
                         {r.category && <div className="text-gray-600">Catégorie: {r.category}</div>}
                         <div className="text-gray-800 whitespace-pre-wrap">{r.message}</div>
-                        <div className="text-xs text-gray-500">Auteur: {r.user_id}{r.target_user_id ? ` → cible: ${r.target_user_id}` : ''}</div>
+                        <div className="text-xs text-gray-500">
+                          Auteur: {displayUser(r.user_username, r.user_email, r.user_id)}
+                          {r.target_user_id ? (
+                            <>
+                              {` → cible: `}
+                              {displayUser(r.target_username, r.target_email, r.target_user_id)}
+                            </>
+                          ) : null}
+                        </div>
                         <div className="pt-2 flex gap-2">
                           {r.status !== 'in_review' && <Button variant="outline" size="sm" onClick={() => updateRequestStatus(r.id, 'in_review')}>Marquer en cours</Button>}
                           {r.status !== 'resolved' && <Button size="sm" onClick={() => updateRequestStatus(r.id, 'resolved')}>Résoudre</Button>}
@@ -234,7 +250,7 @@ const SupportAdmin = () => {
                         </div>
                         <div className="text-gray-600">Raison: {r.reason || '—'}</div>
                         {r.details && <div className="text-gray-800 whitespace-pre-wrap">{r.details}</div>}
-                        <div className="text-xs text-gray-500">Reporter: {r.reporter_id}</div>
+                        <div className="text-xs text-gray-500">Reporter: {displayUser(r.reporter_username, r.reporter_email, r.reporter_id)}</div>
                         <div className="pt-2 flex gap-2">
                           {r.status !== 'closed' && <Button size="sm" onClick={() => updateShopReportStatus(r.id, 'closed')}>Clore</Button>}
                         </div>
@@ -256,7 +272,7 @@ const SupportAdmin = () => {
                     deletions.map((d) => (
                       <div key={d.id} className="p-3 text-sm flex flex-col gap-1">
                         <div className="flex items-center justify-between">
-                          <div className="font-medium">Utilisateur: {d.deleted_user_id}</div>
+                          <div className="font-medium">Utilisateur: {displayUser(d.username, d.email, d.deleted_user_id)}</div>
                           <div className="text-xs text-gray-500">{new Date(d.created_at).toLocaleString()}</div>
                         </div>
                         <div className="text-gray-800 whitespace-pre-wrap">{d.reason}</div>
