@@ -1,13 +1,21 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
-const PROVIDER = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
+const PROVIDER = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'supabase_light';
 
 const resolveEndpoint = () => {
   if (!API_BASE_URL) {
     console.warn('Aucune URL API configurée pour l’envoi des notifications.');
     return null;
   }
-  if (PROVIDER === 'supabase_light') return `${API_BASE_URL}/notifications/dispatch`;
-  return `${API_BASE_URL}/notifications/onesignal`;
+  return `${API_BASE_URL}/notifications/dispatch`;
+};
+
+const resolveFallbackEndpoint = (endpoint) => {
+  if (!endpoint) return null;
+  // Bascule entre /notifications/dispatch et /api/notifications/dispatch
+  if (/\/api\/notifications\/dispatch$/.test(endpoint)) {
+    return endpoint.replace(/\/api\/notifications\/dispatch$/, '/notifications/dispatch');
+  }
+  return endpoint.replace(/\/notifications\/dispatch$/, '/api/notifications/dispatch');
 };
 
 const normalizeUserIds = (userIds = []) => {
@@ -19,51 +27,58 @@ const postNotification = async (payload = {}) => {
   if (!endpoint) return false;
 
   try {
-    // Adaptation légère du payload pour le mode natif supabase_light
-    const body = (PROVIDER === 'supabase_light')
-      ? (() => {
-          const { title, message, targetUserIds, data, url } = payload || {};
-          if (!Array.isArray(targetUserIds) || targetUserIds.length === 0) {
-            // Pas d'audience explicite: on évite une 400 côté serveur natif
-            return null;
-          }
-          // Normalise l'URL en absolue pour les deep-links (PWA, FCM, APNs)
-          const base = (typeof window !== 'undefined' && window.location?.origin) || 'https://onekamer.co';
-          let absoluteUrl = '/';
-          try {
-            absoluteUrl = new URL(url || '/', base).href;
-          } catch (_e) {
-            absoluteUrl = `${base}/`;
-          }
-          return {
-            title: title || 'Notification',
-            message: message || '',
-            targetUserIds,
-            data: data || {},
-            url: absoluteUrl,
-          };
-        })()
-      : payload;
+    const { title, message, targetUserIds, data, url } = payload || {};
+    if (!Array.isArray(targetUserIds) || targetUserIds.length === 0) {
+      return false;
+    }
+    const base = (typeof window !== 'undefined' && window.location?.origin) || 'https://onekamer.co';
+    let absoluteUrl = '/';
+    try {
+      absoluteUrl = new URL(url || '/', base).href;
+    } catch (_e) {
+      absoluteUrl = `${base}/`;
+    }
+    const body = {
+      title: title || 'Notification',
+      message: message || '',
+      targetUserIds,
+      data: data || {},
+      url: absoluteUrl,
+    };
 
-    if (PROVIDER === 'supabase_light' && !body) return false;
-
-    const response = await fetch(endpoint, {
+    // Premier essai
+    let response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      console.error('Échec de l’appel API OneSignal:', response.status, errorText);
-      return false;
+    // Si le serveur répond "ignored" ou échec → fallback sur l’alias /api/...
+    let ignored = false;
+    try {
+      const maybeJson = await response.clone().json();
+      ignored = !!maybeJson?.ignored;
+    } catch (_e) {}
+
+    if (!response.ok || ignored) {
+      const alt = resolveFallbackEndpoint(endpoint);
+      if (alt) {
+        response = await fetch(alt, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      }
     }
 
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.error('Échec de l’envoi de notification:', response.status, errorText);
+      return false;
+    }
     return true;
   } catch (error) {
-    console.error('Impossible d’envoyer la notification OneSignal:', error);
+    console.error('Impossible d’envoyer la notification:', error);
     return false;
   }
 };
