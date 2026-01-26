@@ -37,7 +37,8 @@ const SupportAdmin = () => {
 
   // Support requests
   const [reqType, setReqType] = useState('report'); // report | feedback | suggestion
-  const [reqStatus, setReqStatus] = useState(''); // new | in_review | resolved | ''
+  // Statuts DB autorisés: pending | open | closed | new
+  const [reqStatus, setReqStatus] = useState('');
   const [reqLoading, setReqLoading] = useState(false);
   const [requests, setRequests] = useState([]);
 
@@ -206,9 +207,9 @@ const SupportAdmin = () => {
                   <TabButton active={reqType==='suggestion'} onClick={() => setReqType('suggestion')}>Suggestion</TabButton>
                   <span className="ml-4 text-sm text-gray-600">Statut:</span>
                   <TabButton active={reqStatus===''} onClick={() => setReqStatus('')}>Tous</TabButton>
-                  <TabButton active={reqStatus==='new'} onClick={() => setReqStatus('new')}>Nouveau</TabButton>
-                  <TabButton active={reqStatus==='in_review'} onClick={() => setReqStatus('in_review')}>En cours</TabButton>
-                  <TabButton active={reqStatus==='resolved'} onClick={() => setReqStatus('resolved')}>Résolu</TabButton>
+                  <TabButton active={reqStatus==='pending'} onClick={() => setReqStatus('pending')}>Nouveau</TabButton>
+                  <TabButton active={reqStatus==='open'} onClick={() => setReqStatus('open')}>En cours</TabButton>
+                  <TabButton active={reqStatus==='closed'} onClick={() => setReqStatus('closed')}>Résolu</TabButton>
                 </div>
 
                 <div className="border rounded divide-y">
@@ -235,8 +236,12 @@ const SupportAdmin = () => {
                           ) : null}
                         </div>
                         <div className="pt-2 flex gap-2">
-                          {r.status !== 'in_review' && <Button variant="outline" size="sm" onClick={() => updateRequestStatus(r.id, 'in_review')}>Marquer en cours</Button>}
-                          {r.status !== 'resolved' && <Button size="sm" onClick={() => updateRequestStatus(r.id, 'resolved')}>Résoudre</Button>}
+                          {r.status !== 'open' && r.status !== 'closed' && (
+                            <Button variant="outline" size="sm" onClick={() => updateRequestStatus(r.id, 'open')}>Marquer en cours</Button>
+                          )}
+                          {r.status !== 'closed' && (
+                            <Button size="sm" onClick={() => updateRequestStatus(r.id, 'closed')}>Résoudre</Button>
+                          )}
                         </div>
                       </div>
                     ))
