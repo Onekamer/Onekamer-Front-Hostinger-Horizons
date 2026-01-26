@@ -103,6 +103,32 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
   });
 };
 
+// Groupes: nouveau message dans un groupe
+export const notifyGroupMessage = async ({ recipientIds = [], actorName, groupName, groupId, messageId, excerpt }) => {
+  const targets = normalizeUserIds(recipientIds);
+  if (!targets.length) return false;
+
+  const name = actorName || 'Un membre';
+  const groupLabel = (groupName || 'Espace groupes').trim();
+  const safeExcerpt = (excerpt || '').trim();
+  const preview = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
+
+  const baseUrl = groupId ? `/groupes/${groupId}` : '/groupes';
+  const url = messageId ? `${baseUrl}?messageId=${messageId}` : baseUrl;
+
+  return postNotification({
+    title: name,
+    message: preview ? `${groupLabel}\n${preview}` : groupLabel,
+    targetUserIds: targets,
+    url,
+    data: {
+      type: 'group_message',
+      groupId,
+      messageId,
+    },
+  });
+};
+
 export const notifyNewAnnonce = async ({ annonceId, title, authorName, price }) => {
   return postNotification({
     title: '🛍️ Nouvelle annonce',
@@ -275,4 +301,5 @@ export default {
   notifyRencontreMatch,
   notifyRencontreMessage,
   notifyMentionInComment,
+  notifyGroupMessage,
 };

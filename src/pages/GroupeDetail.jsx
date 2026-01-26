@@ -18,6 +18,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import GroupMembers from '@/pages/groupes/GroupMembers';
     import GroupAdmin from '@/pages/groupes/GroupAdmin';
     import { uploadAudioFile } from '@/utils/audioStorage';
+    import { notifyGroupMessage } from '@/services/oneSignalNotifications';
 
     const AudioPlayer = ({ src, initialDuration = 0 }) => {
       const audioRef = useRef(null);
@@ -490,12 +491,27 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           try {
             // Align to same bucket/folder as échange communautaire
             const { publicUrl } = await uploadAudioFile(file, 'comments_audio');
-            const { error } = await supabase.from('messages_groupes').insert({
-              groupe_id: groupId,
-              sender_id: user.id,
-              contenu: publicUrl,
-            });
+            const { data: inserted, error } = await supabase
+              .from('messages_groupes')
+              .insert({ groupe_id: groupId, sender_id: user.id, contenu: publicUrl })
+              .select('id')
+              .single();
             if (error) throw error;
+            try {
+              const recipientIds = (members || [])
+                .map((m) => m.user_id)
+                .filter((id) => id && id !== user.id);
+              if (recipientIds.length) {
+                await notifyGroupMessage({
+                  recipientIds,
+                  actorName: user?.user_metadata?.username || user?.email || 'Un membre',
+                  groupName: groupInfo?.groupe_nom,
+                  groupId,
+                  messageId: inserted?.id,
+                  excerpt: 'Message audio',
+                });
+              }
+            } catch (_) {}
             handleRemoveAudio();
             toast({ title: 'Envoyé', description: 'Audio publié.' });
           } catch (e) {
@@ -509,12 +525,27 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         if (mediaFile) {
           try {
             const url = await uploadToBunny(mediaFile, 'comments');
-            const { error } = await supabase.from('messages_groupes').insert({
-              groupe_id: groupId,
-              sender_id: user.id,
-              contenu: url,
-            });
+            const { data: inserted, error } = await supabase
+              .from('messages_groupes')
+              .insert({ groupe_id: groupId, sender_id: user.id, contenu: url })
+              .select('id')
+              .single();
             if (error) throw error;
+            try {
+              const recipientIds = (members || [])
+                .map((m) => m.user_id)
+                .filter((id) => id && id !== user.id);
+              if (recipientIds.length) {
+                await notifyGroupMessage({
+                  recipientIds,
+                  actorName: user?.user_metadata?.username || user?.email || 'Un membre',
+                  groupName: groupInfo?.groupe_nom,
+                  groupId,
+                  messageId: inserted?.id,
+                  excerpt: 'Média partagé',
+                });
+              }
+            } catch (_) {}
             handleRemoveMedia();
             setNewMessage('');
             toast({ title: 'Envoyé', description: 'Média publié.' });
@@ -526,16 +557,31 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         }
 
         if (!newMessage.trim()) { setSending(false); return; }
-        const { error } = await supabase.from('messages_groupes').insert({
-          groupe_id: groupId,
-          sender_id: user.id,
-          contenu: newMessage,
-        });
+        const { data: inserted, error } = await supabase
+          .from('messages_groupes')
+          .insert({ groupe_id: groupId, sender_id: user.id, contenu: newMessage })
+          .select('id')
+          .single();
         if (error) {
             toast({ title: 'Erreur', description: 'Impossible d\'envoyer le message.', variant: 'destructive' });
         } else {
             setNewMessage('');
             toast({ title: 'Envoyé', description: 'Message publié.' });
+            try {
+              const recipientIds = (members || [])
+                .map((m) => m.user_id)
+                .filter((id) => id && id !== user.id);
+              if (recipientIds.length) {
+                await notifyGroupMessage({
+                  recipientIds,
+                  actorName: user?.user_metadata?.username || user?.email || 'Un membre',
+                  groupName: groupInfo?.groupe_nom,
+                  groupId,
+                  messageId: inserted?.id,
+                  excerpt: newMessage,
+                });
+              }
+            } catch (_) {}
         }
         setSending(false);
       };
