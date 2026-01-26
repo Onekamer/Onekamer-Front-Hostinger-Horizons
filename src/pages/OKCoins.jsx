@@ -99,18 +99,23 @@ const OKCoins = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [packsRes, levelsRes, donorsRes] = await Promise.all([
+    const [packsRes, levelsRes] = await Promise.all([
       supabase.from('okcoins_packs').select('*').eq('is_active', true).order('price_eur'),
       supabase.from('okcoins_levels').select('*').order('id'),
-      supabase.from('okcoins_users_balance').select('user_id, donor_level, points_total, profiles(username)').order('points_total', { ascending: false }).limit(3)
     ]);
+    let donors = [];
+    try {
+      const res = await fetch(`${API_PREFIX}/okcoins/top-donors?limit=3`);
+      const data = await res.json().catch(() => ({}));
+      donors = Array.isArray(data?.items) ? data.items : [];
+    } catch {}
     
-    if (packsRes.error || levelsRes.error || donorsRes.error) {
+    if (packsRes.error || levelsRes.error) {
       toast({ title: "Erreur de chargement", description: "Impossible de récupérer les données OK Coins.", variant: "destructive" });
     } else {
       setPacks(packsRes.data);
       setLevels(levelsRes.data);
-      setTopDonors(donorsRes.data);
+      setTopDonors(donors);
     }
     setLoading(false);
   }, []);
