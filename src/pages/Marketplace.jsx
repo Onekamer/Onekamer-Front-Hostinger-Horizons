@@ -219,7 +219,7 @@ const Marketplace = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-[#2BA84A]">Marketplace</h1>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 flex-wrap sm:flex-nowrap">
             {shopAccess && (
               <Button variant="outline" onClick={handleGoMyShop} className="shrink-0">
                 {myPartnerId ? 'Ma boutique' : 'Créer ma boutique'}
@@ -309,10 +309,13 @@ const Marketplace = () => {
                             Contacter
                           </Button>
                         ) : null}
+                        <Button asChild disabled={!commandable} className="shrink-0">
+                          <Link to={`/marketplace/partner/${encodeURIComponent(p.id)}`}>Voir la boutique</Link>
+                        </Button>
                       </div>
                     )}
 
-                    <div className="mt-auto flex items-center justify-between gap-2">
+                    <div className="mt-auto flex items-center justify-end gap-2">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
@@ -362,9 +365,6 @@ const Marketplace = () => {
                           </div>
                         </DialogContent>
                       </Dialog>
-                      <Button asChild disabled={!commandable} className="shrink-0">
-                        <Link to={`/marketplace/partner/${encodeURIComponent(p.id)}`}>Voir la boutique</Link>
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

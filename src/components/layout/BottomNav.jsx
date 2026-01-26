@@ -8,7 +8,7 @@ const navItems = [
   { path: '/marketplace', icon: ShoppingBag, label: 'Marketplace' },
   { path: '/echange', icon: MessageSquare, label: 'Échange', isCentral: true },
   { path: '/evenements', icon: Calendar, label: 'Événements' },
-  { path: '/rencontre', icon: Heart, label: 'Rencontre' },
+  { path: '/rencontre', icon: Heart, label: 'Rencontres' },
 ];
 
 const BottomNav = () => {

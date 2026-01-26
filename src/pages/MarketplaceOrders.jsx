@@ -3,7 +3,6 @@ import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -132,14 +131,10 @@ const MarketplaceOrders = () => {
       </Helmet>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => navigate('/marketplace')} className="px-2">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Marketplace
-            </Button>
-            <h1 className="text-xl font-bold text-[#2BA84A]">Mes commandes</h1>
-          </div>
-          <div />
+          <h1 className="text-2xl font-bold text-[#2BA84A]">Mes commandes</h1>
+          <Button variant="outline" onClick={() => navigate('/marketplace')} className="shrink-0">
+            Retour marketplace
+          </Button>
         </div>
 
         {loading ? (
