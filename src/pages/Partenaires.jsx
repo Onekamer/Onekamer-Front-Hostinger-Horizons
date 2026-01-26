@@ -13,7 +13,7 @@ import { canUserAccess } from '@/lib/accessControl';
 import FavoriteButton from '@/components/FavoriteButton';
 import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
 
-const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete }) => {
+const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCount = 0, recommendedByMe = false }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -143,10 +143,10 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete }) => {
             >
               📍 Ouvrir dans Google Maps
             </button>
-            <p className="text-sm text-gray-500 italic border-t pt-4">Recommandé par: {partenaire.recommandation || 'la communauté'}</p>
+            <p className="text-sm text-gray-500 italic border-t pt-4">Recommandé par {recoCount} membres</p>
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={() => onRecommander(partenaire.id)} className="flex-1">
-                <Star className="w-4 h-4 mr-2" /> Recommander
+                <Star className="w-4 h-4 mr-2" /> {recommendedByMe ? 'Ne plus recommander' : 'Recommander'}
               </Button>
               <Button onClick={handleShare} variant="outline" className="flex-1">
                 <Share2 className="w-4 h-4 mr-2" /> Partager
@@ -176,6 +176,7 @@ const Partenaires = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPartenaire, setSelectedPartenaire] = useState(null);
+  const [recos, setRecos] = useState({}); // { [partnerId]: { partner_id, count, recommended_by_me } }
   const { toast } = useToast();
   const { user, session, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -222,6 +223,21 @@ const Partenaires = () => {
         setPartenaires([]);
       } else {
         setPartenaires(data);
+        // Charger les recommandations pour les partenaires affichés
+        const ids = (data || []).map((p) => p?.id).filter(Boolean);
+        if (ids.length > 0) {
+          try {
+            const qs = new URLSearchParams({ ids: ids.join(',') });
+            const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+            const res = await fetch(`${API_PREFIX}/partners/recommendations?${qs.toString()}`, { headers });
+            const out = await res.json().catch(() => ({}));
+            if (res.ok && Array.isArray(out?.items)) {
+              const map = {};
+              out.items.forEach((it) => { if (it?.partner_id != null) map[String(it.partner_id)] = it; });
+              setRecos((prev) => ({ ...prev, ...map }));
+            }
+          } catch {}
+        }
       }
     } catch (e) {
       toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de charger les partenaires.' });
@@ -286,8 +302,33 @@ const Partenaires = () => {
     }
   };
 
-  const handleRecommander = (partenaireId) => {
-    toast({ title: 'Bientôt disponible', description: 'La fonctionnalité de recommandation sera bientôt activée.' });
+  const handleRecommander = async (partenaireId) => {
+    if (!user || !session?.access_token) {
+      toast({ title: 'Connexion requise', description: 'Connectez-vous pour recommander ce partenaire.', variant: 'destructive' });
+      navigate('/auth');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_PREFIX}/partners/${encodeURIComponent(partenaireId)}/recommend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
+      setRecos((prev) => {
+        const key = String(partenaireId);
+        const prevInfo = prev[key] || { partner_id: partenaireId, count: 0, recommended_by_me: false };
+        const nextInfo = {
+          ...prevInfo,
+          count: typeof data?.count === 'number' ? data.count : prevInfo.count,
+          recommended_by_me: data?.action === 'added' ? true : data?.action === 'removed' ? false : prevInfo.recommended_by_me,
+        };
+        return { ...prev, [key]: nextInfo };
+      });
+      toast({ title: data?.action === 'added' ? 'Recommandé' : 'Recommandation retirée' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Action impossible.' });
+    }
   };
 
   const handleDeletePartenaire = async (partenaire) => {
@@ -362,6 +403,8 @@ const Partenaires = () => {
           onBack={() => setSelectedPartenaire(null)} 
           onRecommander={handleRecommander}
           onDelete={handleDeletePartenaire}
+          recoCount={(recos[String(selectedPartenaire.id)]?.count) || 0}
+          recommendedByMe={Boolean(recos[String(selectedPartenaire.id)]?.recommended_by_me)}
         />
       )}
     </AnimatePresence>
@@ -445,6 +488,7 @@ const Partenaires = () => {
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin"><path d="M12 18.7c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z"/><circle cx="12" cy="12" r="2"/><path d="M12 22s-8-4-8-10c0-4.4 3.6-8 8-8s8 3.6 8 8c0 6-8 10-8 10z"/></svg>
                       {partenaire.address}
                     </p>
+                    <p className="text-xs text-gray-500">Recommandé par {(recos[String(partenaire.id)]?.count) || 0} membres</p>
                   </CardHeader>
                   <CardContent className="flex justify-around border-t pt-4 pb-3">
                     <Button

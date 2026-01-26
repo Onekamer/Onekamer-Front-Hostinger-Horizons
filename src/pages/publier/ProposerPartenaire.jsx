@@ -35,7 +35,7 @@ const ProposerPartenaire = () => {
   const { user, profile, session } = useAuth();
   const partnerId = searchParams.get('partnerId');
   const isEditMode = !!partnerId;
-  const [formData, setFormData] = useState({ name: '', category_id: '', address: '', phone: '', website: '', email: '', description: '', recommandation: '' });
+  const [formData, setFormData] = useState({ name: '', category_id: '', address: '', phone: '', website: '', email: '', description: '' });
   const [categories, setCategories] = useState([]);
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
@@ -77,7 +77,7 @@ const ProposerPartenaire = () => {
       try {
         const { data, error } = await supabase
           .from('partenaires')
-          .select('id, user_id, name, category_id, address, phone, website, email, description, recommandation, latitude, longitude, media_url, media_type')
+          .select('id, user_id, name, category_id, address, phone, website, email, description, latitude, longitude, media_url, media_type')
           .eq('id', partnerId)
           .maybeSingle();
         if (error) throw error;
@@ -103,7 +103,6 @@ const ProposerPartenaire = () => {
           website: data.website || '',
           email: data.email || '',
           description: data.description || '',
-          recommandation: data.recommandation || '',
           latitude: data.latitude ?? null,
           longitude: data.longitude ?? null,
         });
@@ -333,7 +332,6 @@ const ProposerPartenaire = () => {
                   </CardContent></Card>
                 </div>
                 <div className="space-y-2"><Label htmlFor="description">Description de l'activité</Label><Textarea id="description" placeholder="Décrivez l'activité du partenaire..." rows={4} required value={formData.description} onChange={handleInputChange} /></div>
-                <div className="space-y-2"><Label htmlFor="recommandation">Pourquoi le recommandez-vous ?</Label><Textarea id="recommandation" placeholder="Expliquez pourquoi vous recommandez ce partenaire..." rows={3} required value={formData.recommandation} onChange={handleInputChange} /></div>
                 <Button type="submit" className="w-full bg-[#F9C400] hover:bg-[#F9C400]/90 text-white" disabled={isUploading}>
                   {isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Publication...</> : isEditMode ? 'Enregistrer' : "Envoyer la proposition"}
                 </Button>
