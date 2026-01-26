@@ -83,16 +83,17 @@ const postNotification = async (payload = {}) => {
   }
 };
 
-export const notifyMentions = async ({ mentionedUserIds = [], authorName, excerpt, postId }) => {
+export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorName, excerpt, postId }) => {
   const targets = normalizeUserIds(mentionedUserIds);
   if (!targets.length) return false;
 
+  const name = actorName || authorName || 'Un membre';
   const safeExcerpt = (excerpt || '').trim();
-  const message = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
+  const preview = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
 
   return postNotification({
-    title: '📣 Nouvelle mention',
-    message: `${authorName || 'Un membre'} t’a mentionné${message ? ` : ${message}` : ''}`,
+    title: `📣 ${name} vous a mentionné`,
+    message: preview || 'Ouvrir la publication',
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
@@ -170,13 +171,17 @@ export const notifyDonationReceived = async ({ receiverId, senderName, amount })
 };
 
 // Échanges: like sur un post
-export const notifyPostLiked = async ({ receiverId, actorName, postId }) => {
+export const notifyPostLiked = async ({ receiverId, actorName, postId, excerpt }) => {
   const targets = normalizeUserIds([receiverId]);
   if (!targets.length) return false;
 
+  const name = actorName || 'Un membre';
+  const safeExcerpt = (excerpt || '').trim();
+  const preview = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
+
   return postNotification({
-    title: '❤️ Nouveau like',
-    message: `${actorName || 'Un membre'} a aimé votre publication.`,
+    title: `❤️ ${name} a liké votre post`,
+    message: preview || 'Ouvrir la publication',
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
@@ -187,13 +192,17 @@ export const notifyPostLiked = async ({ receiverId, actorName, postId }) => {
 };
 
 // Échanges: commentaire sur un post
-export const notifyPostCommented = async ({ receiverId, actorName, postId }) => {
+export const notifyPostCommented = async ({ receiverId, actorName, postId, excerpt }) => {
   const targets = normalizeUserIds([receiverId]);
   if (!targets.length) return false;
 
+  const name = actorName || 'Un membre';
+  const safeExcerpt = (excerpt || '').trim();
+  const preview = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
+
   return postNotification({
-    title: '💬 Nouveau commentaire',
-    message: `${actorName || 'Un membre'} a commenté votre publication.`,
+    title: `💬 ${name} a commenté votre post`,
+    message: preview || 'Ouvrir la publication',
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {

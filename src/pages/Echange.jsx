@@ -301,7 +301,7 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
   );
 };
 
-const CommentSection = ({ postId, postOwnerId, authorName }) => {
+const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
@@ -723,6 +723,7 @@ const CommentSection = ({ postId, postOwnerId, authorName }) => {
               receiverId: postOwnerId,
               actorName: (user?.user_metadata?.username) || authorName || 'Un membre',
               postId,
+              excerpt: postContent || '',
             });
           }
         } catch (_e) {}
@@ -1034,7 +1035,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           )}
         </div>
         <AnimatePresence>
-          {showComments && <CommentSection postId={post.id} postOwnerId={post.user_id} authorName={profile?.username} />}
+          {showComments && <CommentSection postId={post.id} postOwnerId={post.user_id} authorName={profile?.username} postContent={post.content} />}
         </AnimatePresence>
       </CardContent>
     </Card>
@@ -1305,7 +1306,8 @@ const Echange = () => {
         const receiverId = postOwnerId || (feedItems.find((p) => p.feed_type === 'post' && p.id === postId)?.user_id);
         if (receiverId && receiverId !== user.id) {
           const actorName = (profile?.username) || (user?.user_metadata?.username) || 'Un membre';
-          await notifyPostLiked({ receiverId, actorName, postId });
+          const postContent = (feedItems.find((p) => p.feed_type === 'post' && p.id === postId)?.content) || '';
+          await notifyPostLiked({ receiverId, actorName, postId, excerpt: postContent });
         }
       } catch (_e) {}
     }
