@@ -28,7 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getInitials } from '@/lib/utils';
 import { uploadAudioFile, ensurePublicAudioUrl } from '@/utils/audioStorage';
-import { notifyDonationReceived } from '@/services/oneSignalNotifications';
+import { notifyDonationReceived, notifyPostLiked, notifyPostCommented } from '@/services/oneSignalNotifications';
 
 const normalizeAudioEntry = (entry) => {
   if (!entry || !entry.audio_url) return entry;
@@ -301,7 +301,7 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
   );
 };
 
-const CommentSection = ({ postId }) => {
+const CommentSection = ({ postId, postOwnerId, authorName }) => {
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
@@ -717,6 +717,15 @@ const CommentSection = ({ postId }) => {
         }]);
 
         if (insertError) throw insertError;
+        try {
+          if (postOwnerId && user?.id !== postOwnerId) {
+            await notifyPostCommented({
+              receiverId: postOwnerId,
+              actorName: (user?.user_metadata?.username) || authorName || 'Un membre',
+              postId,
+            });
+          }
+        } catch (_e) {}
         
         setNewComment('');
         handleRemoveMedia();
@@ -855,7 +864,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
     }
     
     setIsLiked(!isLiked); 
-    await onLike(post.id, isLiked);
+    await onLike(post.id, isLiked, post.user_id);
   };
 
 
@@ -907,7 +916,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   };
 
   return (
-    <Card id={`feed-item-post-`}>
+    <Card id={`feed-item-post-${post.id}`}>
       <CardContent className="pt-6">
         <div className="flex items-start gap-3 mb-4">
           <div
@@ -1025,7 +1034,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           )}
         </div>
         <AnimatePresence>
-          {showComments && <CommentSection postId={post.id} />}
+          {showComments && <CommentSection postId={post.id} postOwnerId={post.user_id} authorName={profile?.username} />}
         </AnimatePresence>
       </CardContent>
     </Card>
@@ -1073,7 +1082,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
   };
 
   return (
-    <Card id={`feed-item-audio_post-`}>
+    <Card id={`feed-item-audio_post-${post.id}`}>
       <CardContent className="pt-6">
         <div className="flex items-start gap-3">
           <div
@@ -1277,7 +1286,7 @@ const Echange = () => {
         feedType = "audio_post";
       }
       if (!targetId || loadingPosts) return;
-      const el = document.getElementById(`feed-item--`);
+      const el = document.getElementById(`feed-item-${feedType}-${targetId}`);
       if (el) {
         try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_e) { el.scrollIntoView(); }
         if (feedType === "post") { setOpenComments((prev) => ({ ...prev, [targetId]: true })); }
@@ -1285,13 +1294,20 @@ const Echange = () => {
     } catch (_e) {}
   }, [location.search, loadingPosts, feedItems]);
 
-  const handleLike = async (postId, isCurrentlyLiked) => {
+  const handleLike = async (postId, isCurrentlyLiked, postOwnerId) => {
     if (!user) return;
     
     if (isCurrentlyLiked) {
       await supabase.from('likes').delete().match({ content_id: postId, user_id: user.id, content_type: 'post' });
     } else {
       await supabase.from('likes').insert({ content_id: postId, user_id: user.id, content_type: 'post' });
+      try {
+        const receiverId = postOwnerId || (feedItems.find((p) => p.feed_type === 'post' && p.id === postId)?.user_id);
+        if (receiverId && receiverId !== user.id) {
+          const actorName = (profile?.username) || (user?.user_metadata?.username) || 'Un membre';
+          await notifyPostLiked({ receiverId, actorName, postId });
+        }
+      } catch (_e) {}
     }
   };
   

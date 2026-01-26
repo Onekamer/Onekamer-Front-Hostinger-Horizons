@@ -154,6 +154,40 @@ export const notifyDonationReceived = async ({ receiverId, senderName, amount })
   });
 };
 
+// Échanges: like sur un post
+export const notifyPostLiked = async ({ receiverId, actorName, postId }) => {
+  const targets = normalizeUserIds([receiverId]);
+  if (!targets.length) return false;
+
+  return postNotification({
+    title: '❤️ Nouveau like',
+    message: `${actorName || 'Un membre'} a aimé votre publication.`,
+    targetUserIds: targets,
+    url: postId ? `/echange?postId=${postId}` : '/echange',
+    data: {
+      type: 'like',
+      postId,
+    },
+  });
+};
+
+// Échanges: commentaire sur un post
+export const notifyPostCommented = async ({ receiverId, actorName, postId }) => {
+  const targets = normalizeUserIds([receiverId]);
+  if (!targets.length) return false;
+
+  return postNotification({
+    title: '💬 Nouveau commentaire',
+    message: `${actorName || 'Un membre'} a commenté votre publication.`,
+    targetUserIds: targets,
+    url: postId ? `/echange?postId=${postId}` : '/echange',
+    data: {
+      type: 'comment',
+      postId,
+    },
+  });
+};
+
 export const notifyRencontreMatch = async ({ userIds = [], names = [], matchId }) => {
   const targets = normalizeUserIds(userIds);
   if (!targets.length) return false;
@@ -212,6 +246,8 @@ export default {
   notifyNewPartenaire,
   notifyNewFaitDivers,
   notifyDonationReceived,
+  notifyPostLiked,
+  notifyPostCommented,
   notifyRencontreMatch,
   notifyRencontreMessage,
   notifyMentionInComment,
