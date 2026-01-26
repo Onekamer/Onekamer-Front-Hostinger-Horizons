@@ -83,7 +83,7 @@ const SupportAdmin = () => {
     }
   };
 
-  const softDeleteUser = async (userId) => {
+  const softDeleteUser = async (userId, deletionId) => {
     if (!session?.access_token) return;
     try {
       const res = await fetch(`${apiBaseUrl}/api/admin/users/${encodeURIComponent(userId)}/soft-delete`, {
@@ -91,8 +91,20 @@ const SupportAdmin = () => {
         headers: authHeaders,
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Suppression échouée');
+      if (!res.ok) {
+        // si introuvable/déjà supprimé → retirer quand même de la liste locale
+        const errText = String(data?.error || '').toLowerCase();
+        if (res.status === 404 || errText.includes('introuvable') || errText.includes('deleted')) {
+          setDeletions((prev) => prev.filter((d) => String(d.id) !== String(deletionId) && String(d.deleted_user_id) !== String(userId)));
+          toast({ title: 'Entrée retirée', description: 'Utilisateur introuvable ou déjà supprimé.' });
+          return;
+        }
+        throw new Error(data?.error || 'Suppression échouée');
+      }
       toast({ title: 'Compte supprimé', description: data?.email_notice ? 'Un e-mail de confirmation a été envoyé.' : undefined });
+      // retirer immédiatement de l'UI toutes les entrées liées à cet utilisateur
+      setDeletions((prev) => prev.filter((d) => String(d.deleted_user_id) !== String(userId)));
+      // puis recharger pour resynchroniser
       loadDeletions();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de supprimer le compte' });
@@ -124,7 +136,8 @@ const SupportAdmin = () => {
       const res = await fetch(`${apiBaseUrl}/api/admin/account-deletions`, { headers: authHeaders });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Erreur lecture suppressions de compte');
-      setDeletions(Array.isArray(data?.items) ? data.items : []);
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setDeletions(items.filter((d) => !d.is_deleted));
     } catch (e) {
       toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Chargement suppressions échoué' });
       setDeletions([]);
