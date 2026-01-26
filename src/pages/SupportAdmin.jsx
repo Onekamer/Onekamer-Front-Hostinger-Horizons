@@ -103,7 +103,7 @@ const SupportAdmin = () => {
       }
       toast({ title: 'Compte supprimé', description: data?.email_notice ? 'Un e-mail de confirmation a été envoyé.' : undefined });
       // retirer immédiatement de l'UI toutes les entrées liées à cet utilisateur
-      setDeletions((prev) => prev.filter((d) => String(d.deleted_user_id) !== String(userId)));
+      setDeletions((prev) => prev.filter((d) => String(d.deleted_user_id) !== String(userId) && String(d.id) !== String(deletionId)));
       // puis recharger pour resynchroniser
       loadDeletions();
     } catch (e) {
@@ -315,7 +315,7 @@ const SupportAdmin = () => {
                             Statut: {d.is_deleted ? 'supprimé' : 'actif'}{d.deleted_at ? ` • ${new Date(d.deleted_at).toLocaleString()}` : ''}
                           </div>
                           {!d.is_deleted && (
-                            <Button size="sm" onClick={() => softDeleteUser(d.deleted_user_id)}>Supprimer le compte</Button>
+                            <Button size="sm" onClick={() => softDeleteUser(d.deleted_user_id, d.id)}>Supprimer le compte</Button>
                           )}
                         </div>
                       </div>
