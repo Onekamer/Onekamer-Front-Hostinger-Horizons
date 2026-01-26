@@ -834,6 +834,26 @@ const Compte = () => {
           </Card>
         )}
 
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Centre d'aide (Admin)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p className="text-gray-600">
+                Gérer les signalements utilisateurs/boutiques, feedbacks et demandes de suppression de compte.
+              </p>
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={() => navigate('/compte/support-admin')}
+              >
+                Ouvrir le centre d'aide admin
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         
 
         

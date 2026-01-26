@@ -56,6 +56,7 @@ import { useCharteValidation } from '@/hooks/useCharteValidation';
 import { applyAutoAccessProtection } from '@/lib/autoAccessWrapper';
 import ResetPassword from '@/pages/ResetPassword';
 import SupportCenter from '@/pages/SupportCenter';
+import SupportAdmin from '@/pages/SupportAdmin';
 import CguPage from '@/pages/Cgu';
 import RgpdPage from '@/pages/Rgpd';
 import MentionsLegalesPage from '@/pages/MentionLegales';
@@ -221,6 +222,7 @@ const AppContent = () => {
           <Route path="/compte/influenceurs-admin" element={<InfluenceursAdmin />} />
           <Route path="/compte/moderation" element={<ModerationAdmin />} />
           <Route path="/compte/okcoins-admin" element={<OKCoinsAdminLab />} />
+          <Route path="/compte/support-admin" element={<SupportAdmin />} />
           <Route path="/compte/okcoins-transactions" element={<OKCoinsTransactions />} />
           <Route path="/compte/mes-stats-influenceur" element={<InfluenceurStats />} />
           <Route path="/compte/mon-qrcode" element={<MonQRCode />} />

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, UserX, MessageSquare as MessageSquareHeart, Lightbulb, Check } from 'lucide-react';
+import { Loader2, UserX, MessageSquare as MessageSquareHeart, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Custom hook for debouncing
@@ -27,7 +27,7 @@ const useDebounce = (value, delay) => {
 };
 
 const SupportCenter = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { toast } = useToast();
   const [requestType, setRequestType] = useState(null);
   
@@ -41,6 +41,13 @@ const SupportCenter = () => {
   const [category, setCategory] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com';
+  const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
+
+  const [shopQuery, setShopQuery] = useState('');
+  const [shopResults, setShopResults] = useState([]);
+  const [shopLoading, setShopLoading] = useState(false);
+  const [selectedShop, setSelectedShop] = useState(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 250);
 
@@ -110,6 +117,27 @@ const SupportCenter = () => {
     return () => clearTimeout(id);
   }, [searchQuery, open]);
 
+  useEffect(() => {
+    const q = (shopQuery || '').trim();
+    if (requestType !== 'report_shop') return;
+    const id = setTimeout(async () => {
+      if (q.length < 1) { setShopResults([]); return; }
+      setShopLoading(true);
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/market/partners`);
+        const data = await res.json().catch(() => ({}));
+        const list = Array.isArray(data?.partners) ? data.partners : [];
+        const lower = q.toLowerCase();
+        const filtered = list.filter(p => String(p?.display_name || '').toLowerCase().includes(lower)).slice(0, 20);
+        setShopResults(filtered);
+      } catch {
+        setShopResults([]);
+      }
+      setShopLoading(false);
+    }, 250);
+    return () => clearTimeout(id);
+  }, [shopQuery, requestType, apiBaseUrl]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user || !requestType || !message) {
@@ -127,6 +155,41 @@ const SupportCenter = () => {
         title: 'Utilisateur manquant',
         description: 'Merci de sélectionner l’utilisateur à signaler.',
       });
+      return;
+    }
+
+    if (requestType === 'report_shop') {
+      if (!selectedShop?.id) {
+        toast({ variant: 'destructive', title: 'Boutique manquante', description: 'Merci de sélectionner la boutique à signaler.' });
+        return;
+      }
+      if (!session?.access_token) {
+        toast({ variant: 'destructive', title: 'Connexion requise' });
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(selectedShop.id)}/report`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ reason: category?.trim() || 'Autre', details: message?.trim() || '' }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Erreur signalement boutique');
+        toast({ title: '✅ Signalement envoyé', description: 'Merci, nous allons examiner votre signalement.' });
+        setRequestType(null);
+        setSelectedShop(null);
+        setShopQuery('');
+        setCategory('');
+        setMessage('');
+      } catch (err) {
+        toast({ variant: 'destructive', title: 'Erreur', description: err?.message || 'Impossible d’envoyer le signalement.' });
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
@@ -148,7 +211,6 @@ const SupportCenter = () => {
     setLoading(false);
 
     if (error) {
-      console.error("Error submitting support request:", error);
       toast({
         variant: 'destructive',
         title: 'Erreur',
@@ -159,7 +221,6 @@ const SupportCenter = () => {
         title: '✅ Message envoyé !',
         description: 'Ta demande a bien été transmise à notre équipe. Merci !',
       });
-      // Reset form
       setRequestType(null);
       setSelectedUser(null);
       setCategory('');
@@ -272,6 +333,49 @@ const SupportCenter = () => {
         </>
       )}
 
+      {requestType === 'report_shop' && (
+        <>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Boutique à signaler <span className="text-red-500">*</span></label>
+            <Input
+              placeholder="Rechercher une boutique par nom"
+              value={shopQuery}
+              onChange={(e) => setShopQuery(e.target.value)}
+            />
+            <div className="text-xs text-gray-500">Tape au moins un caractère pour lancer une recherche.</div>
+            <div className="max-h-48 overflow-y-auto border rounded">
+              {shopLoading ? (
+                <div className="p-3 text-sm text-gray-500">Recherche…</div>
+              ) : shopResults.length === 0 ? (
+                <div className="p-3 text-sm text-gray-500">Aucun résultat</div>
+              ) : (
+                shopResults.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedShop(s)}
+                    className={`w-full text-left px-3 py-2 hover:bg-gray-50 ${String(selectedShop?.id || '') === String(s.id || '') ? 'bg-green-50' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-sm">{s.display_name}</div>
+                      <div className="text-xs text-gray-500">{s.id}</div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+            {selectedShop && (
+              <div className="text-xs text-gray-600">Sélectionné: <span className="font-medium">{selectedShop.display_name}</span></div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="category-shop" className="text-sm font-medium text-gray-700">Raison</label>
+            <Input id="category-shop" placeholder="Ex: arnaque, produit non conforme…" value={category} onChange={(e) => setCategory(e.target.value)} />
+          </div>
+        </>
+      )}
+
       <div className="space-y-2">
         <label htmlFor="message" className="text-sm font-medium text-gray-700">
           Ton message <span className="text-red-500">*</span>
@@ -329,14 +433,14 @@ const SupportCenter = () => {
                 <Button
                   variant="outline"
                   className="h-24 flex-col gap-2"
-                  onClick={() => setRequestType('suggestion')}
+                  onClick={() => setRequestType('report_shop')}
                 >
-                  <Lightbulb className="h-6 w-6 text-yellow-500" />
-                  <span className="font-semibold">Suggérer une idée</span>
+                  <Store className="h-6 w-6 text-yellow-500" />
+                  <span className="font-semibold">Signaler une boutique</span>
                 </Button>
               </div>
             ) : (
-                <Button variant="link" onClick={() => { setRequestType(null); setSelectedUser(null); }} className="text-sm text-[#2BA84A]">
+                <Button variant="link" onClick={() => { setRequestType(null); setSelectedUser(null); setSelectedShop(null); }} className="text-sm text-[#2BA84A]">
                 &larr; Choisir un autre type de demande
               </Button>
             )}
