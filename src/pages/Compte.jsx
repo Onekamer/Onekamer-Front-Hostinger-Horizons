@@ -834,50 +834,14 @@ const Compte = () => {
           </Card>
         )}
 
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Emails admin (LAB)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="text-gray-600">
-                Accédez à l'interface dédiée pour envoyer des emails aux membres et traiter les envois.
-              </p>
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => navigate('/compte/emails-admin')}
-              >
-                Envoyer des emails
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        
+
+        
 
         {isAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle>Modération (LAB)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="text-gray-600">
-                Consultez l'historique des avertissements envoyés aux membres (notification + email).
-              </p>
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => navigate('/compte/moderation')}
-              >
-                Ouvrir la modération
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Retraits OK COINS (LAB)</CardTitle>
+              <CardTitle>Retraits OK COINS</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p className="text-gray-600">
@@ -914,25 +878,7 @@ const Compte = () => {
           </Card>
         )}
 
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Influenceurs & codes promo (LAB)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="text-gray-600">
-                Accédez à la vue globale des influenceurs et de leurs codes promo.
-              </p>
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => navigate('/compte/influenceurs-admin')}
-              >
-                Gérer les influenceurs
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        
 
         <Card>
           <CardHeader>
