@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Toaster } from '@/components/ui/toaster';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import Home from '@/pages/Home';
@@ -79,12 +81,21 @@ const AppLayout = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (profile) {
       applyAutoAccessProtection(profile, navigate, location.pathname);
     }
   }, [profile, navigate, location.pathname]);
+
+  useEffect(() => {
+    if (profile?.is_deleted) {
+      toast({ title: 'Compte supprimé', description: 'Votre compte a été supprimé. Vous pouvez créer un nouveau compte si nécessaire.' });
+      try { supabase.auth.signOut(); } catch {}
+      navigate('/auth', { replace: true });
+    }
+  }, [profile?.is_deleted, navigate, toast]);
 
   return null;
 };

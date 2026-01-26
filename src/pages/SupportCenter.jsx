@@ -206,7 +206,7 @@ const SupportCenter = () => {
           ? category.trim()
           : null,
       message: message?.trim() || '',
-      status: 'new',
+      // status géré par la valeur par défaut en base (évite les conflits de contrainte)
     });
     setLoading(false);
 

@@ -82,6 +82,22 @@ const SupportAdmin = () => {
     }
   };
 
+  const softDeleteUser = async (userId) => {
+    if (!session?.access_token) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/admin/users/${encodeURIComponent(userId)}/soft-delete`, {
+        method: 'POST',
+        headers: authHeaders,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Suppression échouée');
+      toast({ title: 'Compte supprimé', description: data?.email_notice ? 'Un e-mail de confirmation a été envoyé.' : undefined });
+      loadDeletions();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de supprimer le compte' });
+    }
+  };
+
   const loadShopReports = async () => {
     if (!session?.access_token) return;
     setShopLoading(true);
@@ -276,6 +292,14 @@ const SupportAdmin = () => {
                           <div className="text-xs text-gray-500">{new Date(d.created_at).toLocaleString()}</div>
                         </div>
                         <div className="text-gray-800 whitespace-pre-wrap">{d.reason}</div>
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="text-xs text-gray-500">
+                            Statut: {d.is_deleted ? 'supprimé' : 'actif'}{d.deleted_at ? ` • ${new Date(d.deleted_at).toLocaleString()}` : ''}
+                          </div>
+                          {!d.is_deleted && (
+                            <Button size="sm" onClick={() => softDeleteUser(d.deleted_user_id)}>Supprimer le compte</Button>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}
