@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Loader2, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -135,11 +135,23 @@ const MessagesPrives = () => {
     if (!error) setMessages(data);
   };
 
+  const endMatch = async () => {
+    if (!selectedMatch || !myRencontreId) return;
+    const { error } = await supabase
+      .from('rencontres_matches')
+      .update({ ended_at: new Date().toISOString(), ended_by: myRencontreId })
+      .eq('id', selectedMatch);
+    if (!error) {
+      await fetchMatches();
+    }
+  };
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedMatch || !myRencontreId) return;
 
     const currentMatch = matches.find(m => m.id === selectedMatch);
     if (!currentMatch) return;
+    if (currentMatch.ended_at) return;
 
     const receiver_id = currentMatch.user1_id === myRencontreId ? currentMatch.user2_id : currentMatch.user1_id;
 
@@ -223,7 +235,7 @@ const MessagesPrives = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-0 md:p-4 h-[calc(100vh-200px)] min-h-0">
         <div className="col-span-1 border-r pr-4 overflow-y-auto">
           <h2 className="font-bold text-lg mb-2"> Mes matchs</h2>
-          {matches.map((m) => {
+          {matches.filter((m) => !m.ended_at).map((m) => {
             const otherUser = getOtherUserInMatch(m);
             if (!otherUser) return null;
             const photo = getProfilePhoto(otherUser);
@@ -260,18 +272,69 @@ const MessagesPrives = () => {
               </div>
             )
           })}
-          {matches.length === 0 && (
+          {matches.filter((m) => !m.ended_at).length === 0 && matches.filter((m) => m.ended_at).length === 0 && (
             <div className="text-center text-gray-500 py-16">
               <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-semibold">Aucun match</p>
               <p className="text-sm">Continuez à swiper !</p>
             </div>
           )}
+
+          {matches.filter((m) => m.ended_at).length > 0 && (
+            <>
+              <h2 className="font-bold text-lg mt-4 mb-2"> Matchs archivés</h2>
+              {matches.filter((m) => m.ended_at).map((m) => {
+                const otherUser = getOtherUserInMatch(m);
+                if (!otherUser) return null;
+                const photo = getProfilePhoto(otherUser);
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => loadMessages(m.id)}
+                    className={`cursor-pointer p-2 rounded-md flex items-center gap-3 ${
+                      selectedMatch === m.id ? "bg-green-100" : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <Avatar className="w-12 h-12">
+                      {photo ? (
+                        <MediaDisplay
+                          bucket="rencontres"
+                          path={photo}
+                          alt={otherUser.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <AvatarFallback>{otherUser.name?.charAt(0)}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">{otherUser.name}</p>
+                      <p className="text-xs text-gray-500">Archivé {formatDistanceToNow(new Date(m.ended_at), { addSuffix: true, locale: fr })}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
 
         <div className="col-span-1 md:col-span-2 flex flex-col h-full min-h-0 overflow-hidden">
           {selectedMatch ? (
             <>
+              {(() => {
+                const selectedMatchRow = matches.find(m => m.id === selectedMatch);
+                const isEnded = Boolean(selectedMatchRow?.ended_at);
+                return (
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-gray-600">{isEnded ? 'Match archivé' : 'Conversation'}</div>
+                    {!isEnded && (
+                      <Button variant="outline" size="sm" onClick={endMatch}>
+                        <XCircle className="h-4 w-4 mr-1" /> Terminer le match
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
               <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain border p-3 rounded-md bg-gray-50 mb-2">
                 {messages.map((msg) => (
                   <div
@@ -294,18 +357,25 @@ const MessagesPrives = () => {
                 <div ref={endRef} />
               </div>
 
-              <div className="mt-auto flex gap-2">
-                <Input
-                  placeholder="Votre message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  onFocus={() => setTimeout(scrollToBottom, 50)}
-                />
-                <Button onClick={sendMessage} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-                  <Send className="h-5 w-5" />
-                </Button>
-              </div>
+              {(() => {
+                const selectedMatchRow = matches.find(m => m.id === selectedMatch);
+                const isEnded = Boolean(selectedMatchRow?.ended_at);
+                return (
+                  <div className="mt-auto flex gap-2">
+                    <Input
+                      placeholder={isEnded ? 'Chat terminé' : 'Votre message...'}
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !isEnded && sendMessage()}
+                      onFocus={() => setTimeout(scrollToBottom, 50)}
+                      disabled={isEnded}
+                    />
+                    <Button onClick={sendMessage} disabled={isEnded} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </div>
+                );
+              })()}
             </>
           ) : (
              <div className="flex-1 flex items-center justify-center text-center text-gray-500 border p-3 rounded-md bg-gray-50">

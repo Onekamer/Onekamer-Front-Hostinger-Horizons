@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -22,6 +22,7 @@ const ConversationDetail = () => {
   const [otherUser, setOtherUser] = useState(null);
   const [myRencontreId, setMyRencontreId] = useState(null);
   const [myRencontreProfile, setMyRencontreProfile] = useState(null);
+  const [matchMeta, setMatchMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
 
@@ -45,7 +46,7 @@ const ConversationDetail = () => {
 
     const { data: matchData, error: matchError } = await supabase
       .from('rencontres_matches')
-      .select('user1:rencontres!user1_id(id, user_id, name, image_url, photos), user2:rencontres!user2_id(id, user_id, name, image_url, photos)')
+      .select('id, ended_at, ended_by, user1:rencontres!user1_id(id, user_id, name, image_url, photos), user2:rencontres!user2_id(id, user_id, name, image_url, photos)')
       .eq('id', matchId)
       .single();
 
@@ -56,6 +57,7 @@ const ConversationDetail = () => {
 
     const other = matchData.user1.user_id === user.id ? matchData.user2 : matchData.user1;
     setOtherUser(other);
+    setMatchMeta({ id: matchId, ended_at: matchData.ended_at, ended_by: matchData.ended_by });
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('messages_rencontres')
@@ -106,7 +108,7 @@ const ConversationDetail = () => {
   const handleSend = async (e) => {
     e.preventDefault();
     const trimmed = newMessage.trim();
-    if (trimmed && user && otherUser && myRencontreId) {
+    if (trimmed && user && otherUser && myRencontreId && !matchMeta?.ended_at) {
       const message = {
         match_id: matchId,
         sender_id: myRencontreId,
@@ -132,6 +134,17 @@ const ConversationDetail = () => {
           console.error('Erreur notification OneSignal (message rencontre):', notificationError);
         }
       }
+    }
+  };
+
+  const endMatch = async () => {
+    if (!matchId || !myRencontreId) return;
+    const { error } = await supabase
+      .from('rencontres_matches')
+      .update({ ended_at: new Date().toISOString(), ended_by: myRencontreId })
+      .eq('id', matchId);
+    if (!error) {
+      setMatchMeta((prev) => ({ ...(prev || {}), ended_at: new Date().toISOString(), ended_by: myRencontreId }));
     }
   };
 
@@ -171,6 +184,15 @@ const ConversationDetail = () => {
             )}
           </Avatar>
           <h2 className="font-bold text-lg">{otherUser.name}</h2>
+          <div className="ml-auto">
+            {!matchMeta?.ended_at ? (
+              <Button variant="outline" size="sm" onClick={endMatch}>
+                <XCircle className="h-4 w-4 mr-1" /> Terminer le match
+              </Button>
+            ) : (
+              <span className="text-sm text-gray-600">Match archivé</span>
+            )}
+          </div>
         </header>
 
         <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
@@ -198,10 +220,11 @@ const ConversationDetail = () => {
             <Input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Écrivez un message..."
+              placeholder={matchMeta?.ended_at ? 'Chat terminé' : 'Écrivez un message...'}
               className="flex-1"
+              disabled={Boolean(matchMeta?.ended_at)}
             />
-            <Button type="submit" className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+            <Button type="submit" disabled={Boolean(matchMeta?.ended_at)} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
               <Send className="h-5 w-5" />
             </Button>
           </div>
