@@ -262,10 +262,12 @@ export const notifyRencontreMessage = async ({ recipientId, senderName, message,
 
   const safeMessage = (message || '').trim();
   const preview = safeMessage.length > 80 ? `${safeMessage.slice(0, 77)}...` : safeMessage;
+  const name = (senderName || 'Un membre').trim();
+  const body = `Espace Rencontres -\n${name}${preview ? ` : "${preview}"` : ''}`;
 
   return postNotification({
     title: '💬 Nouveau message',
-    message: `${senderName || 'Un membre'} t’a écrit${preview ? ` : "${preview}"` : ''}.`,
+    message: body,
     targetUserIds: targets,
     url: matchId ? `/rencontre/messages/${matchId}` : '/rencontre/messages',
     data: {
