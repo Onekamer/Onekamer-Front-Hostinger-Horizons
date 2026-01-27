@@ -126,6 +126,7 @@ const ConversationDetail = () => {
             recipientId: otherUser.user_id,
             senderName: myRencontreProfile?.name || user?.user_metadata?.full_name || user?.email || 'Un membre OneKamer',
             message: trimmed,
+            matchId,
           });
         } catch (notificationError) {
           console.error('Erreur notification OneSignal (message rencontre):', notificationError);

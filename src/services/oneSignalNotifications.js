@@ -267,9 +267,29 @@ export const notifyRencontreMessage = async ({ recipientId, senderName, message,
     title: '💬 Nouveau message',
     message: `${senderName || 'Un membre'} t’a écrit${preview ? ` : "${preview}"` : ''}.`,
     targetUserIds: targets,
+    url: matchId ? `/rencontre/messages/${matchId}` : '/rencontre/messages',
     data: {
       type: 'rencontre_message',
       matchId,
+    },
+  });
+};
+
+export const notifyRencontreLike = async ({ receiverId, likerUserId, likerName }) => {
+  const targets = normalizeUserIds([receiverId]);
+  if (!targets.length) return false;
+
+  const name = (likerName || 'Un membre').trim();
+  const url = likerUserId ? `/rencontre?rid=${likerUserId}` : '/rencontre';
+
+  return postNotification({
+    title: 'Espace Rencontres',
+    message: `🧡 ${name}\nvous a liké`,
+    targetUserIds: targets,
+    url,
+    data: {
+      type: 'rencontre_like',
+      likerUserId,
     },
   });
 };
@@ -300,6 +320,7 @@ export default {
   notifyPostCommented,
   notifyRencontreMatch,
   notifyRencontreMessage,
+  notifyRencontreLike,
   notifyMentionInComment,
   notifyGroupMessage,
 };

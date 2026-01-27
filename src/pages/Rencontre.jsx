@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { notifyRencontreMatch } from '@/services/oneSignalNotifications';
+import { notifyRencontreMatch, notifyRencontreLike } from '@/services/oneSignalNotifications';
 import { Slider } from "@/components/ui/slider"
 import RencontreProfil from './rencontre/RencontreProfil';
 import { canUserAccess } from '@/lib/accessControl';
@@ -229,7 +229,7 @@ useEffect(() => {
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.from('rencontres').select('id').eq('user_id', user.id).single();
+    const { data, error } = await supabase.from('rencontres').select('id, name, user_id').eq('user_id', user.id).single();
     if (data) {
       setMyProfile(data);
     } else if (error && error.code !== 'PGRST116') {
@@ -457,6 +457,13 @@ useEffect(() => {
         if (likeRow) {
           console.warn('Notification échouée (23503) mais like présent. On continue.');
           toast({ title: 'Like envoyé', description: 'Votre like a bien été enregistré.', variant: 'default' });
+          try {
+            await notifyRencontreLike({
+              receiverId: target.user_id,
+              likerUserId: myProfile.id,
+              likerName: myProfile?.name || user?.user_metadata?.full_name || user?.email || 'Un membre',
+            });
+          } catch (_e) {}
         } else {
           console.error('Erreur like rencontres_likes:', error);
           toast({
@@ -480,6 +487,13 @@ useEffect(() => {
       toast({ title: 'Déjà liké', description: 'Vous avez déjà liké ce profil.', variant: 'default' });
     } else {
       toast({ title: 'Like envoyé', description: 'Votre like a bien été enregistré.', variant: 'default' });
+      try {
+        await notifyRencontreLike({
+          receiverId: target.user_id,
+          likerUserId: myProfile.id,
+          likerName: myProfile?.name || user?.user_metadata?.full_name || user?.email || 'Un membre',
+        });
+      } catch (_e) {}
     }
   }
 

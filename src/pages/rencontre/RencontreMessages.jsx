@@ -12,6 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Input } from "@/components/ui/input";
 import { Send } from 'lucide-react';
+import { notifyRencontreMessage } from '@/services/oneSignalNotifications';
 
 const MessagesPrives = () => {
   const { user, onlineUserIds } = useAuth();
@@ -121,13 +122,28 @@ const MessagesPrives = () => {
 
     const receiver_id = currentMatch.user1_id === myRencontreId ? currentMatch.user2_id : currentMatch.user1_id;
 
+    const content = newMessage.trim();
     const { error } = await supabase.from("messages_rencontres").insert({
       match_id: selectedMatch,
       sender_id: myRencontreId,
       receiver_id: receiver_id,
-      content: newMessage.trim(),
+      content,
     });
-    if (!error) setNewMessage("");
+    if (!error) {
+      setNewMessage("");
+      try {
+        const other = currentMatch.user1_id === myRencontreId ? currentMatch.user2 : currentMatch.user1;
+        const recipientUserId = other?.user_id;
+        if (recipientUserId) {
+          await notifyRencontreMessage({
+            recipientId: recipientUserId,
+            senderName: myRencontreProfile?.name || undefined,
+            message: content,
+            matchId: selectedMatch,
+          });
+        }
+      } catch (_) {}
+    }
   };
 
   useEffect(() => {
