@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +27,8 @@ const MessagesPrives = () => {
   const [otherUsers, setOtherUsers] = useState({});
   const [myRencontreProfile, setMyRencontreProfile] = useState({});
   const [presenceByUserId, setPresenceByUserId] = useState({});
+  const listRef = useRef(null);
+  const endRef = useRef(null);
 
   const fetchMyRencontreId = useCallback(async () => {
     if (!user) return;
@@ -101,6 +103,25 @@ const MessagesPrives = () => {
       fetchMatches();
     }
   }, [myRencontreId, fetchMatches]);
+
+  const scrollToBottom = useCallback(() => {
+    const el = listRef.current;
+    if (el) {
+      try {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      } catch {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+    if (endRef.current && typeof endRef.current.scrollIntoView === 'function') {
+      try { endRef.current.scrollIntoView({ behavior: 'smooth' }); } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedMatch) return;
+    scrollToBottom();
+  }, [messages, selectedMatch, scrollToBottom]);
 
   const loadMessages = async (matchId) => {
     setSelectedMatch(matchId);
@@ -199,7 +220,7 @@ const MessagesPrives = () => {
         </Button>
         <h1 className="text-2xl font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-transparent bg-clip-text">Mes Matchs</h1>
       </motion.div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-0 md:p-4 h-[calc(100vh-200px)]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-0 md:p-4 h-[calc(100vh-200px)] min-h-0">
         <div className="col-span-1 border-r pr-4 overflow-y-auto">
           <h2 className="font-bold text-lg mb-2"> Mes matchs</h2>
           {matches.map((m) => {
@@ -248,10 +269,10 @@ const MessagesPrives = () => {
           )}
         </div>
 
-        <div className="col-span-1 md:col-span-2 flex flex-col h-full">
+        <div className="col-span-1 md:col-span-2 flex flex-col h-full min-h-0 overflow-hidden">
           {selectedMatch ? (
             <>
-              <div className="flex-1 overflow-y-auto border p-3 rounded-md bg-gray-50 mb-2">
+              <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain border p-3 rounded-md bg-gray-50 mb-2">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -270,6 +291,7 @@ const MessagesPrives = () => {
                     </div>
                   </div>
                 ))}
+                <div ref={endRef} />
               </div>
 
               <div className="mt-auto flex gap-2">
@@ -277,7 +299,8 @@ const MessagesPrives = () => {
                   placeholder="Votre message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  onFocus={() => setTimeout(scrollToBottom, 50)}
                 />
                 <Button onClick={sendMessage} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
                   <Send className="h-5 w-5" />
