@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { toast } from '@/components/ui/use-toast';
+import { clearMarketplaceCart } from '@/lib/marketplaceCart';
 import { ArrowLeft } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
@@ -154,7 +155,13 @@ export default function PayMarket() {
             )}
             {stripePromise && clientSecret && (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <PayForm clientSecret={clientSecret} onSuccess={() => navigate('/marketplace')} />
+                <PayForm
+                  clientSecret={clientSecret}
+                  onSuccess={() => {
+                    try { clearMarketplaceCart(); } catch {}
+                    navigate('/marketplace');
+                  }}
+                />
               </Elements>
             )}
           </CardContent>

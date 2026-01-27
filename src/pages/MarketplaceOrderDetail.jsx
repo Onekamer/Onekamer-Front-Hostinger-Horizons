@@ -45,6 +45,10 @@ const MarketplaceOrderDetail = () => {
   const [updatingFulfill, setUpdatingFulfill] = useState(false);
   const [actioning, setActioning] = useState(null);
 
+  const [trackingUrl, setTrackingUrl] = useState('');
+  const [carrierName, setCarrierName] = useState('');
+  const [shippingSubmitting, setShippingSubmitting] = useState(false);
+
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
     setLoading(true);
@@ -87,6 +91,11 @@ const MarketplaceOrderDetail = () => {
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+  useEffect(() => {
+    setTrackingUrl(order?.tracking_url || '');
+    setCarrierName(order?.carrier_name || '');
+  }, [order?.tracking_url, order?.carrier_name]);
 
   useEffect(() => {
     let id;
@@ -142,6 +151,32 @@ const MarketplaceOrderDetail = () => {
       toast({ title: 'Erreur', description: e?.message || 'Impossible de mettre à jour', variant: 'destructive' });
     } finally {
       setUpdatingFulfill(false);
+    }
+  };
+
+  const markShipped = async () => {
+    if (!order?.id) return;
+    const url = String(trackingUrl || '').trim();
+    if (!url) {
+      toast({ title: 'Lien de suivi requis', description: "Veuillez renseigner l'URL de suivi.", variant: 'destructive' });
+      return;
+    }
+    if (shippingSubmitting) return;
+    setShippingSubmitting(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(order.id)}/fulfillment`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: 'shipping', tracking_url: url, carrier_name: String(carrierName || '').trim() || undefined })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur mise à jour');
+      toast({ title: 'Commande expédiée', description: 'Lien de suivi enregistré.' });
+      await loadOrder();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible de marquer expédié', variant: 'destructive' });
+    } finally {
+      setShippingSubmitting(false);
     }
   };
 
@@ -210,6 +245,11 @@ const MarketplaceOrderDetail = () => {
   const canManageFulfillment = useMemo(() => {
     const f = String(order?.fulfillment_status || '').toLowerCase();
     return role === 'seller' && ['preparing','shipping','delivered'].includes(f);
+  }, [order, role]);
+
+  const canShipNow = useMemo(() => {
+    const f = String(order?.fulfillment_status || '').toLowerCase();
+    return role === 'seller' && (f === 'preparing' || f === 'shipping');
   }, [order, role]);
 
   const confirmReceived = async () => {
@@ -388,6 +428,18 @@ const MarketplaceOrderDetail = () => {
                     <div>{String(order.status || '').toLowerCase() === 'pending' ? 'Waiting for payment' : String(order.fulfillment_status || '—')}</div>
                   </div>
                 </div>
+                {effectiveRole === 'buyer' ? (
+                  <div className="pt-2">
+                    <div className="text-gray-700 font-medium text-sm mb-1">Suivi colis</div>
+                    {order?.tracking_url ? (
+                      <a href={order.tracking_url} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" className="w-full">Suivre le colis</Button>
+                      </a>
+                    ) : (
+                      <div className="text-sm text-gray-600">En attente du lien de suivi</div>
+                    )}
+                  </div>
+                ) : null}
                 {order?.customer_note ? (
                   <div className="pt-2">
                     <div className="text-gray-700 font-medium text-sm mb-1">Note client</div>
@@ -437,9 +489,16 @@ const MarketplaceOrderDetail = () => {
                         disabled={updatingFulfill}
                       >
                         <option value="preparing">En préparation</option>
-                        <option value="shipping">En cours d'envoi</option>
                         <option value="delivered">Livrée</option>
                       </select>
+                      {canShipNow ? (
+                        <div className="space-y-2 pt-2">
+                          <div className="text-sm">Expédition</div>
+                          <Input value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)} placeholder="Lien de suivi (URL)" />
+                          <Input value={carrierName} onChange={(e) => setCarrierName(e.target.value)} placeholder="Transporteur (optionnel)" />
+                          <Button onClick={markShipped} disabled={shippingSubmitting} className="w-full">{shippingSubmitting ? 'Envoi…' : 'Marquer comme expédié'}</Button>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </CardContent>
