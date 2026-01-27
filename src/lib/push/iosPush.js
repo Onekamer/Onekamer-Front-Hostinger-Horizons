@@ -53,6 +53,7 @@ export async function iosPush(userId) {
           platform: "ios",
           apns_environment: "sandbox",
           device_id: "ios-real-device",
+          provider: "apns",
         };
 
 console.log("🧪 [iOS Push] PAYLOAD SENT TO SERVER =", JSON.stringify(payload, null, 2));
