@@ -128,7 +128,7 @@ self.addEventListener('notificationclick', (event) => {
           const clientOrigin = new URL(client.url).origin;
           if (clientOrigin === targetOrigin) {
             if ('focus' in client) client.focus();
-            if ('navigate' in client && client.url !== target) client.navigate(target);
+            if ('navigate' in client) client.navigate(target);
             return true;
           }
         } catch (_) {}

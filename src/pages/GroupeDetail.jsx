@@ -352,7 +352,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       }, [groupId, user?.id]);
 
       useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (!scrolledToMsgRef.current) {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
       }, [messages]);
 
       useEffect(() => {
