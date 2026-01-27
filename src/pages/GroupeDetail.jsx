@@ -168,7 +168,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const isSenderOnline = Boolean(msg?.sender_id && onlineUserIds instanceof Set && onlineUserIds.has(String(msg.sender_id)));
 
       return (
-          <Card className="bg-white/80 backdrop-blur-sm border-none shadow-sm mb-4">
+          <Card id={`group-message-${msg.message_id}`} className="bg-white/80 backdrop-blur-sm border-none shadow-sm mb-4">
               <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                       <div className="relative">
@@ -246,6 +246,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const mimeRef = useRef(null);
       const recordingIntervalRef = useRef(null);
       const messagesEndRef = useRef(null);
+      const scrolledToMsgRef = useRef(false);
       const RAW_API = import.meta.env.VITE_API_URL || '';
       const API_API = RAW_API.endsWith('/api') ? RAW_API : `${RAW_API.replace(/\/+$/, '')}/api`;
     
@@ -353,6 +354,24 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, [messages]);
+
+      useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const targetId = params.get('messageId');
+        if (!targetId || scrolledToMsgRef.current) return;
+        const tryScroll = () => {
+          const el = document.getElementById(`group-message-${targetId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrolledToMsgRef.current = true;
+          }
+        };
+        tryScroll();
+        if (!scrolledToMsgRef.current) {
+          const t = setTimeout(tryScroll, 400);
+          return () => clearTimeout(t);
+        }
+      }, [location.search, messages]);
 
       const pickSupportedMime = useCallback(() => {
         const ua = navigator.userAgent.toLowerCase();
