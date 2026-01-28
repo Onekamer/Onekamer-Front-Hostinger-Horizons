@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
@@ -13,7 +14,7 @@ import { ArrowLeft } from 'lucide-react';
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
 
-function PayForm({ clientSecret, onSuccess }) {
+function PayForm({ clientSecret, onSuccess, onPrePay }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -22,6 +23,9 @@ function PayForm({ clientSecret, onSuccess }) {
     try {
       if (!stripe || !elements) return;
       setSubmitting(true);
+      if (onPrePay) {
+        await onPrePay();
+      }
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
@@ -58,6 +62,16 @@ export default function PayMarket() {
   const [order, setOrder] = useState(null);
   const [initError, setInitError] = useState(null);
   const navigate = useNavigate();
+  const [deliveryMode, setDeliveryMode] = useState(null);
+  const [shipFirstName, setShipFirstName] = useState('');
+  const [shipLastName, setShipLastName] = useState('');
+  const [shipEmail, setShipEmail] = useState('');
+  const [shipPhone, setShipPhone] = useState('');
+  const [shipAddress1, setShipAddress1] = useState('');
+  const [shipAddress2, setShipAddress2] = useState('');
+  const [shipPostalCode, setShipPostalCode] = useState('');
+  const [shipCity, setShipCity] = useState('');
+  const [shipCountry, setShipCountry] = useState('');
 
   useEffect(() => {
     const run = async () => {
@@ -83,6 +97,20 @@ export default function PayMarket() {
         }
         setClientSecret(data.clientSecret);
         setOrder(data.order || null);
+        // Charger le détail commande pour connaître le mode de livraison
+        try {
+          const detailRes = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+          });
+          const detail = await detailRes.json().catch(() => ({}));
+          if (detailRes.ok && detail?.order) {
+            setDeliveryMode(String(detail.order.delivery_mode || '').toLowerCase() || null);
+          }
+        } catch {}
       } catch (e) {
         setInitError(e?.message || 'Erreur initialisation');
       } finally {
@@ -94,9 +122,45 @@ export default function PayMarket() {
 
   const stripePromise = useMemo(() => (pk ? loadStripe(pk) : null), [pk]);
 
+  const prePay = useMemo(() => {
+    return async () => {
+      const mode = String(deliveryMode || '').toLowerCase();
+      if (mode && mode !== 'pickup') {
+        const required = [shipFirstName, shipLastName, shipEmail, shipPhone, shipAddress1, shipPostalCode, shipCity, shipCountry];
+        if (required.some((v) => !String(v || '').trim())) {
+          throw new Error('Merci de remplir toutes les informations de livraison.');
+        }
+        const res = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/shipping-info`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            first_name: shipFirstName,
+            last_name: shipLastName,
+            email: shipEmail,
+            phone: shipPhone,
+            address_line1: shipAddress1,
+            address_line2: shipAddress2 || undefined,
+            postal_code: shipPostalCode,
+            city: shipCity,
+            country: shipCountry,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error || 'Erreur enregistrement adresse de livraison');
+        }
+      }
+    };
+  }, [deliveryMode, shipFirstName, shipLastName, shipEmail, shipPhone, shipAddress1, shipAddress2, shipPostalCode, shipCity, shipCountry, orderId, session?.access_token]);
+
   const doFallbackCheckout = async () => {
     try {
       if (!API_PREFIX) throw new Error('API non configurée');
+      // Enregistrer l'adresse si nécessaire avant d'ouvrir le checkout
+      try { await prePay(); } catch (e) { throw e; }
       const res = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/checkout`, {
         method: 'POST',
         headers: {
@@ -143,6 +207,26 @@ export default function PayMarket() {
               </div>
             )}
 
+            {String(deliveryMode || '').toLowerCase() && String(deliveryMode || '').toLowerCase() !== 'pickup' ? (
+              <div className="space-y-2 mb-4">
+                <div className="text-sm text-gray-700 font-medium">Adresse de livraison</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input value={shipFirstName} onChange={(e) => setShipFirstName(e.target.value)} placeholder="Prénom" />
+                  <Input value={shipLastName} onChange={(e) => setShipLastName(e.target.value)} placeholder="Nom" />
+                </div>
+                <Input type="email" value={shipEmail} onChange={(e) => setShipEmail(e.target.value)} placeholder="Email" />
+                <Input value={shipPhone} onChange={(e) => setShipPhone(e.target.value)} placeholder="Téléphone" />
+                <Input value={shipAddress1} onChange={(e) => setShipAddress1(e.target.value)} placeholder="Adresse ligne 1" />
+                <Input value={shipAddress2} onChange={(e) => setShipAddress2(e.target.value)} placeholder="Adresse ligne 2 (optionnel)" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <Input value={shipPostalCode} onChange={(e) => setShipPostalCode(e.target.value)} placeholder="Code postal" />
+                  <Input value={shipCity} onChange={(e) => setShipCity(e.target.value)} placeholder="Ville" />
+                  <Input value={shipCountry} onChange={(e) => setShipCountry(e.target.value)} placeholder="Pays (ex: FR)" />
+                </div>
+                <div className="text-xs text-gray-500">Ces informations sont requises pour la livraison et seront anonymisées côté vendeur une fois la commande terminée.</div>
+              </div>
+            ) : null}
+
             {loading && <div>Chargement…</div>}
             {!loading && initError && (
               <div className="space-y-3">
@@ -157,6 +241,10 @@ export default function PayMarket() {
               <Elements stripe={stripePromise} options={{ clientSecret }}>
                 <PayForm
                   clientSecret={clientSecret}
+                  onPrePay={async () => {
+                    try { await prePay(); }
+                    catch (e) { toast({ title: 'Adresse de livraison', description: e?.message || 'Champs manquants', variant: 'destructive' }); throw e; }
+                  }}
                   onSuccess={() => {
                     try { clearMarketplaceCart(); } catch {}
                     navigate('/marketplace');

@@ -428,6 +428,44 @@ const MarketplaceOrderDetail = () => {
                     <div>{String(order.status || '').toLowerCase() === 'pending' ? 'Waiting for payment' : String(order.fulfillment_status || '—')}</div>
                   </div>
                 </div>
+                {effectiveRole === 'seller' ? (
+                  <div className="pt-2 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="text-gray-700 font-medium">Nom</div>
+                      <div className="truncate max-w-[60%]">
+                        {(() => {
+                          const fn = String(order?.customer_first_name || '').trim();
+                          const ln = String(order?.customer_last_name || '').trim();
+                          const full = [fn, ln].filter(Boolean).join(' ').trim();
+                          return full || '—';
+                        })()}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="text-gray-700 font-medium">Téléphone</div>
+                      <div className="truncate max-w-[60%]">{order?.customer_phone || '—'}</div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="text-gray-700 font-medium">Email</div>
+                      <div className="truncate max-w-[60%]">{order?.customer_email || '—'}</div>
+                    </div>
+                    <div className="flex items-start justify-between text-sm">
+                      <div className="text-gray-700 font-medium">Adresse</div>
+                      <div className="text-right text-gray-700 whitespace-pre-wrap max-w-[60%]">
+                        {(() => {
+                          const a1 = String(order?.customer_address_line1 || '').trim();
+                          const a2 = String(order?.customer_address_line2 || '').trim();
+                          const pc = String(order?.customer_address_postal_code || '').trim();
+                          const city = String(order?.customer_address_city || '').trim();
+                          const cc = String(order?.customer_address_country || order?.customer_country_code || '').trim();
+                          const row3 = [pc, city].filter(Boolean).join(' ');
+                          const parts = [a1, a2, row3, cc].filter(Boolean);
+                          return parts.length ? parts.join('\n') : '—';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                 {effectiveRole === 'buyer' ? (
                   <div className="pt-2">
                     <div className="text-gray-700 font-medium text-sm mb-1">Suivi colis</div>
@@ -480,26 +518,45 @@ const MarketplaceOrderDetail = () => {
                   {canAcceptOrder ? (
                     <Button onClick={acceptOrder} disabled={accepting} className="w-full">{accepting ? 'En cours…' : 'Accepter la commande'}</Button>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="text-sm">Étape</div>
-                      <select
-                        value={String(order?.fulfillment_status || '')}
-                        onChange={(e) => updateFulfillment(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
-                        disabled={updatingFulfill}
-                      >
-                        <option value="preparing">En préparation</option>
-                        <option value="delivered">Livrée</option>
-                      </select>
-                      {canShipNow ? (
-                        <div className="space-y-2 pt-2">
-                          <div className="text-sm">Expédition</div>
-                          <Input value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)} placeholder="Lien de suivi (URL)" />
-                          <Input value={carrierName} onChange={(e) => setCarrierName(e.target.value)} placeholder="Transporteur (optionnel)" />
-                          <Button onClick={markShipped} disabled={shippingSubmitting} className="w-full">{shippingSubmitting ? 'Envoi…' : 'Marquer comme expédié'}</Button>
-                        </div>
-                      ) : null}
-                    </div>
+                    String(order?.delivery_mode || '').toLowerCase() === 'pickup' ? (
+                      <div className="space-y-2">
+                        <div className="text-sm">Étape</div>
+                        <select
+                          value={String(order?.fulfillment_status || 'preparing')}
+                          onChange={(e) => updateFulfillment(e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
+                          disabled={updatingFulfill}
+                        >
+                          <option value="preparing">En préparation</option>
+                          <option value="delivered">Livrée</option>
+                        </select>
+                      </div>
+                    ) : (
+                      (() => {
+                        const f = String(order?.fulfillment_status || '').toLowerCase();
+                        return (
+                          <div className="space-y-2">
+                            <div className="text-sm">Expédition</div>
+                            {f === 'preparing' ? (
+                              <>
+                                <Input value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)} placeholder="Lien de suivi (URL)" />
+                                <Input value={carrierName} onChange={(e) => setCarrierName(e.target.value)} placeholder="Transporteur (optionnel)" />
+                                <Button onClick={markShipped} disabled={shippingSubmitting} className="w-full">{shippingSubmitting ? 'Envoi…' : 'Marquer comme expédié'}</Button>
+                              </>
+                            ) : f === 'shipping' ? (
+                              <>
+                                {order?.tracking_url ? (
+                                  <a href={order.tracking_url} target="_blank" rel="noopener noreferrer" className="block">
+                                    <Button type="button" variant="outline" className="w-full">Ouvrir le suivi</Button>
+                                  </a>
+                                ) : null}
+                                <Button onClick={() => updateFulfillment('delivered')} disabled={updatingFulfill} className="w-full">Marquer comme livré</Button>
+                              </>
+                            ) : null}
+                          </div>
+                        );
+                      })()
+                    )
                   )}
                 </CardContent>
               </Card>
