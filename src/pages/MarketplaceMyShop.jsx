@@ -40,6 +40,8 @@ const MarketplaceMyShop = () => {
   const [orders, setOrders] = useState([]);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [markingOrderId, setMarkingOrderId] = useState(null);
+  const [cancelingOrderId, setCancelingOrderId] = useState(null);
+  const [refusingOrderId, setRefusingOrderId] = useState(null);
 
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState(null);
@@ -76,6 +78,52 @@ const MarketplaceMyShop = () => {
     const v = Number(amountMinor);
     if (!Number.isFinite(v)) return '—';
     return `${(v / 100).toFixed(2)}€`;
+  };
+
+  const handleRefuseOrder = async (orderId) => {
+    if (!orderId || !session?.access_token || !partner?.id) return;
+    if (refusingOrderId) return;
+    const reason = window.prompt('Motif du refus (optionnel)') || '';
+    setRefusingOrderId(orderId);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/orders/${encodeURIComponent(orderId)}/refuse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ reason: reason || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Refus impossible');
+      toast({ title: 'Commande refusée', description: 'Le remboursement sera traité manuellement.' });
+      await fetchOrders();
+      if (activeTab === 'chat') await fetchChatOrders();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Échec du refus', variant: 'destructive' });
+    } finally {
+      setRefusingOrderId(null);
+    }
+  };
+
+  const handleCancelOrderBySeller = async (orderId) => {
+    if (!orderId || !session?.access_token || !partner?.id) return;
+    if (cancelingOrderId) return;
+    const reason = window.prompt('Motif de l\'annulation (optionnel)') || '';
+    setCancelingOrderId(orderId);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/orders/${encodeURIComponent(orderId)}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ reason: reason || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Annulation impossible');
+      toast({ title: 'Commande annulée', description: 'Le remboursement sera traité manuellement.' });
+      await fetchOrders();
+      if (activeTab === 'chat') await fetchChatOrders();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Échec de l\'annulation', variant: 'destructive' });
+    } finally {
+      setCancelingOrderId(null);
+    }
   };
 
   const formatOrderCode = (shopName, createdAt, orderNumber) => {
@@ -848,20 +896,14 @@ const MarketplaceMyShop = () => {
               <CardTitle className="text-base font-semibold">Mes ventes</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="border rounded-md p-3 bg-white">
-                  <div className="text-xs text-gray-500">Total des ventes (payées)</div>
+                  <div className="text-xs text-gray-500">Ventes</div>
                   <div className="text-lg font-semibold text-gray-900">{totalSalesEur.toFixed(2)}€</div>
                 </div>
                 <div className="border rounded-md p-3 bg-white">
-                  <div className="text-xs text-gray-500">Commandes payées</div>
-                  <div className="text-lg font-semibold text-gray-900">
-                    {(Array.isArray(orders) ? orders : []).filter((o) => String(o?.status || '').toLowerCase() === 'paid').length}
-                  </div>
-                </div>
-                <div className="border rounded-md p-3 bg-white">
-                  <div className="text-xs text-gray-500">Commandes (filtre actuel)</div>
-                  <div className="text-lg font-semibold text-gray-900">{Array.isArray(orders) ? orders.length : 0}</div>
+                  <div className="text-xs text-gray-500">Commandes</div>
+                  <div className="text-lg font-semibold text-gray-900">{Array.isArray(orders) ? orders.filter((o) => String(o?.status||'').toLowerCase()==='paid').length : 0}</div>
                 </div>
               </div>
 
@@ -923,8 +965,16 @@ const MarketplaceMyShop = () => {
                         <div key={o.id} className={`p-3 ${isCompleted ? 'opacity-70' : ''}`}>
                           <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 items-start">
                             <div className="md:col-span-3">
-                              <div className="text-sm font-semibold">Commande #{String(o.id).slice(0, 8)}</div>
+                              <div className="text-sm font-semibold">Commande n°{formatOrderCode(partner?.display_name, o.created_at, o.order_number)}</div>
                               <div className="text-xs text-gray-500">{createdLabel}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {(() => {
+                                  const m = String(o?.delivery_mode || '').toLowerCase();
+                                  const label = m === 'pickup' ? 'Retrait sur place' : (m === 'standard' ? 'Livraison standard' : (m === 'express' ? 'Livraison express' : (m === 'international' ? 'Livraison internationale' : '')));
+                                  const cc = String(o?.customer_country_code || '').toUpperCase();
+                                  return [label || null, cc ? `Pays: ${cc}` : null].filter(Boolean).join(' • ');
+                                })() || '—'}
+                              </div>
                             </div>
 
                             <div className="md:col-span-3">
@@ -949,17 +999,47 @@ const MarketplaceMyShop = () => {
                               >
                                 {isExpanded ? 'Masquer' : 'Détail'}
                               </Button>
-                              {String(o?.fulfillment_status || '').toLowerCase() === 'sent_to_seller' ? (
-                                <Button
-                                  type="button"
-                                  variant="default"
-                                  className="w-full md:w-auto mt-2"
-                                  onClick={() => handleMarkReceived(o.id)}
-                                  disabled={markingOrderId === o.id}
-                                >
-                                  {markingOrderId === o.id ? 'En cours…' : 'Accepter la commande'}
-                                </Button>
-                              ) : null}
+                              {(() => {
+                                const f = String(o?.fulfillment_status || '').toLowerCase();
+                                if (f === 'sent_to_seller') {
+                                  return (
+                                    <>
+                                      <Button
+                                        type="button"
+                                        variant="default"
+                                        className="w-full md:w-auto mt-2"
+                                        onClick={() => handleMarkReceived(o.id)}
+                                        disabled={markingOrderId === o.id}
+                                      >
+                                        {markingOrderId === o.id ? 'En cours…' : 'Accepter la commande'}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full md:w-auto mt-2"
+                                        onClick={() => handleRefuseOrder(o.id)}
+                                        disabled={refusingOrderId === o.id}
+                                      >
+                                        {refusingOrderId === o.id ? 'Refus…' : 'Je refuse la commande'}
+                                      </Button>
+                                    </>
+                                  );
+                                }
+                                if (!['shipping','delivered','completed'].includes(f)) {
+                                  return (
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      className="w-full md:w-auto mt-2"
+                                      onClick={() => handleCancelOrderBySeller(o.id)}
+                                      disabled={cancelingOrderId === o.id}
+                                    >
+                                      {cancelingOrderId === o.id ? 'Annulation…' : 'Annuler la commande'}
+                                    </Button>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           </div>
 
