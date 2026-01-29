@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,9 +15,29 @@ import DeleteAccountSection from '@/pages/DeleteAccountSection';
 
 const Confidentialite = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   const { toast } = useToast();
   const [showCharte, setShowCharte] = useState(false);
+  const [showVendorCharte, setShowVendorCharte] = useState(false);
+  const [showBuyerCharte, setShowBuyerCharte] = useState(false);
+  const [vendorCompliant, setVendorCompliant] = useState(null);
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+  const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        if (!session?.access_token || !API_PREFIX) return;
+        const res = await fetch(`${API_PREFIX}/market/partners/me`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) setVendorCompliant(Boolean(data?.partner?.vendor_terms_compliant));
+      } catch {}
+    };
+    run();
+  }, [API_PREFIX, session?.access_token]);
 
   return (
     <>
@@ -66,6 +86,60 @@ const Confidentialite = () => {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Charte Marketplace — Vendeur</CardTitle>
+              <CardDescription>Obligatoire pour gérer les commandes et les ventes.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p
+                  className="text-gray-600 underline cursor-pointer hover:text-[#2BA84A] transition-colors"
+                  onClick={() => setShowVendorCharte(true)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowVendorCharte(true)}
+                >
+                  Voir la charte vendeurs
+                </p>
+                <div className="flex items-center space-x-2 font-semibold">
+                  {vendorCompliant ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <span>Oui</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-5 w-5 text-red-500" />
+                      <span>Non</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Charte Marketplace — Acheteur</CardTitle>
+              <CardDescription>À accepter au moment du paiement d’une commande.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p
+                  className="text-gray-600 underline cursor-pointer hover:text-[#2BA84A] transition-colors"
+                  onClick={() => setShowBuyerCharte(true)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowBuyerCharte(true)}
+                >
+                  Voir la charte acheteurs
+                </p>
+                <div className="text-sm text-gray-600">Statut géré par commande</div>
+              </div>
+            </CardContent>
+          </Card>
           
           <Card>
             <CardHeader>
@@ -111,6 +185,8 @@ const Confidentialite = () => {
         </motion.div>
       </div>
       <ChartePopup show={showCharte} onClose={() => setShowCharte(false)} readOnly={true} />
+      <ChartePopup show={showVendorCharte} onClose={() => setShowVendorCharte(false)} readOnly={true} title="Charte Marketplace — Vendeurs" />
+      <ChartePopup show={showBuyerCharte} onClose={() => setShowBuyerCharte(false)} readOnly={true} title="Charte Marketplace — Acheteurs" />
     </>
   );
 };

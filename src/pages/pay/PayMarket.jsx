@@ -72,6 +72,7 @@ export default function PayMarket() {
   const [shipPostalCode, setShipPostalCode] = useState('');
   const [shipCity, setShipCity] = useState('');
   const [shipCountry, setShipCountry] = useState('');
+  const [acceptBuyerTerms, setAcceptBuyerTerms] = useState(false);
 
   useEffect(() => {
     const run = async () => {
@@ -124,6 +125,9 @@ export default function PayMarket() {
 
   const prePay = useMemo(() => {
     return async () => {
+      if (!acceptBuyerTerms) {
+        throw new Error('Tu dois accepter la charte acheteurs pour continuer.');
+      }
       const mode = String(deliveryMode || '').toLowerCase();
       if (mode && mode !== 'pickup') {
         const required = [shipFirstName, shipLastName, shipEmail, shipPhone, shipAddress1, shipPostalCode, shipCity, shipCountry];
@@ -153,8 +157,25 @@ export default function PayMarket() {
           throw new Error(data?.error || 'Erreur enregistrement adresse de livraison');
         }
       }
+
+      // Enregistrer l'acceptation de la charte acheteur au niveau de la commande
+      try {
+        const res = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/terms/buyer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error || 'buyer_terms_required');
+        }
+      } catch (e) {
+        throw new Error(e?.message || 'buyer_terms_required');
+      }
     };
-  }, [deliveryMode, shipFirstName, shipLastName, shipEmail, shipPhone, shipAddress1, shipAddress2, shipPostalCode, shipCity, shipCountry, orderId, session?.access_token]);
+  }, [acceptBuyerTerms, deliveryMode, shipFirstName, shipLastName, shipEmail, shipPhone, shipAddress1, shipAddress2, shipPostalCode, shipCity, shipCountry, orderId, session?.access_token]);
 
   const doFallbackCheckout = async () => {
     try {
@@ -239,11 +260,22 @@ export default function PayMarket() {
             )}
             {stripePromise && clientSecret && (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <div className="flex items-start gap-2 mb-3">
+                  <input
+                    id="buyer_terms"
+                    type="checkbox"
+                    checked={acceptBuyerTerms}
+                    onChange={(e) => setAcceptBuyerTerms(e.target.checked)}
+                  />
+                  <label htmlFor="buyer_terms" className="text-xs text-gray-700">
+                    J’accepte la charte acheteurs du Marketplace
+                  </label>
+                </div>
                 <PayForm
                   clientSecret={clientSecret}
                   onPrePay={async () => {
                     try { await prePay(); }
-                    catch (e) { toast({ title: 'Adresse de livraison', description: e?.message || 'Champs manquants', variant: 'destructive' }); throw e; }
+                    catch (e) { toast({ title: 'Préparation paiement', description: e?.message || 'Action requise', variant: 'destructive' }); throw e; }
                   }}
                   onSuccess={() => {
                     try { clearMarketplaceCart(); } catch {}

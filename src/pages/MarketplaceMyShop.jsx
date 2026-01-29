@@ -33,6 +33,7 @@ const MarketplaceMyShop = () => {
   const [togglingOpen, setTogglingOpen] = useState(false);
 
   const [partner, setPartner] = useState(null);
+  const [acceptingVendorTerms, setAcceptingVendorTerms] = useState(false);
 
   const [ordersStatus, setOrdersStatus] = useState('sent_to_seller');
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -83,6 +84,10 @@ const MarketplaceMyShop = () => {
   const handleRefuseOrder = async (orderId) => {
     if (!orderId || !session?.access_token || !partner?.id) return;
     if (refusingOrderId) return;
+    if (partner?.vendor_terms_compliant !== true) {
+      toast({ title: 'Charte vendeur requise', description: 'Accepte la charte vendeur pour gérer les commandes.', variant: 'destructive' });
+      return;
+    }
     const reason = window.prompt('Motif du refus (optionnel)') || '';
     setRefusingOrderId(orderId);
     try {
@@ -106,6 +111,10 @@ const MarketplaceMyShop = () => {
   const handleCancelOrderBySeller = async (orderId) => {
     if (!orderId || !session?.access_token || !partner?.id) return;
     if (cancelingOrderId) return;
+    if (partner?.vendor_terms_compliant !== true) {
+      toast({ title: 'Charte vendeur requise', description: 'Accepte la charte vendeur pour gérer les commandes.', variant: 'destructive' });
+      return;
+    }
     const reason = window.prompt('Motif de l\'annulation (optionnel)') || '';
     setCancelingOrderId(orderId);
     try {
@@ -343,6 +352,10 @@ const MarketplaceMyShop = () => {
     if (!orderId) return;
     if (!session?.access_token) return;
     if (!partner?.id) return;
+    if (partner?.vendor_terms_compliant !== true) {
+      toast({ title: 'Charte vendeur requise', description: 'Accepte la charte vendeur pour gérer les commandes.', variant: 'destructive' });
+      return;
+    }
     if (markingOrderId) return;
 
     setMarkingOrderId(orderId);
@@ -816,6 +829,45 @@ const MarketplaceMyShop = () => {
               Chat
             </Button>
           </div>
+        ) : null}
+
+        {partner?.id && partner?.vendor_terms_compliant !== true ? (
+          <Card className="border-red-200">
+            <CardHeader className="p-4">
+              <CardTitle className="text-base">Charte vendeur à accepter</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <div className="text-sm text-gray-700">
+                Pour continuer à utiliser l’espace vendeur, tu dois accepter la charte vendeurs du Marketplace.
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  disabled={acceptingVendorTerms}
+                  onClick={async () => {
+                    if (!session?.access_token || !partner?.id) return;
+                    setAcceptingVendorTerms(true);
+                    try {
+                      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partner.id)}/terms/accept`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${session.access_token}` },
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) throw new Error(data?.error || 'Action impossible');
+                      await reloadPartner();
+                      toast({ title: 'Charte acceptée', description: 'Tu peux maintenant gérer tes commandes.' });
+                    } catch (e) {
+                      toast({ title: 'Erreur', description: e?.message || 'Impossible de valider la charte', variant: 'destructive' });
+                    } finally {
+                      setAcceptingVendorTerms(false);
+                    }
+                  }}
+                >
+                  {acceptingVendorTerms ? 'Validation…' : "J’accepte la charte vendeur"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : null}
 
 
