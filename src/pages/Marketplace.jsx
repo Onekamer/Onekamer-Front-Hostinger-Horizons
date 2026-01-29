@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, MapPin } from 'lucide-react';
 import { readMarketplaceCart, getMarketplaceCartCount } from '@/lib/marketplaceCart';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { canUserAccess } from '@/lib/accessControl';
@@ -290,11 +290,11 @@ const Marketplace = () => {
                         {mapUrl ? (
                           <Button
                             type="button"
-                            variant="default"
                             onClick={() => window.open(mapUrl, '_blank', 'noopener,noreferrer')}
-                            className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+                            className="shrink-0 bg-[#2BA84A] hover:bg-[#24903f] text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
                           >
-                            S’y rendre
+                            <MapPin className="h-4 w-4" />
+                            <span>S'y rendre</span>
                           </Button>
                         ) : null}
                         {contactUrl ? (

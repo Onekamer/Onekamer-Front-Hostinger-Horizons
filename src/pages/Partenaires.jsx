@@ -141,7 +141,7 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCou
               onClick={handleOpenMaps}
               className="mt-3 bg-[#2BA84A] hover:bg-[#24903f] text-white px-3 py-2 rounded-md text-sm w-full"
             >
-              📍 Ouvrir dans Google Maps
+              Ouvrir la localisation
             </button>
             <p className="text-sm text-gray-500 italic border-t pt-4">Recommandé par {recoCount} membres</p>
             <div className="flex gap-2 pt-4 border-t">

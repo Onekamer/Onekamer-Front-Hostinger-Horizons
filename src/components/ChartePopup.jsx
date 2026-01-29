@@ -8,7 +8,7 @@ const ChartePopup = ({ show, onAccept, onClose, readOnly = false, title, content
   return (
     <Dialog open={show} onOpenChange={!readOnly ? onClose : undefined}>
       <DialogOverlay className="bg-white/80 backdrop-blur-sm fixed inset-0 z-50" />
-      <DialogContent className="max-w-lg z-50">
+      <DialogContent hideClose className="max-w-lg z-50">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center text-[#2BA84A]">
             {title || 'Charte d’utilisation de OneKamer.co 🇨🇲'}

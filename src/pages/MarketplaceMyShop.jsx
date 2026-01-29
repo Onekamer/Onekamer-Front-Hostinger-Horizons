@@ -820,6 +820,8 @@ const MarketplaceMyShop = () => {
               variant={activeTab === 'orders' ? 'default' : 'outline'}
               onClick={() => setActiveTab('orders')}
               className="flex-1"
+              disabled={partner?.vendor_terms_compliant !== true}
+              title={partner?.vendor_terms_compliant !== true ? 'Acceptez la charte vendeur pour accéder à Mes ventes' : undefined}
             >
               Mes ventes
             </Button>
@@ -828,6 +830,8 @@ const MarketplaceMyShop = () => {
               variant={activeTab === 'chat' ? 'default' : 'outline'}
               onClick={() => setActiveTab('chat')}
               className="flex-1"
+              disabled={partner?.vendor_terms_compliant !== true}
+              title={partner?.vendor_terms_compliant !== true ? 'Acceptez la charte vendeur pour accéder au Chat' : undefined}
             >
               Chat
             </Button>

@@ -48,9 +48,10 @@ import React, { useState, useEffect, useCallback } from 'react';
       return (
         <button
           onClick={handleOpenMaps}
-          className="mt-3 bg-[#2BA84A] hover:bg-[#24903f] text-white px-3 py-2 rounded-md text-sm w-full"
+          className="mt-3 bg-[#2BA84A] hover:bg-[#24903f] text-white px-3 py-2 rounded-md text-sm w-full flex items-center justify-center gap-2"
         >
-          📍 Ouvrir dans Google Maps {location ? `(${location})` : ""}
+          <MapPin className="h-4 w-4" />
+          <span>S'y rendre</span>
         </button>
       );
     };

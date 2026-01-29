@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Users, PlusCircle, Bell, Loader2, Lock, Search, Mail } from 'lucide-react';
+import { Users, PlusCircle, Loader2, Lock, Search } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from '@/components/ui/input';
 import { canUserAccess } from '@/lib/accessControl';
@@ -23,7 +23,7 @@ const Groupes = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [canCreate, setCanCreate] = useState(false);
-  const [invitationCount, setInvitationCount] = useState(0);
+  
 
   useEffect(() => {
     if (userId) {
@@ -67,23 +67,7 @@ const Groupes = () => {
     fetchGroups();
   }, [fetchGroups]);
 
-  useEffect(() => {
-    if(!userId) return;
-    const fetchInvitationCount = async () => {
-        const { count, error: invitationError } = await supabase
-          .from('groupes_invitations')
-          .select('*', { count: 'exact', head: true })
-          .eq('invited_user_id', userId)
-          .eq('status', 'pending');
-        
-        if (invitationError) {
-            console.error("Error fetching invitation count", invitationError);
-        } else {
-            setInvitationCount(count);
-        }
-    }
-    fetchInvitationCount();
-  }, [userId]);
+  
 
   const handleCreateGroupClick = async () => {
     if (!user) {
@@ -159,14 +143,6 @@ const Groupes = () => {
         >
           <h1 className="text-2xl sm:text-3xl font-bold text-[#2BA84A]">Groupes</h1>
           <div className="flex gap-2 self-end sm:self-center">
-            <Button variant="outline" onClick={() => navigate('/groupes/invitations')} className="relative">
-              <Mail className="h-5 w-5 mr-2" /> Invitations
-              {invitationCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                  {invitationCount}
-                </span>
-              )}
-            </Button>
             <Button onClick={handleCreateGroupClick}>
               {canCreate ? <PlusCircle className="h-5 w-5 mr-2" /> : <Lock className="h-5 w-5 mr-2" />}
               Créer
