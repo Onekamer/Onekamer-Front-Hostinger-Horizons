@@ -42,6 +42,20 @@ const MonQRCode = () => {
     }
   };
 
+  const handleBack = () => {
+    try {
+      if (window.history && window.history.length > 1) {
+        navigate(-1);
+        return;
+      }
+    } catch {}
+    if (eventId) {
+      navigate(`/evenements?eventId=${encodeURIComponent(eventId)}`);
+    } else {
+      navigate('/evenements');
+    }
+  };
+
   const getPaymentLabel = (p) => {
     const s = p?.status;
     if (s === 'paid') return 'PAYÉ';
@@ -220,9 +234,9 @@ const MonQRCode = () => {
       </Helmet>
 
       <div className="max-w-xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => navigate('/compte')} className="mb-4">
+        <Button variant="ghost" onClick={handleBack} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour au compte
+          Retour
         </Button>
         <Card>
           <CardHeader>

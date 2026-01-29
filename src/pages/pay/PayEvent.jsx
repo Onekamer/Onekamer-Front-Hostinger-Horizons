@@ -108,10 +108,18 @@ export default function PayEvent() {
       if (window.history && window.history.length > 1) {
         navigate(-1);
       } else {
-        navigate('/evenements');
+        if (eventId) {
+          navigate(`/evenements?eventId=${encodeURIComponent(eventId)}`);
+        } else {
+          navigate('/evenements');
+        }
       }
     } catch (e) {
-      navigate('/evenements');
+      if (eventId) {
+        navigate(`/evenements?eventId=${encodeURIComponent(eventId)}`);
+      } else {
+        navigate('/evenements');
+      }
     }
   };
 
