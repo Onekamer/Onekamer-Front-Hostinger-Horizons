@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import ChartePopup from '@/components/ChartePopup';
 import {
   clearMarketplaceCart,
   readMarketplaceCart,
@@ -34,6 +35,8 @@ const MarketplaceCart = () => {
   });
   const [deliveryMode, setDeliveryMode] = useState('pickup');
   const [customerNote, setCustomerNote] = useState('');
+  const [acceptBuyerTerms, setAcceptBuyerTerms] = useState(false);
+  const [showBuyerCharte, setShowBuyerCharte] = useState(false);
 
   const cartCount = useMemo(() => getMarketplaceCartCount(cart), [cart]);
 
@@ -141,6 +144,11 @@ const MarketplaceCart = () => {
 
     if (payLoading) return;
 
+    if (!acceptBuyerTerms) {
+      toast({ title: 'Charte acheteur', description: 'Vous devez accepter la charte acheteur pour continuer.', variant: 'destructive' });
+      return;
+    }
+
     setPayLoading(true);
     try {
       const createRes = await fetch(`${apiBaseUrl}/api/market/orders`, {
@@ -242,6 +250,18 @@ const MarketplaceCart = () => {
               <div className="font-semibold text-gray-800">{subtotal / 100} €</div>
             </div>
 
+            <div className="flex items-start gap-2 py-2">
+              <input id="buyer_terms" type="checkbox" checked={acceptBuyerTerms} onChange={(e) => setAcceptBuyerTerms(e.target.checked)} />
+              <label htmlFor="buyer_terms" className="text-xs text-gray-700">
+                J’accepte la charte acheteur du Marketplace
+              </label>
+            </div>
+            <div className="pb-1">
+              <button type="button" className="text-xs text-[#2BA84A] underline" onClick={() => setShowBuyerCharte(true)}>
+                Voir la charte acheteur
+              </button>
+            </div>
+
             <div className="space-y-2">
               <div className="text-sm text-gray-700 font-medium">Mode de livraison</div>
               {shipError ? <div className="text-xs text-red-600">{shipError}</div> : null}
@@ -315,6 +335,7 @@ const MarketplaceCart = () => {
           </CardContent>
         </Card>
       </div>
+      <ChartePopup show={showBuyerCharte} onClose={() => setShowBuyerCharte(false)} readOnly={true} title="Charte Marketplace — Acheteur" />
     </>
   );
 };

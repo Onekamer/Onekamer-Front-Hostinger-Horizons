@@ -101,7 +101,7 @@ const Confidentialite = () => {
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowVendorCharte(true)}
                 >
-                  Voir la charte vendeurs
+                  Voir la charte vendeur
                 </p>
                 <div className="flex items-center space-x-2 font-semibold">
                   {vendorCompliant ? (
@@ -134,7 +134,7 @@ const Confidentialite = () => {
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowBuyerCharte(true)}
                 >
-                  Voir la charte acheteurs
+                  Voir la charte acheteur
                 </p>
                 <div className="text-sm text-gray-600">Statut géré par commande</div>
               </div>
@@ -185,8 +185,8 @@ const Confidentialite = () => {
         </motion.div>
       </div>
       <ChartePopup show={showCharte} onClose={() => setShowCharte(false)} readOnly={true} />
-      <ChartePopup show={showVendorCharte} onClose={() => setShowVendorCharte(false)} readOnly={true} title="Charte Marketplace — Vendeurs" />
-      <ChartePopup show={showBuyerCharte} onClose={() => setShowBuyerCharte(false)} readOnly={true} title="Charte Marketplace — Acheteurs" />
+      <ChartePopup show={showVendorCharte} onClose={() => setShowVendorCharte(false)} readOnly={true} title="Charte Marketplace — Vendeur" />
+      <ChartePopup show={showBuyerCharte} onClose={() => setShowBuyerCharte(false)} readOnly={true} title="Charte Marketplace — Acheteur" />
     </>
   );
 };

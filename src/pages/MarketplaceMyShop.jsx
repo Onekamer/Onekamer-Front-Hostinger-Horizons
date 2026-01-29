@@ -85,7 +85,7 @@ const MarketplaceMyShop = () => {
     if (!orderId || !session?.access_token || !partner?.id) return;
     if (refusingOrderId) return;
     if (partner?.vendor_terms_compliant !== true) {
-      toast({ title: 'Charte vendeur requise', description: 'Accepte la charte vendeur pour gérer les commandes.', variant: 'destructive' });
+      toast({ title: 'Charte vendeur requise', description: 'Vous devez accepter la charte vendeur pour gérer les commandes.', variant: 'destructive' });
       return;
     }
     const reason = window.prompt('Motif du refus (optionnel)') || '';
@@ -112,7 +112,7 @@ const MarketplaceMyShop = () => {
     if (!orderId || !session?.access_token || !partner?.id) return;
     if (cancelingOrderId) return;
     if (partner?.vendor_terms_compliant !== true) {
-      toast({ title: 'Charte vendeur requise', description: 'Accepte la charte vendeur pour gérer les commandes.', variant: 'destructive' });
+      toast({ title: 'Charte vendeur requise', description: 'Vous devez accepter la charte vendeur pour gérer les commandes.', variant: 'destructive' });
       return;
     }
     const reason = window.prompt('Motif de l\'annulation (optionnel)') || '';
@@ -353,7 +353,7 @@ const MarketplaceMyShop = () => {
     if (!session?.access_token) return;
     if (!partner?.id) return;
     if (partner?.vendor_terms_compliant !== true) {
-      toast({ title: 'Charte vendeur requise', description: 'Accepte la charte vendeur pour gérer les commandes.', variant: 'destructive' });
+      toast({ title: 'Charte vendeur requise', description: 'Vous devez accepter la charte vendeur pour gérer les commandes.', variant: 'destructive' });
       return;
     }
     if (markingOrderId) return;
@@ -838,7 +838,7 @@ const MarketplaceMyShop = () => {
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
               <div className="text-sm text-gray-700">
-                Pour continuer à utiliser l’espace vendeur, tu dois accepter la charte vendeurs du Marketplace.
+                Pour continuer à utiliser l’espace vendeur, vous devez accepter la charte vendeur du Marketplace.
               </div>
               <div className="flex gap-2">
                 <Button
@@ -855,7 +855,7 @@ const MarketplaceMyShop = () => {
                       const data = await res.json().catch(() => ({}));
                       if (!res.ok) throw new Error(data?.error || 'Action impossible');
                       await reloadPartner();
-                      toast({ title: 'Charte acceptée', description: 'Tu peux maintenant gérer tes commandes.' });
+                      toast({ title: 'Charte acceptée', description: 'Vous pouvez maintenant gérer vos commandes.' });
                     } catch (e) {
                       toast({ title: 'Erreur', description: e?.message || 'Impossible de valider la charte', variant: 'destructive' });
                     } finally {

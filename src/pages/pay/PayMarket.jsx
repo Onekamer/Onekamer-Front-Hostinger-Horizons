@@ -126,7 +126,7 @@ export default function PayMarket() {
   const prePay = useMemo(() => {
     return async () => {
       if (!acceptBuyerTerms) {
-        throw new Error('Tu dois accepter la charte acheteurs pour continuer.');
+        throw new Error('Vous devez accepter la charte acheteur pour continuer.');
       }
       const mode = String(deliveryMode || '').toLowerCase();
       if (mode && mode !== 'pickup') {
@@ -268,7 +268,7 @@ export default function PayMarket() {
                     onChange={(e) => setAcceptBuyerTerms(e.target.checked)}
                   />
                   <label htmlFor="buyer_terms" className="text-xs text-gray-700">
-                    J’accepte la charte acheteurs du Marketplace
+                    J’accepte la charte acheteur du Marketplace
                   </label>
                 </div>
                 <PayForm
