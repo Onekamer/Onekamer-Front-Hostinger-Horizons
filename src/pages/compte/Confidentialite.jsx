@@ -101,7 +101,7 @@ const Confidentialite = () => {
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowVendorCharte(true)}
                 >
-                  Voir la charte vendeur
+                  Charte vendeur
                 </p>
                 <div className="flex items-center space-x-2 font-semibold">
                   {vendorCompliant ? (
@@ -134,9 +134,9 @@ const Confidentialite = () => {
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowBuyerCharte(true)}
                 >
-                  Voir la charte acheteur
+                  Charte acheteur
                 </p>
-                <div className="text-sm text-gray-600">Statut géré par commande</div>
+                
               </div>
             </CardContent>
           </Card>

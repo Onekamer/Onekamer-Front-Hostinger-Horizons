@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { canUserAccess } from '@/lib/accessControl';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Info } from 'lucide-react';
+import ChartePopup from '@/components/ChartePopup';
 
 const CATEGORIES = ['Restauration', 'Mode', 'Beauté', 'Services', 'High-tech', 'Autre'];
 
@@ -34,6 +35,7 @@ const MarketplaceMyShop = () => {
 
   const [partner, setPartner] = useState(null);
   const [acceptingVendorTerms, setAcceptingVendorTerms] = useState(false);
+  const [showVendorCharte, setShowVendorCharte] = useState(false);
 
   const [ordersStatus, setOrdersStatus] = useState('sent_to_seller');
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -838,7 +840,15 @@ const MarketplaceMyShop = () => {
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
               <div className="text-sm text-gray-700">
-                Pour continuer à utiliser l’espace vendeur, vous devez accepter la charte vendeur du Marketplace.
+                Pour continuer à utiliser l’espace vendeur, vous devez accepter la{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowVendorCharte(true)}
+                  className="underline text-[#2BA84A]"
+                >
+                  charte vendeur du Marketplace
+                </button>
+                .
               </div>
               <div className="flex gap-2">
                 <Button
@@ -866,6 +876,12 @@ const MarketplaceMyShop = () => {
                   {acceptingVendorTerms ? 'Validation…' : "J’accepte la charte vendeur"}
                 </Button>
               </div>
+              <ChartePopup
+                show={showVendorCharte}
+                onClose={() => setShowVendorCharte(false)}
+                readOnly={true}
+                title="Charte Marketplace — Vendeur"
+              />
             </CardContent>
           </Card>
         ) : null}

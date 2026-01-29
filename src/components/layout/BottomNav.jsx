@@ -64,7 +64,29 @@ const BottomNav = () => {
               );
             })}
 
-            <div className="flex-1" /> {/* Spacer for the central button */}
+            {/* Bouton central intégré au même niveau */}
+            <Link
+              to={centralItem.path}
+              className="flex flex-col items-center justify-center flex-1 h-full"
+            >
+              <motion.div
+                whileTap={{ scale: 0.9 }}
+                className={`flex flex-col items-center gap-1 transition-colors ${
+                  isPathActive(centralItem.path) ? 'text-[#2BA84A]' : 'text-[#6B6B6B]'
+                }`}
+              >
+                <div className="h-10 w-10 rounded-full bg-[#2BA84A] text-white flex items-center justify-center">
+                  <centralItem.icon className="h-5 w-5" />
+                </div>
+                <span className="text-xs font-medium">{centralItem.label}</span>
+                {isPathActive(centralItem.path) && (
+                  <motion.div
+                    layoutId="bottomNavActiveUnderline"
+                    className="mt-1 w-10 h-1 bg-[#2BA84A] rounded-full"
+                  />
+                )}
+              </motion.div>
+            </Link>
 
             {rightItems.map(({ path, icon: Icon, label }) => {
               const isActive = isPathActive(path);
@@ -97,16 +119,6 @@ const BottomNav = () => {
         </div>
       </div>
       
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 flex items-center">
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => navigate(centralItem.path)}
-          className="w-16 h-16 bg-[#2BA84A] rounded-full flex items-center justify-center shadow-lg border-4 border-white"
-        >
-          <centralItem.icon className="h-8 w-8 text-white" />
-        </motion.button>
-      </div>
     </nav>
   );
 };
