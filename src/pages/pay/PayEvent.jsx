@@ -58,6 +58,7 @@ export default function PayEvent() {
   const { eventId } = useParams();
   const { session } = useAuth();
   const q = useQuery();
+  const navigate = useNavigate();
   const paymentMode = (q.get('mode') === 'deposit') ? 'deposit' : 'full';
   const [clientSecret, setClientSecret] = useState(null);
   const [pk, setPk] = useState(null);
@@ -102,6 +103,18 @@ export default function PayEvent() {
 
   const stripePromise = useMemo(() => (pk ? loadStripe(pk) : null), [pk]);
 
+  const handleBack = () => {
+    try {
+      if (window.history && window.history.length > 1) {
+        navigate(-1);
+      } else {
+        navigate('/evenements');
+      }
+    } catch (e) {
+      navigate('/evenements');
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -109,7 +122,7 @@ export default function PayEvent() {
       </Helmet>
       <div className="max-w-md mx-auto">
         <div className="mb-3">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
+          <Button variant="ghost" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Retour
           </Button>
         </div>
