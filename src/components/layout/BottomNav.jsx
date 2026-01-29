@@ -74,7 +74,7 @@ const BottomNav = () => {
                     isPathActive(centralItem.path) ? 'text-[#2BA84A]' : 'text-[#6B6B6B]'
                   }`}
                 >
-                  <div className="h-10 w-10 rounded-full bg-[#2BA84A] text-white flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-full bg-[#2BA84A] text-white flex items-center justify-center">
                     <centralItem.icon className="h-5 w-5" />
                   </div>
                   {isPathActive(centralItem.path) && (

@@ -304,12 +304,12 @@ const Marketplace = () => {
                             onClick={() => {
                               window.location.href = contactUrl;
                             }}
-                            className="shrink-0 bg-[#2BA84A] hover:bg-[#2BA84A]/90 text-white"
+                            className="shrink-0 bg-[#2BA84A] hover:bg-[#2BA84A]/90 text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
                           >
                             Contacter
                           </Button>
                         ) : null}
-                        <Button asChild disabled={!commandable} className="shrink-0">
+                        <Button asChild disabled={!commandable} className="shrink-0 rounded-full bg-[#2BA84A] hover:bg-[#2BA84A]/90 text-white">
                           <Link to={`/marketplace/partner/${encodeURIComponent(p.id)}`}>Voir la boutique</Link>
                         </Button>
                       </div>

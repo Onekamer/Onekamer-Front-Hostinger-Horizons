@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Users, PlusCircle, Loader2, Lock, Search } from 'lucide-react';
+import { Users, Plus, Loader2, Lock, Search } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from '@/components/ui/input';
 import { canUserAccess } from '@/lib/accessControl';
@@ -139,12 +139,12 @@ const Groupes = () => {
         <motion.div 
           initial={{ opacity: 0, y: -20 }} 
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4"
+          className="flex justify-between items-center mb-6 gap-4"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#2BA84A]">Groupes</h1>
-          <div className="flex gap-2 self-end sm:self-center">
-            <Button onClick={handleCreateGroupClick}>
-              {canCreate ? <PlusCircle className="h-5 w-5 mr-2" /> : <Lock className="h-5 w-5 mr-2" />}
+          <h1 className="text-3xl font-bold text-[#2BA84A]">Groupes</h1>
+          <div className="flex gap-2">
+            <Button onClick={handleCreateGroupClick} className="bg-gradient-to-r from-[#2BA84A] to-[#F5C300] text-white">
+              {canCreate ? <Plus className="h-5 w-5 mr-2" /> : <Lock className="h-5 w-5 mr-2" />}
               Créer
             </Button>
           </div>

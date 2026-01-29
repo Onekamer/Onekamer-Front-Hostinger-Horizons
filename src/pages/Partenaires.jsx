@@ -410,7 +410,7 @@ const Partenaires = () => {
     </AnimatePresence>
       
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div className="flex justify-between items-center gap-4">
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -418,9 +418,11 @@ const Partenaires = () => {
           >
             Partenaires
           </motion.h1>
-          <Button onClick={handleProposerClick} disabled={!canCreate}>
-            {canCreate ? <Plus className="w-4 h-4 mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
-            {canCreate ? 'Proposer' : 'Verrouillé'}
+          <Button
+            onClick={handleProposerClick}
+            className="bg-gradient-to-r from-[#2BA84A] to-[#F5C300] text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Proposer
           </Button>
         </div>
 
