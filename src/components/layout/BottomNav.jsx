@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, ShoppingBag, Calendar, Heart } from 'lucide-react';
+import { FileText, ShoppingBag, Calendar, Heart, MessageSquare } from 'lucide-react';
 
 const navItems = [
   { path: '/annonces', icon: FileText, label: 'Annonces' },
   { path: '/marketplace', icon: ShoppingBag, label: 'Marketplace' },
+  { path: '/echange', icon: MessageSquare, label: 'Échange', isCentral: true },
   { path: '/evenements', icon: Calendar, label: 'Événements' },
   { path: '/rencontre', icon: Heart, label: 'Rencontres' },
 ];
@@ -76,7 +77,6 @@ const BottomNav = () => {
                   <div className="h-10 w-10 rounded-full bg-[#2BA84A] text-white flex items-center justify-center">
                     <centralItem.icon className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-medium">{centralItem.label}</span>
                   {isPathActive(centralItem.path) && (
                     <motion.div
                       layoutId="bottomNavActiveUnderline"
