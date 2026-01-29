@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, ArrowLeft, Send, Plus, Share2, Loader2, FileImage as ImageIcon, X, Pencil, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, ArrowLeft, Send, Share2, Loader2, FileImage as ImageIcon, X, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -157,9 +157,7 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="fixed bottom-24 right-4 z-40 h-14 w-14 rounded-full shadow-lg">
-          <Plus className="h-6 w-6" />
-        </Button>
+        <Button className="bg-gradient-to-r from-[#E0222A] to-[#F5C300] text-white">+ Créer</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px] bg-white">
         <DialogHeader>
@@ -786,9 +784,7 @@ const FaitsDivers = () => {
         <meta name="description" content="Actualités de la communauté camerounaise sur OneKamer.co" />
       </Helmet>
 
-      {canCreate && (
-          <AddNewsForm categories={categories} onArticleAdded={handleArticleAdded} />
-      )}
+      
       
       <AnimatePresence>
         {selectedNews && (
@@ -883,7 +879,12 @@ const FaitsDivers = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl font-bold text-[#2BA84A] mb-4">Faits Divers</h1>
+          <div className="flex justify-between items-center mb-4 gap-4">
+            <h1 className="text-3xl font-bold text-[#2BA84A]">Faits Divers</h1>
+            {canCreate && (
+              <AddNewsForm categories={categories} onArticleAdded={handleArticleAdded} />
+            )}
+          </div>
         </motion.div>
 
         <div className="space-y-4">

@@ -218,21 +218,21 @@ const Marketplace = () => {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-[#2BA84A]">Marketplace</h1>
-          <div className="flex items-center justify-end gap-2 flex-wrap sm:flex-nowrap">
-            {shopAccess && (
-              <Button variant="outline" onClick={handleGoMyShop} className="shrink-0">
-                {myPartnerId ? 'Ma boutique' : 'Créer ma boutique'}
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => navigate('/market/orders')} className="shrink-0">
-              Mes commandes
+          <h1 className="text-3xl font-bold text-[#2BA84A]">Marketplace</h1>
+          {shopAccess ? (
+            <Button onClick={handleGoMyShop} className="bg-gradient-to-r from-[#E0222A] to-[#F5C300] text-white">
+              {myPartnerId ? 'Ma boutique' : '+Créer'}
             </Button>
-            <Button variant="outline" onClick={() => navigate('/marketplace/cart')} className="shrink-0">
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              Panier{cartCount > 0 ? ` (${cartCount})` : ''}
-            </Button>
-          </div>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => navigate('/market/orders')} className="shrink-0">
+            Mes commandes
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/marketplace/cart')} className="shrink-0">
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Panier{cartCount > 0 ? ` (${cartCount})` : ''}
+          </Button>
         </div>
 
         <Input placeholder="Rechercher une boutique..." value={search} onChange={(e) => setSearch(e.target.value)} />
