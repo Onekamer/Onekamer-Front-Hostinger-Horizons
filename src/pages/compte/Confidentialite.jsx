@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ChartePopup from '@/components/ChartePopup';
+import { MARKET_BUYER_CHARTER, MARKET_VENDOR_CHARTER } from '@/content/marketplaceCharters';
 import { Link } from 'react-router-dom';
 import DeleteAccountSection from '@/pages/DeleteAccountSection';
 
@@ -185,8 +186,8 @@ const Confidentialite = () => {
         </motion.div>
       </div>
       <ChartePopup show={showCharte} onClose={() => setShowCharte(false)} readOnly={true} />
-      <ChartePopup show={showVendorCharte} onClose={() => setShowVendorCharte(false)} readOnly={true} title="Charte Marketplace — Vendeur" />
-      <ChartePopup show={showBuyerCharte} onClose={() => setShowBuyerCharte(false)} readOnly={true} title="Charte Marketplace — Acheteur" />
+      <ChartePopup show={showVendorCharte} onClose={() => setShowVendorCharte(false)} readOnly={true} title="Charte Marketplace — Vendeur" content={MARKET_VENDOR_CHARTER} />
+      <ChartePopup show={showBuyerCharte} onClose={() => setShowBuyerCharte(false)} readOnly={true} title="Charte Marketplace — Acheteur" content={MARKET_BUYER_CHARTER} />
     </>
   );
 };

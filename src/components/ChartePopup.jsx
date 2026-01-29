@@ -33,7 +33,31 @@ const ChartePopup = ({ show, onAccept, onClose, readOnly = false, title, content
               </p>
               <h2 className="font-bold text-lg">4. Espaces et fonctionnalités</h2>
               <p>
-                Annonces, Événements, Groupes & échanges, Rencontres, Partenaires & OK Coins — tous régis par les mêmes valeurs.
+                OneKamer.co propose plusieurs espaces et fonctionnalités destinés à favoriser les échanges, l’entraide et les opportunités au sein de la communauté.
+              </p>
+              <h3 className="font-semibold">4.1 Annonces</h3>
+              <p>
+                L’espace Annonces permet aux membres de publier et consulter des annonces informatives ou personnelles. Ces échanges ne donnent pas lieu à un paiement intégré et relèvent de la responsabilité des membres concernés.
+              </p>
+              <h3 className="font-semibold">4.2 Groupes & échanges</h3>
+              <p>
+                Les groupes et espaces d’échange sont destinés aux discussions communautaires autour de centres d’intérêt communs. Les membres s’engagent à respecter les règles de courtoisie, de respect et de bienveillance.
+              </p>
+              <h3 className="font-semibold">4.3 Événements</h3>
+              <p>
+                L’espace Événements permet de créer et de participer à des événements communautaires. Certains événements peuvent être gratuits ou payants, selon les modalités définies par leurs organisateurs.
+              </p>
+              <h3 className="font-semibold">4.4 Rencontres</h3>
+              <p>
+                L’espace Rencontres est destiné aux échanges sociaux et personnels entre membres. Chaque membre reste responsable de ses interactions et de sa sécurité.
+              </p>
+              <h3 className="font-semibold">4.5 Marketplace</h3>
+              <p>
+                La marketplace permet l’achat et la vente de biens ou services entre membres via un système de paiement intégré. En raison de la présence de paiements, de livraisons et d’obligations spécifiques, l’utilisation de la marketplace est encadrée par des chartes dédiées acheteur et vendeur, accessibles depuis l’application.
+              </p>
+              <h3 className="font-semibold">4.6 OK Coins</h3>
+              <p>
+                OK Coins est un système de crédits internes permettant de soutenir ou valoriser certaines contributions au sein de la plateforme, selon les règles définies par OneKamer.co.
               </p>
               <h2 className="font-bold text-lg">5. Vie privée et données</h2>
               <p>
@@ -58,6 +82,9 @@ const ChartePopup = ({ show, onAccept, onClose, readOnly = false, title, content
               <h2 className="font-bold text-lg">10. Validation</h2>
               <p>
                 ✅ En cliquant sur « J’ai lu et j’accepte la charte », vous reconnaissez avoir compris et accepté les règles d’utilisation de OneKamer.co. Bienvenue dans la communauté ! Ensemble, faisons rayonner le Cameroun et sa diaspora 🌍🇨🇲
+              </p>
+              <p className="text-xs text-gray-500">
+                Version 1.0 - mise à jour le 29 janvier 2026
               </p>
             </div>
           )}
