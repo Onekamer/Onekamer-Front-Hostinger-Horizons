@@ -12,7 +12,7 @@ import { canUserAccess } from '@/lib/accessControl';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Info } from 'lucide-react';
 import ChartePopup from '@/components/ChartePopup';
-import { MARKET_VENDOR_CHARTER } from '@/content/marketplaceCharters';
+import { MARKET_VENDOR_CHARTER } from '@/content/marketplaceCharters.jsx';
 
 const CATEGORIES = ['Restauration', 'Mode', 'Beauté', 'Services', 'High-tech', 'Autre'];
 

@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ChartePopup from '@/components/ChartePopup';
-import { MARKET_BUYER_CHARTER } from '@/content/marketplaceCharters';
+import { MARKET_BUYER_CHARTER } from '@/content/marketplaceCharters.jsx';
 import {
   clearMarketplaceCart,
   readMarketplaceCart,

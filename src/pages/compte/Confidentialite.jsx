@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ChartePopup from '@/components/ChartePopup';
-import { MARKET_BUYER_CHARTER, MARKET_VENDOR_CHARTER } from '@/content/marketplaceCharters';
+import { MARKET_BUYER_CHARTER, MARKET_VENDOR_CHARTER } from '@/content/marketplaceCharters.jsx';
 import { Link } from 'react-router-dom';
 import DeleteAccountSection from '@/pages/DeleteAccountSection';
 
