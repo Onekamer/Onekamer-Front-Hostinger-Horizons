@@ -12,17 +12,6 @@ import {
   readMarketplaceCart,
   getMarketplaceCartCount,
 } from '@/lib/marketplaceCart';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MarketplacePartner = () => {
   const { toast } = useToast();
@@ -37,10 +26,6 @@ const MarketplacePartner = () => {
   const [addingItemId, setAddingItemId] = useState(null);
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com';
   const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportReason, setReportReason] = useState('');
-  const [reportDetails, setReportDetails] = useState('');
-  const [reportSending, setReportSending] = useState(false);
   const [partnerInfo, setPartnerInfo] = useState(null);
 
   const cartCount = useMemo(() => getMarketplaceCartCount(cart), [cart]);
@@ -72,40 +57,7 @@ const MarketplacePartner = () => {
     }
   };
 
-  const submitReport = async () => {
-    if (!partnerId) return;
-    if (!session?.access_token) {
-      toast({ title: 'Veuillez vous connecter', variant: 'destructive' });
-      return;
-    }
-    const reason = String(reportReason || '').trim();
-    const details = String(reportDetails || '').trim();
-    if (!reason) {
-      toast({ title: 'Motif requis', description: 'Merci de choisir un motif.', variant: 'destructive' });
-      return;
-    }
-    setReportSending(true);
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/market/partners/${encodeURIComponent(partnerId)}/report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ reason, details }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Erreur lors de l'envoi du signalement");
-      toast({ title: 'Signalement envoyé', description: 'Merci, nous allons examiner votre signalement.' });
-      setReportOpen(false);
-      setReportReason('');
-      setReportDetails('');
-    } catch (e) {
-      toast({ title: 'Erreur', description: e?.message || 'Impossible de signaler la boutique.', variant: 'destructive' });
-    } finally {
-      setReportSending(false);
-    }
-  };
+  
 
   useEffect(() => {
     const load = async () => {
@@ -188,49 +140,6 @@ const MarketplacePartner = () => {
           </Button>
 
           <div className="flex items-center gap-2">
-            <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="shrink-0">Signaler la boutique</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Signaler la boutique</DialogTitle>
-                  <DialogDescription>Choisissez un motif et décrivez le problème si besoin.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label>Motif</Label>
-                    <Select value={reportReason} onValueChange={setReportReason}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choisir un motif" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Arnaque">Arnaque</SelectItem>
-                        <SelectItem value="Contenu inapproprié">Contenu inapproprié</SelectItem>
-                        <SelectItem value="Produit non conforme">Produit non conforme</SelectItem>
-                        <SelectItem value="Autre">Autre</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Détails (optionnel)</Label>
-                    <textarea
-                      className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-green-500/40"
-                      rows={4}
-                      value={reportDetails}
-                      onChange={(e) => setReportDetails(e.target.value)}
-                      placeholder="Expliquez le problème…"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={submitReport} disabled={reportSending} className="w-full">
-                    {reportSending ? 'Envoi…' : 'Envoyer'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
             <Button variant="outline" onClick={() => navigate('/marketplace/cart')} className="shrink-0">
               <ShoppingBag className="h-4 w-4 mr-2" />
               Panier{cartCount > 0 ? ` (${cartCount})` : ''}
@@ -238,7 +147,7 @@ const MarketplacePartner = () => {
           </div>
         </div>
 
-        <h1 className="text-xl font-bold text-[#2BA84A]">Boutique</h1>
+        <h1 className="text-xl font-bold text-[#2BA84A]">{partnerInfo?.display_name || 'Boutique'}</h1>
 
         {loading ? (
           <div className="text-gray-600">Chargement…</div>

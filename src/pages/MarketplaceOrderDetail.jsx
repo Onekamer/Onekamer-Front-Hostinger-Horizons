@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import MediaDisplay from '@/components/MediaDisplay';
+import { Image as ImageIcon, Mic, Square, X } from 'lucide-react';
+import { uploadAudioFile } from '@/utils/audioStorage';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -34,6 +37,16 @@ const MarketplaceOrderDetail = () => {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
+  const mediaInputRef = useRef(null);
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const recordingIntervalRef = useRef(null);
+  const mimeRef = useRef(null);
+  const recorderPromiseRef = useRef(null);
 
   const [rating, setRating] = useState(null);
   const [ratingLoading, setRatingLoading] = useState(false);
@@ -112,6 +125,126 @@ const MarketplaceOrderDetail = () => {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages.length]);
+
+  const pickSupportedMime = useCallback(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('safari')) {
+      return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+    }
+    if (ua.includes('android')) {
+      return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+    }
+    if (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) {
+      return { type: 'audio/webm;codecs=opus', ext: 'webm' };
+    }
+    if (window.MediaRecorder?.isTypeSupported?.('audio/ogg;codecs=opus')) {
+      return { type: 'audio/ogg;codecs=opus', ext: 'ogg' };
+    }
+    return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+  }, []);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMediaFile(file);
+      setMediaPreviewUrl(URL.createObjectURL(file));
+      setAudioBlob(null);
+      setRecordingTime(0);
+      recorderPromiseRef.current = null;
+      mimeRef.current = null;
+    }
+  };
+
+  const handleRemoveMedia = () => {
+    setMediaFile(null);
+    setMediaPreviewUrl(null);
+    if (mediaInputRef.current) mediaInputRef.current.value = '';
+  };
+
+  const uploadToBunny = async (file, folder) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+    const controller = new AbortController();
+    const timeoutMs = 60000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData, signal: controller.signal });
+    } catch (e) {
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+    const text = await response.text();
+    let data = null;
+    if (text) {
+      try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); }
+    }
+    if (!response.ok || !data?.success) {
+      const message = data?.message || data?.error || `Erreur d’upload (${response.status})`;
+      throw new Error(message);
+    }
+    return data.url;
+  };
+
+  const startRecording = async () => {
+    try {
+      setAudioBlob(null);
+      setRecordingTime(0);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chosenMime = pickSupportedMime();
+      mimeRef.current = chosenMime;
+      let resolveRecording;
+      const recordingDone = new Promise((resolve) => (resolveRecording = resolve));
+      recorderPromiseRef.current = recordingDone;
+      const supportedMimeType = window.MediaRecorder?.isTypeSupported?.(chosenMime.type) ? chosenMime.type : undefined;
+      const recorder = supportedMimeType ? new MediaRecorder(stream, { mimeType: supportedMimeType }) : new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      recorder.onerror = () => { resolveRecording(null); };
+      recorder.onstop = async () => {
+        clearInterval(recordingIntervalRef.current);
+        stream.getTracks().forEach((t) => t.stop());
+        await new Promise((r) => setTimeout(r, 300));
+        const candidateType = (
+          recorder?.mimeType ||
+          (chunks[0]?.type) ||
+          mimeRef.current?.type ||
+          'audio/mp4'
+        );
+        const finalType = (candidateType || 'audio/mp4').split(';')[0];
+        const blob = new Blob(chunks, { type: finalType });
+        setAudioBlob(blob);
+        setIsRecording(false);
+        mediaRecorderRef.current = null;
+        resolveRecording(blob);
+      };
+      await new Promise((r) => setTimeout(r, 200));
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      recordingIntervalRef.current = setInterval(() => setRecordingTime((t) => t + 1), 1000);
+      setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 60000);
+    } catch (err) {
+      toast({ title: 'Erreur microphone', description: 'Veuillez autoriser le micro.', variant: 'destructive' });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.requestData?.();
+      setTimeout(() => { if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') mediaRecorderRef.current.stop(); }, 300);
+      clearInterval(recordingIntervalRef.current);
+    }
+  };
+
+  const handleRemoveAudio = () => {
+    setAudioBlob(null);
+    setRecordingTime(0);
+    recorderPromiseRef.current = null;
+    mimeRef.current = null;
+  };
 
   const acceptOrder = async () => {
     if (!order?.id || !order?.partner_id) return;
@@ -201,21 +334,45 @@ const MarketplaceOrderDetail = () => {
   useEffect(() => { loadRating(); }, [loadRating]);
 
   const sendMessage = async () => {
-    if (!messageText.trim() || sending) return;
+    if (sending) return;
     setSending(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/messages`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ content: messageText.trim() }),
-      });
+      if (audioBlob) {
+        const { ext, type } = mimeRef.current || { ext: 'webm', type: audioBlob.type || 'audio/webm' };
+        const file = new File([audioBlob], `order-audio-${orderId}-${Date.now()}.${ext}`, { type });
+        const { publicUrl } = await uploadAudioFile(file, 'comments_audio');
+        const payload = { content: publicUrl, audio_url: publicUrl, audio_mime: (type || 'audio/mp4').split(';')[0], audio_duration: recordingTime };
+        const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/messages`, { method: 'POST', headers, body: JSON.stringify(payload) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Erreur envoi message');
+        handleRemoveAudio();
+        await loadMessages();
+        toast({ title: 'Message envoyé' });
+        setSending(false);
+        return;
+      }
+      if (mediaFile) {
+        const url = await uploadToBunny(mediaFile, 'comments');
+        const kind = String(mediaFile.type || '').startsWith('video/') ? 'video' : 'image';
+        const payload = { content: url, media_url: url, media_type: kind };
+        const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/messages`, { method: 'POST', headers, body: JSON.stringify(payload) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Erreur envoi message');
+        handleRemoveMedia();
+        await loadMessages();
+        toast({ title: 'Message envoyé' });
+        setSending(false);
+        return;
+      }
+      if (!messageText.trim()) { setSending(false); return; }
+      const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/messages`, { method: 'POST', headers, body: JSON.stringify({ content: messageText.trim() }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Erreur envoi message');
       setMessageText('');
       await loadMessages();
       toast({ title: 'Message envoyé' });
     } catch (e) {
-      toast({ title: 'Erreur', description: e?.message || 'Impossible d\'envoyer le message', variant: 'destructive' });
+      toast({ title: 'Erreur', description: e?.message || "Impossible d'envoyer le message", variant: 'destructive' });
     } finally {
       setSending(false);
     }
@@ -570,12 +727,28 @@ const MarketplaceOrderDetail = () => {
                   </CardHeader>
                   <CardContent className="p-0 flex-1 flex flex-col">
                     <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-                      {messages.map((m) => (
-                        <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 text-sm ${String(m.sender_id||'')===String(session?.user?.id||'') ? 'bg-[#DCFCE7] ml-auto' : 'bg-white border'}`}>
-                          <div className="whitespace-pre-wrap break-words">{m.content || m.body}</div>
-                          <div className="text-[11px] text-gray-500 mt-1">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
-                        </div>
-                      ))}
+                      {messages.map((m) => {
+                        const text = m.content || m.body || '';
+                        const mediaUrl = m.media_url || (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
+                        const isVideo = mediaUrl ? /(\.mp4|\.mov|\.webm)(\?|$)/i.test(mediaUrl) : false;
+                        const audioUrl = m.audio_url || (/^https?:\/\/\S+\.(?:m4a|mp3|ogg|webm)(\?|$)/i.test(text) ? text : null);
+                        return (
+                          <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 text-sm ${String(m.sender_id||'')===String(session?.user?.id||'') ? 'bg-[#DCFCE7] ml-auto' : 'bg-white border'}`}>
+                            {audioUrl ? (
+                              <audio src={audioUrl} controls className="w-full" preload="metadata" />
+                            ) : mediaUrl ? (
+                              isVideo ? (
+                                <video src={mediaUrl} controls className="w-56 rounded" />
+                              ) : (
+                                <img src={mediaUrl} alt="media" className="w-40 rounded" />
+                              )
+                            ) : (
+                              <div className="whitespace-pre-wrap break-words">{text}</div>
+                            )}
+                            <div className="text-[11px] text-gray-500 mt-1">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
+                          </div>
+                        );
+                      })}
                     </div>
                     <div className="border-t p-3">
                       <div className="text-sm font-medium text-red-600">La commande est terminée. Le chat n'est plus disponible.</div>
@@ -608,9 +781,44 @@ const MarketplaceOrderDetail = () => {
                       </div>
                     ))}
                   </div>
-                  <div className="border-t p-3 flex items-center gap-2">
-                    <Input value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Votre message…" onKeyDown={(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } }} />
-                    <Button onClick={sendMessage} disabled={sending || !messageText.trim()} className="shrink-0">Envoyer</Button>
+                  <div className="border-t p-3">
+                    {mediaPreviewUrl ? (
+                      <div className="mb-2">
+                        {String(mediaFile?.type||'').startsWith('video/') ? (
+                          <video src={mediaPreviewUrl} controls className="w-56 rounded" />
+                        ) : (
+                          <img src={mediaPreviewUrl} alt="preview" className="w-40 rounded" />
+                        )}
+                        <Button variant="ghost" size="sm" onClick={handleRemoveMedia} className="mt-1"><X className="h-4 w-4 mr-1" /> Retirer</Button>
+                      </div>
+                    ) : null}
+                    {audioBlob ? (
+                      <div className="mb-2 flex items-center gap-2">
+                        <audio src={URL.createObjectURL(audioBlob)} controls className="w-full" />
+                        <Button variant="ghost" size="sm" onClick={handleRemoveAudio}><X className="h-4 w-4 mr-1" /> Retirer</Button>
+                      </div>
+                    ) : null}
+                    <div className="flex items-center gap-2">
+                      {!isRecording && !audioBlob && (
+                        <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={sending} aria-label="Ajouter média">
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob} />
+                      {!isRecording && !audioBlob && (
+                        <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={sending} aria-label="Enregistrer audio">
+                          <Mic className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {isRecording && (
+                        <Button size="sm" type="button" variant="destructive" onClick={stopRecording} aria-label="Arrêter l'enregistrement">
+                          <Square className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <div className="text-xs text-gray-600 min-w-[48px]">{isRecording ? `${recordingTime}s` : ''}</div>
+                      <Input value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Votre message…" onKeyDown={(e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } }} />
+                      <Button onClick={sendMessage} disabled={sending || (!messageText.trim() && !mediaFile && !audioBlob)} className="shrink-0">Envoyer</Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
