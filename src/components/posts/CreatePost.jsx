@@ -720,6 +720,25 @@ const CreatePost = () => {
                     onChange={handleFileChange}
                     disabled={recording || !!audioBlob}
                 />
+                {!recording && !audioBlob && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={startRecording}
+                    disabled={loading}
+                  >
+                    <Mic className="h-4 w-4 mr-2" /> Audio
+                  </Button>
+                )}
+                {recording && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={stopRecording}
+                  >
+                    <Square className="h-4 w-4 mr-2" /> Stop
+                  </Button>
+                )}
             </div>
 
             <Button
