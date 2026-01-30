@@ -313,8 +313,8 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
   );
 };
 
-const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
-  const { user } = useAuth();
+const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioParentId, refreshBalance }) => {
+  const { user, profile } = useAuth();
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -323,6 +323,8 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
   const mediaInputRef = useRef(null);
   const navigate = useNavigate();
+  const [replyTo, setReplyTo] = useState(null);
+  const [replyToUser, setReplyToUser] = useState(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -367,69 +369,125 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
 
   const fetchComments = useCallback(async () => {
     setLoadingComments(true);
+    try {
+      if (audioParentId) {
+        const { data: roots, error: rerr } = await supabase
+          .from('comments')
+          .select(`
+            id,
+            content,
+            created_at,
+            media_url,
+            media_type,
+            user_id,
+            audio_url,
+            audio_duration,
+            type,
+            parent_comment_id,
+            author:profiles ( id, username, avatar_url )
+          `)
+          .eq('content_type', 'echange')
+          .eq('parent_comment_id', audioParentId)
+          .order('created_at', { ascending: true });
 
-    const { data, error } = await supabase
-      .from('comments')
-      .select(`
-        id,
-        content,
-        created_at,
-        media_url,
-        media_type,
-        user_id,
-        audio_url,
-        audio_duration,
-        type,
-        author:profiles ( id, username, avatar_url )
-      `)
-      .eq('content_id', postId)
-      .eq('content_type', 'post')
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Erreur chargement commentaires :', error.message);
-    } else {
-      const normalized = (data || []).map((comment) => normalizeAudioEntry(comment));
-      setComments(normalized);
+        if (rerr) throw rerr;
+        const rootIds = (roots || []).map((c) => c.id);
+        let children = [];
+        if (rootIds.length > 0) {
+          const { data: kids, error: kerr } = await supabase
+            .from('comments')
+            .select(`
+              id,
+              content,
+              created_at,
+              media_url,
+              media_type,
+              user_id,
+              audio_url,
+              audio_duration,
+              type,
+              parent_comment_id,
+              author:profiles ( id, username, avatar_url )
+            `)
+            .eq('content_type', 'echange')
+            .in('parent_comment_id', rootIds)
+            .order('created_at', { ascending: true });
+          if (kerr) throw kerr;
+          children = kids || [];
+        }
+        const normalized = [...(roots || []), ...(children || [])].map((c) => normalizeAudioEntry(c));
+        setComments(normalized);
+      } else {
+        const { data, error } = await supabase
+          .from('comments')
+          .select(`
+            id,
+            content,
+            created_at,
+            media_url,
+            media_type,
+            user_id,
+            audio_url,
+            audio_duration,
+            type,
+            parent_comment_id,
+            author:profiles ( id, username, avatar_url )
+          `)
+          .eq('content_id', postId)
+          .eq('content_type', 'post')
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        const normalized = (data || []).map((comment) => normalizeAudioEntry(comment));
+        setComments(normalized);
+      }
+    } catch (e) {
+      console.error('Erreur chargement commentaires :', e.message || e);
     }
     setLoadingComments(false);
-  }, [postId]);
+  }, [postId, audioParentId]);
 
   useEffect(() => {
     fetchComments();
-  
-    const channel = supabase
-      .channel(`comments-post-${postId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          filter: `content_id=eq.${postId}`,
-        },
-        async (payload) => {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, username, avatar_url')
-            .eq('id', payload.new.user_id)
-            .single();
-
-          if (!profileError) {
-              const resolved = normalizeAudioEntry({ ...payload.new, author: profileData });
-              setComments((prev) => [...prev, resolved]);
-          } else {
-              const resolved = normalizeAudioEntry({ ...payload.new, author: { username: 'Anonyme', avatar_url: null } });
-              setComments((prev) => [...prev, resolved]);
+    if (audioParentId) {
+      const channel = supabase
+        .channel(`comments-audio-root-${audioParentId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'comments', filter: `parent_comment_id=eq.${audioParentId}` },
+          async (payload) => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('id, username, avatar_url')
+              .eq('id', payload.new.user_id)
+              .single();
+            const author = profileData || { username: 'Anonyme', avatar_url: null };
+            const resolved = normalizeAudioEntry({ ...payload.new, author });
+            setComments((prev) => [...prev, resolved]);
           }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [postId, fetchComments]);
+        )
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    } else {
+      const channel = supabase
+        .channel(`comments-post-${postId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'comments', filter: `content_id=eq.${postId}` },
+          async (payload) => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('id, username, avatar_url')
+              .eq('id', payload.new.user_id)
+              .single();
+            const author = profileData || { username: 'Anonyme', avatar_url: null };
+            const resolved = normalizeAudioEntry({ ...payload.new, author });
+            setComments((prev) => [...prev, resolved]);
+          }
+        )
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [postId, audioParentId, fetchComments]);
   
   const handleRemoveMedia = () => {
     setMediaFile(null);
@@ -722,9 +780,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
             type = 'audio';
         }
 
-        const { error: insertError } = await supabase.from('comments').insert([{
-            content_id: postId,
-            content_type: 'post',
+        const payload = {
             user_id: user.id,
             content: newComment,
             media_url,
@@ -732,7 +788,16 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
             audio_url,
             audio_duration,
             type,
-        }]);
+        };
+        if (audioParentId) {
+            payload.content_type = 'echange';
+            payload.parent_comment_id = replyTo || audioParentId;
+        } else {
+            payload.content_type = 'post';
+            payload.content_id = postId;
+            if (replyTo) payload.parent_comment_id = replyTo;
+        }
+        const { error: insertError } = await supabase.from('comments').insert([payload]);
 
         if (insertError) throw insertError;
         try {
@@ -749,6 +814,8 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
         setNewComment('');
         handleRemoveMedia();
         handleRemoveAudio();
+        setReplyTo(null);
+        setReplyToUser(null);
 
     } catch (error) {
         console.error('Error posting comment:', error);
@@ -757,6 +824,15 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
         setIsPostingComment(false);
     }
   };
+
+  const topLevel = comments.filter((c) => !c.parent_comment_id);
+  const childrenMap = comments.reduce((acc, c) => {
+    if (c.parent_comment_id) {
+      if (!acc[c.parent_comment_id]) acc[c.parent_comment_id] = [];
+      acc[c.parent_comment_id].push(c);
+    }
+    return acc;
+  }, {});
 
   return (
     <motion.div
@@ -768,18 +844,62 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
     >
       <div className="pt-4 mt-4 border-t border-gray-200">
         {loadingComments ? <Loader2 className="animate-spin" /> : 
-          comments.length > 0 ? (
+          topLevel.length > 0 ? (
             <div className="space-y-3 mb-4">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex gap-2 items-start">
-                  <div className="cursor-pointer" onClick={() => navigate(`/profil/${comment.author?.id}`)}>
-                    <CommentAvatar avatarPath={comment.author?.avatar_url} username={comment.author?.username} userId={comment.author?.id} />
+              {topLevel.map((comment) => (
+                <div key={comment.id} className="flex flex-col gap-2">
+                  <div className="flex gap-2 items-start">
+                    <div className="cursor-pointer" onClick={() => navigate(`/profil/${comment.author?.id}`)}>
+                      <CommentAvatar avatarPath={comment.author?.avatar_url} username={comment.author?.username} userId={comment.author?.id} />
+                    </div>
+                    <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
+                      <p className="text-sm font-semibold cursor-pointer" onClick={() => navigate(`/profil/${comment.author?.id}`)}>{comment.author?.username}</p>
+                      {comment.type === 'audio' ? <AudioPlayer src={comment.audio_url} initialDuration={comment.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(comment.content)}</p> }
+                      {comment.media_url && <CommentMedia url={comment.media_url} type={comment.media_type} />}
+                      <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                        <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
+                        {user && (
+                          <DonationDialog
+                            post={{ user_id: comment.author?.id, profiles: { username: comment.author?.username } }}
+                            user={user}
+                            profile={profile}
+                            refreshBalance={refreshBalance}
+                          >
+                            <button className="hover:text-[#F5C300]">Don</button>
+                          </DonationDialog>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
-                    <p className="text-sm font-semibold cursor-pointer" onClick={() => navigate(`/profil/${comment.author?.id}`)}>{comment.author?.username}</p>
-                    {comment.type === 'audio' ? <AudioPlayer src={comment.audio_url} initialDuration={comment.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(comment.content)}</p> }
-                    {comment.media_url && <CommentMedia url={comment.media_url} type={comment.media_type} />}
-                  </div>
+                  {(childrenMap[comment.id] || []).length > 0 && (
+                    <div className="ml-10 space-y-2">
+                      {(childrenMap[comment.id] || []).map((child) => (
+                        <div key={child.id} className="flex gap-2 items-start">
+                          <div className="cursor-pointer" onClick={() => navigate(`/profil/${child.author?.id}`)}>
+                            <CommentAvatar avatarPath={child.author?.avatar_url} username={child.author?.username} userId={child.author?.id} />
+                          </div>
+                          <div className="bg-gray-50 rounded-lg px-3 py-2 w-full">
+                            <p className="text-sm font-semibold cursor-pointer" onClick={() => navigate(`/profil/${child.author?.id}`)}>{child.author?.username}</p>
+                            {child.type === 'audio' ? <AudioPlayer src={child.audio_url} initialDuration={child.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(child.content)}</p> }
+                            {child.media_url && <CommentMedia url={child.media_url} type={child.media_type} />}
+                            <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                              <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
+                              {user && (
+                                <DonationDialog
+                                  post={{ user_id: child.author?.id, profiles: { username: child.author?.username } }}
+                                  user={user}
+                                  profile={profile}
+                                  refreshBalance={refreshBalance}
+                                >
+                                  <button className="hover:text-[#F5C300]">Don</button>
+                                </DonationDialog>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -799,7 +919,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
                     <Input
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Écrire un commentaire..."
+                        placeholder={replyToUser ? `Répondre à ${replyToUser}…` : "Écrire un commentaire..."}
                         disabled={isPostingComment || !!audioBlob}
                     />
                 )}
@@ -858,6 +978,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   const [warnReason, setWarnReason] = useState('Contenu inapproprié');
   const [warnMessage, setWarnMessage] = useState('');
   const [warnSending, setWarnSending] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(0);
   const isMyPost = user?.id === post.user_id;
   const isAdmin =
     profile?.is_admin === true ||
@@ -1063,17 +1185,19 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           )}
         </div>
         <AnimatePresence>
-          {showComments && <CommentSection postId={post.id} postOwnerId={post.user_id} authorName={profile?.username} postContent={post.content} />}
+          {showComments && <CommentSection postId={post.id} postOwnerId={post.user_id} authorName={profile?.username} postContent={post.content} refreshBalance={refreshBalance} />}
         </AnimatePresence>
       </CardContent>
     </Card>
   )
 }
 
-const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
+const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }) => {
   const navigate = useNavigate();
   const { onlineUserIds } = useAuth();
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(Number(post?.likes_count) || 0);
   const [warnOpen, setWarnOpen] = useState(false);
   const [warnReason, setWarnReason] = useState('Contenu inapproprié');
   const [warnMessage, setWarnMessage] = useState('');
@@ -1107,6 +1231,71 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
     } catch {}
     finally {
       setWarnSending(false);
+    }
+  };
+
+  const checkLiked = useCallback(async () => {
+    try {
+      if (!post?.id) return;
+      // statut like par l'utilisateur
+      if (user?.id) {
+        const { data } = await supabase
+          .from('likes')
+          .select('id')
+          .eq('content_id', post.id)
+          .eq('user_id', user.id)
+          .eq('content_type', 'comment')
+          .maybeSingle();
+        setIsLiked(!!data);
+      } else {
+        setIsLiked(false);
+      }
+      // compteur de likes
+      const { count } = await supabase
+        .from('likes')
+        .select('id', { count: 'exact', head: true })
+        .eq('content_id', post.id)
+        .eq('content_type', 'comment');
+      setLikesCount(Number(count) || 0);
+    } catch (_) {}
+  }, [post?.id, user?.id]);
+
+  useEffect(() => {
+    checkLiked();
+  }, [checkLiked]);
+
+  const handleLike = async () => {
+    if (!user) {
+      toast({ title: 'Connectez-vous pour aimer ce message vocal.', variant: 'destructive' });
+      return;
+    }
+    const next = !isLiked;
+    setIsLiked(next);
+    setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
+    try {
+      if (next) {
+        await supabase.from('likes').insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
+      } else {
+        await supabase.from('likes').delete().match({ content_id: post.id, user_id: user.id, content_type: 'comment' });
+      }
+    } catch (_) {
+      // rollback simple en cas d'erreur
+      setIsLiked(!next);
+      setLikesCount((c) => (!next ? c + 1 : Math.max(0, c - 1)));
+      toast({ title: 'Erreur', description: "Impossible de mettre à jour le like.", variant: 'destructive' });
+    }
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: (post?.author?.username || 'Membre') + ' sur OneKamer.co',
+      text: post?.content || 'Message vocal sur OneKamer.co',
+      url: window.location.href,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch (err) { if (err?.name !== 'AbortError') toast({ title: 'Partage non disponible' }); }
+    } else {
+      toast({ title: 'Partage non disponible', description: "Votre navigateur ne supporte pas le partage natif." });
     }
   };
 
@@ -1188,6 +1377,51 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn }) => {
             </div>
             {post.content && post.content !== "Message vocal" && <p className="mt-2 text-sm text-gray-700">{parseMentions(post.content)}</p>}
             <AudioPlayer src={post.audio_url} initialDuration={post.audio_duration} />
+            <div className="flex items-center gap-4 text-[#6B6B6B] mt-3">
+              <button
+                className={`flex items-center gap-2 hover:text-[#E0222A] transition-colors ${isLiked ? 'text-[#E0222A]' : ''}`}
+                onClick={handleLike}
+              >
+                <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+                <span>{likesCount || 0}</span>
+              </button>
+              <button
+                className="flex items-center gap-2 hover:text-[#2BA84A] transition-colors"
+                onClick={() => setCommentsOpen((v) => !v)}
+              >
+                <MessageCircle className="h-5 w-5" />
+                <span>{commentsCount || 0}</span>
+              </button>
+              <button className="flex items-center gap-2 hover:text-[#007AFF] transition-colors" onClick={handleShare}>
+                <Share2 className="h-5 w-5" />
+                <span>Partager</span>
+              </button>
+              {user && !isMyPost && (
+                <DonationDialog
+                  post={{ user_id: post.user_id, profiles: { username: post.author?.username } }}
+                  user={user}
+                  profile={profile}
+                  refreshBalance={refreshBalance}
+                >
+                  <button className="flex items-center gap-2 hover:text-[#F5C300] transition-colors ml-auto">
+                    <Coins className="h-5 w-5" />
+                    <span>Don</span>
+                  </button>
+                </DonationDialog>
+              )}
+            </div>
+            <AnimatePresence>
+              {commentsOpen && (
+                <CommentSection
+                  postId={null}
+                  postOwnerId={post.user_id}
+                  authorName={post.author?.username}
+                  postContent={post.content}
+                  audioParentId={post.id}
+                  refreshBalance={refreshBalance}
+                />
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </CardContent>
@@ -1257,6 +1491,7 @@ const Echange = () => {
       .from('comments')
       .select(`*, author:profiles (id, username, avatar_url)`)
       .eq('content_type', 'echange')
+      .is('parent_comment_id', null)
       .order('created_at', { ascending: false });
 
     if (audioError) {
@@ -1441,7 +1676,7 @@ const Echange = () => {
                       refreshBalance={refreshBalance}
                     />
                   ) : (
-                    <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} onWarn={handleWarnUser} />
+                    <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} onWarn={handleWarnUser} refreshBalance={refreshBalance} />
                   )}
                 </motion.div>
               ))
@@ -1464,7 +1699,7 @@ const Echange = () => {
                       refreshBalance={refreshBalance}
                     />
                   ) : (
-                     <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} onWarn={handleWarnUser} />
+                     <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} onWarn={handleWarnUser} refreshBalance={refreshBalance} />
                   )}
                 </motion.div>
               ))
