@@ -472,7 +472,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           mediaRecorderRef.current = recorder;
           setIsRecording(true);
           recordingIntervalRef.current = setInterval(() => setRecordingTime((t) => t + 1), 1000);
-          setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 120000);
+          setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 60000);
         } catch (err) {
           console.error('Erreur microphone:', err);
           toast({ title: "Erreur microphone", description: "Veuillez autoriser le micro.", variant: "destructive" });

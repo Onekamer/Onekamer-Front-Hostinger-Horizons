@@ -396,7 +396,7 @@ const CreatePost = () => {
 
       setTimeout(() => {
         if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
-      }, 120000);
+      }, 60000);
     } catch (err) {
       console.error("Erreur d’enregistrement :", err);
       toast({

@@ -478,14 +478,15 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
     let resolveRecording;
     const recordingDone = new Promise(resolve => (resolveRecording = resolve));
     recorderPromiseRef.current = recordingDone;
-
-    const supportedMimeType = MediaRecorder.isTypeSupported(chosenMime.type)
+    const supportedMimeType = window.MediaRecorder?.isTypeSupported?.(chosenMime.type)
       ? chosenMime.type
-      : "audio/mp4";
+      : undefined;
 
-    console.log("🎚️ Type MIME utilisé :", supportedMimeType);
+    console.log("🎚️ Type MIME utilisé :", supportedMimeType || '(auto)');
 
-    const recorder = new MediaRecorder(stream, { mimeType: supportedMimeType });
+    const recorder = supportedMimeType
+      ? new MediaRecorder(stream, { mimeType: supportedMimeType })
+      : new MediaRecorder(stream);
     audioChunksRef.current = [];
 
     recorder.ondataavailable = (event) => {
@@ -515,9 +516,8 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
 
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const audioBlob = new Blob(audioChunksRef.current, {
-        type: supportedMimeType.split(";")[0],
-      });
+      const finalType = (mimeRef.current?.type || 'audio/webm').split(";")[0];
+      const audioBlob = new Blob(audioChunksRef.current, { type: finalType });
       console.log("💾 Taille finale du blob :", audioBlob.size, "octets");
 
       const fallbackDuration = Math.max(1, lastRecordingTimeRef.current || recordingTime);
@@ -560,7 +560,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
         console.log("⏹️ Arrêt automatique après 120s.");
         recorder.stop();
       }
-    }, 120000);
+    }, 60000);
   } catch (error) {
     console.error("❌ Erreur d'accès micro :", error);
     toast({
