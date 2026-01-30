@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toast } from '@/components/ui/use-toast';
-import { Loader2, X, Mic, Square, Play, Pause } from 'lucide-react';
+import { Loader2, X, Mic, Square, Play, Pause, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
@@ -714,11 +714,13 @@ const CreatePost = () => {
                {!recording && !audioBlob && (
                 <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => mediaInputRef.current?.click()}
                     disabled={loading}
+                    aria-label="Ajouter média"
                 >
-                    📎 Ajouter média
+                    <ImageIcon className="h-4 w-4" />
                 </Button>
                )}
                 <input
@@ -733,11 +735,13 @@ const CreatePost = () => {
                 {!recording && !audioBlob && (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
+                    size="sm"
                     onClick={startRecording}
                     disabled={loading}
+                    aria-label="Enregistrer audio"
                   >
-                    <Mic className="h-4 w-4 mr-2" /> Audio
+                    <Mic className="h-4 w-4" />
                   </Button>
                 )}
                 {recording && (

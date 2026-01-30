@@ -888,14 +888,14 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                       )}
                       <div className="flex gap-2 mt-2">
                         {!isRecording && !audioBlob && (
-                          <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={!!audioBlob}>
-                            <ImageIcon className="h-4 w-4 mr-2" /> Image/Vidéo
+                          <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={!!audioBlob} aria-label="Ajouter média">
+                            <ImageIcon className="h-4 w-4" />
                           </Button>
                         )}
                         <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob} />
                         {!isRecording && !audioBlob && (
-                          <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={!!mediaFile}>
-                            <Mic className="h-4 w-4 mr-2" /> Audio
+                          <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={!!mediaFile} aria-label="Enregistrer audio">
+                            <Mic className="h-4 w-4" />
                           </Button>
                         )}
                         {isRecording && (

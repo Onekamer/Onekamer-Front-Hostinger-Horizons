@@ -858,7 +858,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                       {comment.media_url && <CommentMedia url={comment.media_url} type={comment.media_type} />}
                       <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
                         <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
-                        {user && (
+                        {user && comment.author?.id !== user.id && (
                           <DonationDialog
                             post={{ user_id: comment.author?.id, profiles: { username: comment.author?.username } }}
                             user={user}
@@ -884,7 +884,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                             {child.media_url && <CommentMedia url={child.media_url} type={child.media_type} />}
                             <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
                               <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
-                              {user && (
+                              {user && child.author?.id !== user.id && (
                                 <DonationDialog
                                   post={{ user_id: child.author?.id, profiles: { username: child.author?.username } }}
                                   user={user}
@@ -946,14 +946,13 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             <div className="flex">
                 {!isRecording && !audioBlob && (
                   <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={isPostingComment}>
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      Image/Vidéo
+                      <ImageIcon className="h-4 w-4" />
                   </Button>
                 )}
                 <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob}/>
                 {!isRecording && !audioBlob && (
                   <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isPostingComment}>
-                    <Mic className="h-4 w-4 mr-2" /> Audio
+                    <Mic className="h-4 w-4" />
                   </Button>
                 )}
                 {isRecording && (
