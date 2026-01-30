@@ -341,7 +341,7 @@ const MarketplaceOrderDetail = () => {
         const { ext, type } = mimeRef.current || { ext: 'webm', type: audioBlob.type || 'audio/webm' };
         const file = new File([audioBlob], `order-audio-${orderId}-${Date.now()}.${ext}`, { type });
         const { publicUrl } = await uploadAudioFile(file, 'comments_audio');
-        const payload = { content: publicUrl, audio_url: publicUrl, audio_mime: (type || 'audio/mp4').split(';')[0], audio_duration: recordingTime };
+        const payload = { content: publicUrl };
         const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/messages`, { method: 'POST', headers, body: JSON.stringify(payload) });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error || 'Erreur envoi message');
@@ -353,8 +353,7 @@ const MarketplaceOrderDetail = () => {
       }
       if (mediaFile) {
         const url = await uploadToBunny(mediaFile, 'comments');
-        const kind = String(mediaFile.type || '').startsWith('video/') ? 'video' : 'image';
-        const payload = { content: url, media_url: url, media_type: kind };
+        const payload = { content: url };
         const res = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/messages`, { method: 'POST', headers, body: JSON.stringify(payload) });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error || 'Erreur envoi message');
@@ -721,7 +720,7 @@ const MarketplaceOrderDetail = () => {
 
             {chatLocked ? (
               messages.length > 0 ? (
-                <Card className="h-[60vh] flex flex-col">
+                <Card className="h-[60vh] flex flex-col overflow-hidden">
                   <CardHeader className="p-4">
                     <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
                   </CardHeader>
@@ -729,9 +728,9 @@ const MarketplaceOrderDetail = () => {
                     <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3">
                       {messages.map((m) => {
                         const text = m.content || m.body || '';
-                        const mediaUrl = m.media_url || (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
+                        const mediaUrl = (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
                         const isVideo = mediaUrl ? /(\.mp4|\.mov|\.webm)(\?|$)/i.test(mediaUrl) : false;
-                        const audioUrl = m.audio_url || (/^https?:\/\/\S+\.(?:m4a|mp3|ogg|webm)(\?|$)/i.test(text) ? text : null);
+                        const audioUrl = (/^https?:\/\/\S+\.(?:m4a|mp3|ogg|webm)(\?|$)/i.test(text) ? text : null);
                         return (
                           <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 text-sm ${String(m.sender_id||'')===String(session?.user?.id||'') ? 'bg-[#DCFCE7] ml-auto' : 'bg-white border'}`}>
                             {audioUrl ? (
@@ -766,7 +765,7 @@ const MarketplaceOrderDetail = () => {
                 </Card>
               )
             ) : String(order?.status||'').toLowerCase() === 'paid' ? (
-              <Card className="h-[60vh] flex flex-col">
+              <Card className="h-[60vh] flex flex-col overflow-hidden">
                 <CardHeader className="p-4">
                   <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
                 </CardHeader>
@@ -774,12 +773,28 @@ const MarketplaceOrderDetail = () => {
                   <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3">
                     {messages.length === 0 ? (
                       <div className="text-gray-500 text-sm">Aucun message pour le moment.</div>
-                    ) : messages.map((m) => (
-                      <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 text-sm ${String(m.sender_id||'')===String(session?.user?.id||'') ? 'bg-[#DCFCE7] ml-auto' : 'bg-white border'}`}>
-                        <div className="whitespace-pre-wrap break-words">{m.content || m.body}</div>
-                        <div className="text-[11px] text-gray-500 mt-1">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
-                      </div>
-                    ))}
+                    ) : messages.map((m) => {
+                      const text = m.content || m.body || '';
+                      const mediaUrl = (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
+                      const isVideo = mediaUrl ? /(\.mp4|\.mov|\.webm)(\?|$)/i.test(mediaUrl) : false;
+                      const audioUrl = (/^https?:\/\/\S+\.(?:m4a|mp3|ogg|webm)(\?|$)/i.test(text) ? text : null);
+                      return (
+                        <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 text-sm ${String(m.sender_id||'')===String(session?.user?.id||'') ? 'bg-[#DCFCE7] ml-auto' : 'bg-white border'}`}>
+                          {audioUrl ? (
+                            <audio src={audioUrl} controls className="w-full" preload="metadata" />
+                          ) : mediaUrl ? (
+                            isVideo ? (
+                              <video src={mediaUrl} controls className="w-56 rounded" />
+                            ) : (
+                              <img src={mediaUrl} alt="media" className="w-40 rounded" />
+                            )
+                          ) : (
+                            <div className="whitespace-pre-wrap break-words">{text}</div>
+                          )}
+                          <div className="text-[11px] text-gray-500 mt-1">{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="border-t p-3">
                     {mediaPreviewUrl ? (

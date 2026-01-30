@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageSquare, Loader2, XCircle } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Loader2, XCircle, Image as ImageIcon, Mic, Square, X } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Input } from "@/components/ui/input";
 import { Send } from 'lucide-react';
+import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyRencontreMessage } from '@/services/oneSignalNotifications';
 
 const MessagesPrives = () => {
@@ -29,6 +30,15 @@ const MessagesPrives = () => {
   const [presenceByUserId, setPresenceByUserId] = useState({});
   const listRef = useRef(null);
   const endRef = useRef(null);
+  const mediaInputRef = useRef(null);
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const recordingIntervalRef = useRef(null);
+  const mimeRef = useRef(null);
 
   const fetchMyRencontreId = useCallback(async () => {
     if (!user) return;
@@ -123,6 +133,111 @@ const MessagesPrives = () => {
     scrollToBottom();
   }, [messages, selectedMatch, scrollToBottom]);
 
+  const pickSupportedMime = () => {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('safari')) {
+      return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+    }
+    if (ua.includes('android')) {
+      return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+    }
+    if (window.MediaRecorder?.isTypeSupported?.('audio/webm;codecs=opus')) {
+      return { type: 'audio/webm;codecs=opus', ext: 'webm' };
+    }
+    if (window.MediaRecorder?.isTypeSupported?.('audio/ogg;codecs=opus')) {
+      return { type: 'audio/ogg;codecs=opus', ext: 'ogg' };
+    }
+    return { type: 'audio/mp4;codecs=mp4a.40.2', ext: 'm4a' };
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMediaFile(file);
+      setMediaPreviewUrl(URL.createObjectURL(file));
+      setAudioBlob(null);
+      setRecordingTime(0);
+      mimeRef.current = null;
+    }
+  };
+
+  const handleRemoveMedia = () => {
+    setMediaFile(null);
+    setMediaPreviewUrl(null);
+    if (mediaInputRef.current) mediaInputRef.current.value = '';
+  };
+
+  const uploadToBunny = async (file, folder) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+    const controller = new AbortController();
+    const timeoutMs = 60000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+    const text = await response.text();
+    let data = null;
+    if (text) {
+      try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); }
+    }
+    if (!response.ok || !data?.success) {
+      const message = data?.message || data?.error || `Erreur d’upload (${response.status})`;
+      throw new Error(message);
+    }
+    return data.url;
+  };
+
+  const startRecording = async () => {
+    try {
+      setAudioBlob(null);
+      setRecordingTime(0);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chosen = pickSupportedMime();
+      mimeRef.current = chosen;
+      const chunks = [];
+      const supportedMimeType = window.MediaRecorder?.isTypeSupported?.(chosen.type) ? chosen.type : undefined;
+      const recorder = supportedMimeType ? new MediaRecorder(stream, { mimeType: supportedMimeType }) : new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = async () => {
+        clearInterval(recordingIntervalRef.current);
+        stream.getTracks().forEach((t) => t.stop());
+        await new Promise((r) => setTimeout(r, 200));
+        const candidateType = recorder?.mimeType || (chunks[0]?.type) || mimeRef.current?.type || 'audio/mp4';
+        const finalType = (candidateType || 'audio/mp4').split(';')[0];
+        const blob = new Blob(chunks, { type: finalType });
+        setAudioBlob(blob);
+        setIsRecording(false);
+        mediaRecorderRef.current = null;
+      };
+      await new Promise((r) => setTimeout(r, 200));
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      recordingIntervalRef.current = setInterval(() => setRecordingTime((t) => t + 1), 1000);
+      setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 60000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.requestData?.();
+      setTimeout(() => { if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') mediaRecorderRef.current.stop(); }, 300);
+      clearInterval(recordingIntervalRef.current);
+    }
+  };
+
+  const handleRemoveAudio = () => {
+    setAudioBlob(null);
+    setRecordingTime(0);
+  };
+
   const loadMessages = async (matchId) => {
     setSelectedMatch(matchId);
     setMessages([]);
@@ -147,7 +262,7 @@ const MessagesPrives = () => {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedMatch || !myRencontreId) return;
+    if (!selectedMatch || !myRencontreId) return;
 
     const currentMatch = matches.find(m => m.id === selectedMatch);
     if (!currentMatch) return;
@@ -155,27 +270,59 @@ const MessagesPrives = () => {
 
     const receiver_id = currentMatch.user1_id === myRencontreId ? currentMatch.user2_id : currentMatch.user1_id;
 
-    const content = newMessage.trim();
-    const { error } = await supabase.from("messages_rencontres").insert({
-      match_id: selectedMatch,
-      sender_id: myRencontreId,
-      receiver_id: receiver_id,
-      content,
-    });
-    if (!error) {
-      setNewMessage("");
-      try {
-        const other = currentMatch.user1_id === myRencontreId ? currentMatch.user2 : currentMatch.user1;
-        const recipientUserId = other?.user_id;
-        if (recipientUserId) {
-          await notifyRencontreMessage({
-            recipientId: recipientUserId,
-            senderName: myRencontreProfile?.name || undefined,
-            message: content,
-            matchId: selectedMatch,
-          });
-        }
-      } catch (_) {}
+    try {
+      if (audioBlob) {
+        const { ext, type } = mimeRef.current || { ext: 'webm', type: audioBlob.type || 'audio/webm' };
+        const file = new File([audioBlob], `rencontre-audio-${selectedMatch}-${Date.now()}.${ext}`, { type });
+        const { publicUrl } = await uploadAudioFile(file, 'comments_audio');
+        const { error } = await supabase.from("messages_rencontres").insert({
+          match_id: selectedMatch,
+          sender_id: myRencontreId,
+          receiver_id,
+          content: publicUrl,
+        });
+        if (error) throw error;
+        handleRemoveAudio();
+        return;
+      }
+      if (mediaFile) {
+        const url = await uploadToBunny(mediaFile, 'comments');
+        const { error } = await supabase.from("messages_rencontres").insert({
+          match_id: selectedMatch,
+          sender_id: myRencontreId,
+          receiver_id,
+          content: url,
+        });
+        if (error) throw error;
+        handleRemoveMedia();
+        return;
+      }
+
+      const content = newMessage.trim();
+      if (!content) return;
+      const { error } = await supabase.from("messages_rencontres").insert({
+        match_id: selectedMatch,
+        sender_id: myRencontreId,
+        receiver_id,
+        content,
+      });
+      if (!error) {
+        setNewMessage("");
+        try {
+          const other = currentMatch.user1_id === myRencontreId ? currentMatch.user2 : currentMatch.user1;
+          const recipientUserId = other?.user_id;
+          if (recipientUserId) {
+            await notifyRencontreMessage({
+              recipientId: recipientUserId,
+              senderName: myRencontreProfile?.name || undefined,
+              message: content,
+              matchId: selectedMatch,
+            });
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      // ignore for now
     }
   };
 
@@ -336,24 +483,40 @@ const MessagesPrives = () => {
                 );
               })()}
               <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain border p-3 rounded-md bg-gray-50 mb-2">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`my-2 flex ${
-                      msg.sender_id === myRencontreId ? "justify-end" : "justify-start"
-                    }`}
-                  >
+                {messages.map((msg) => {
+                  const text = msg.content || '';
+                  const mediaUrl = (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
+                  const isVideo = mediaUrl ? /(\.mp4|\.mov|\.webm)(\?|$)/i.test(mediaUrl) : false;
+                  const audioUrl = (/^https?:\/\/\S+\.(?:m4a|mp3|ogg|webm)(\?|$)/i.test(text) ? text : null);
+                  return (
                     <div
-                      className={`px-3 py-2 rounded-2xl max-w-sm ${
-                        msg.sender_id === myRencontreId
-                          ? "bg-green-500 text-white rounded-br-none"
-                          : "bg-gray-200 text-gray-800 rounded-bl-none"
+                      key={msg.id}
+                      className={`my-2 flex ${
+                        msg.sender_id === myRencontreId ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {msg.content}
+                      <div
+                        className={`px-3 py-2 rounded-2xl max-w-sm ${
+                          msg.sender_id === myRencontreId
+                            ? "bg-green-500 text-white rounded-br-none"
+                            : "bg-gray-200 text-gray-800 rounded-bl-none"
+                        }`}
+                      >
+                        {audioUrl ? (
+                          <audio src={audioUrl} controls className="w-full" preload="metadata" />
+                        ) : mediaUrl ? (
+                          isVideo ? (
+                            <video src={mediaUrl} controls className="w-56 rounded" />
+                          ) : (
+                            <img src={mediaUrl} alt="media" className="w-40 rounded" />
+                          )
+                        ) : (
+                          <div className="whitespace-pre-wrap break-words">{text}</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={endRef} />
               </div>
 
@@ -361,18 +524,53 @@ const MessagesPrives = () => {
                 const selectedMatchRow = matches.find(m => m.id === selectedMatch);
                 const isEnded = Boolean(selectedMatchRow?.ended_at);
                 return (
-                  <div className="mt-auto flex gap-2">
-                    <Input
-                      placeholder={isEnded ? 'Chat terminé' : 'Votre message...'}
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !isEnded && sendMessage()}
-                      onFocus={() => setTimeout(scrollToBottom, 50)}
-                      disabled={isEnded}
-                    />
-                    <Button onClick={sendMessage} disabled={isEnded} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-                      <Send className="h-5 w-5" />
-                    </Button>
+                  <div className="mt-auto">
+                    {mediaPreviewUrl ? (
+                      <div className="mb-2">
+                        {String(mediaFile?.type||'').startsWith('video/') ? (
+                          <video src={mediaPreviewUrl} controls className="w-56 rounded" />
+                        ) : (
+                          <img src={mediaPreviewUrl} alt="preview" className="w-40 rounded" />
+                        )}
+                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveMedia} className="mt-1"><X className="h-4 w-4 mr-1" /> Retirer</Button>
+                      </div>
+                    ) : null}
+                    {audioBlob ? (
+                      <div className="mb-2 flex items-center gap-2">
+                        <audio src={URL.createObjectURL(audioBlob)} controls className="w-full" />
+                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveAudio}><X className="h-4 w-4 mr-1" /> Retirer</Button>
+                      </div>
+                    ) : null}
+                    <div className="flex gap-2 items-center">
+                      {!isRecording && !audioBlob && (
+                        <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={isEnded} aria-label="Ajouter média">
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isEnded || isRecording || !!audioBlob} />
+                      {!isRecording && !audioBlob && (
+                        <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isEnded} aria-label="Enregistrer audio">
+                          <Mic className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {isRecording && (
+                        <Button size="sm" type="button" variant="destructive" onClick={stopRecording} aria-label="Arrêter l'enregistrement">
+                          <Square className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <div className="text-xs text-gray-600 min-w-[48px]">{isRecording ? `${recordingTime}s` : ''}</div>
+                      <Input
+                        placeholder={isEnded ? 'Chat terminé' : 'Votre message...'}
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !isEnded && sendMessage()}
+                        onFocus={() => setTimeout(scrollToBottom, 50)}
+                        disabled={isEnded}
+                      />
+                      <Button onClick={sendMessage} disabled={isEnded || (!newMessage.trim() && !mediaFile && !audioBlob)} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                        <Send className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })()}
