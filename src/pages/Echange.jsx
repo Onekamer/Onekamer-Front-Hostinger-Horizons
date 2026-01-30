@@ -1202,6 +1202,8 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }
   const [warnReason, setWarnReason] = useState('Contenu inapproprié');
   const [warnMessage, setWarnMessage] = useState('');
   const [warnSending, setWarnSending] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(0);
   const isMyPost = user?.id === post.user_id;
   const isAdmin =
     profile?.is_admin === true ||
@@ -1298,6 +1300,32 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }
       toast({ title: 'Partage non disponible', description: "Votre navigateur ne supporte pas le partage natif." });
     }
   };
+
+  // Compteur de commentaires pour les posts audio (réponses directes)
+  const refreshCommentsCount = useCallback(async () => {
+    try {
+      const { count } = await supabase
+        .from('comments')
+        .select('id', { count: 'exact', head: true })
+        .eq('content_type', 'echange')
+        .eq('parent_comment_id', post.id);
+      setCommentsCount(Number(count) || 0);
+    } catch (_) {}
+  }, [post.id]);
+
+  useEffect(() => {
+    refreshCommentsCount();
+    const channel = supabase
+      .channel(`echange-audio-comments-${post.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `parent_comment_id=eq.${post.id}` }, () => {
+        refreshCommentsCount();
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments', filter: `parent_comment_id=eq.${post.id}` }, () => {
+        refreshCommentsCount();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [post.id, refreshCommentsCount]);
 
   return (
     <Card id={`feed-item-audio_post-${post.id}`}>
