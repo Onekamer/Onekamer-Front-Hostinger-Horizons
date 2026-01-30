@@ -192,7 +192,7 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
   );
 };
 
-const AudioPlayer = ({ src, initialDuration = 0 }) => {
+const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
     const audioRef = useRef(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [duration, setDuration] = useState(initialDuration);
@@ -219,24 +219,30 @@ const AudioPlayer = ({ src, initialDuration = 0 }) => {
                 }
                 setCurrentTime(audio.currentTime);
                 setIsLoading(false);
-            }
+            };
             const setAudioTime = () => setCurrentTime(audio.currentTime);
+            const onError = () => setIsLoading(false);
 
+            audio.addEventListener('loadedmetadata', setAudioData);
             audio.addEventListener('loadeddata', setAudioData);
             audio.addEventListener('timeupdate', setAudioTime);
             audio.addEventListener('ended', () => setIsPlaying(false));
             audio.addEventListener('canplaythrough', () => setIsLoading(false));
-            
-            if (audio.readyState >= 2) {
+            audio.addEventListener('error', onError);
+
+            try { audio.load?.(); } catch (_) {}
+            if (audio.readyState >= 1) {
                 setAudioData();
             }
 
             return () => {
+                audio.removeEventListener('loadedmetadata', setAudioData);
                 audio.removeEventListener('loadeddata', setAudioData);
                 audio.removeEventListener('timeupdate', setAudioTime);
                 audio.removeEventListener('ended', () => setIsPlaying(false));
                 audio.removeEventListener('canplaythrough', () => setIsLoading(false));
-            }
+                audio.removeEventListener('error', onError);
+            };
         }
     }, [src]);
 
@@ -251,7 +257,13 @@ const AudioPlayer = ({ src, initialDuration = 0 }) => {
 
     return (
         <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2">
-            <audio ref={audioRef} src={src} preload="metadata"></audio>
+            <audio ref={audioRef} preload="auto" playsInline>
+              {mimeType ? (
+                <source src={src} type={(mimeType || '').split(';')[0]} />
+              ) : (
+                <source src={src} />
+              )}
+            </audio>
             <Button onClick={togglePlayPause} size="icon" className="rounded-full w-8 h-8" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />)}
             </Button>
@@ -516,7 +528,13 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
 
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const finalType = (mimeRef.current?.type || 'audio/webm').split(";")[0];
+      const candidateType = (
+        recorder?.mimeType ||
+        (audioChunksRef.current && audioChunksRef.current[0]?.type) ||
+        mimeRef.current?.type ||
+        'audio/mp4'
+      );
+      const finalType = (candidateType || 'audio/mp4').split(';')[0];
       const audioBlob = new Blob(audioChunksRef.current, { type: finalType });
       console.log("💾 Taille finale du blob :", audioBlob.size, "octets");
 
@@ -797,7 +815,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent }) => {
                   ) : mediaPreviewUrl ? (
                     <video src={mediaPreviewUrl} controls className="w-full rounded object-cover" />
                   ) : audioBlob ? (
-                    <AudioPlayer src={URL.createObjectURL(audioBlob)} />
+                    <AudioPlayer src={URL.createObjectURL(audioBlob)} mimeType={(mimeRef.current?.type || audioBlob.type || 'audio/mp4').split(';')[0]} />
                   ) : null}
                   <Button size="icon" variant="destructive" onClick={mediaPreviewUrl ? handleRemoveMedia : handleRemoveAudio} className="absolute -top-1 -right-1 h-5 w-5 rounded-full">
                       <X className="h-3 w-3" />

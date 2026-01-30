@@ -12,7 +12,7 @@ import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
 
-const AudioPlayer = ({ src, onCanPlay }) => {
+const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
     const audioRef = useRef(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -36,34 +36,34 @@ const AudioPlayer = ({ src, onCanPlay }) => {
             const setAudioData = () => {
                 if (isFinite(audio.duration)) {
                     setDuration(audio.duration);
-                    if(onCanPlay) onCanPlay(audio.duration);
+                    if (onCanPlay) onCanPlay(audio.duration);
                 }
                 setCurrentTime(audio.currentTime);
                 setIsLoading(false);
-            }
+            };
             const setAudioTime = () => setCurrentTime(audio.currentTime);
+            const onError = () => setIsLoading(false);
 
+            audio.addEventListener('loadedmetadata', setAudioData);
             audio.addEventListener('loadeddata', setAudioData);
             audio.addEventListener('timeupdate', setAudioTime);
             audio.addEventListener('ended', () => setIsPlaying(false));
-            audio.addEventListener('canplaythrough', () => {
-                setIsLoading(false);
-                setAudioData();
-            });
+            audio.addEventListener('canplaythrough', () => { setIsLoading(false); setAudioData(); });
+            audio.addEventListener('error', onError);
 
-            if (audio.readyState >= 2) {
+            try { audio.load?.(); } catch (_) {}
+            if (audio.readyState >= 1) {
               setAudioData();
             }
 
             return () => {
+                audio.removeEventListener('loadedmetadata', setAudioData);
                 audio.removeEventListener('loadeddata', setAudioData);
                 audio.removeEventListener('timeupdate', setAudioTime);
                 audio.removeEventListener('ended', () => setIsPlaying(false));
-                audio.removeEventListener('canplaythrough', () => {
-                    setIsLoading(false);
-                    setAudioData();
-                });
-            }
+                audio.removeEventListener('canplaythrough', () => { setIsLoading(false); setAudioData(); });
+                audio.removeEventListener('error', onError);
+            };
         }
     }, [src, onCanPlay]);
 
@@ -76,7 +76,13 @@ const AudioPlayer = ({ src, onCanPlay }) => {
 
     return (
         <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2">
-            <audio ref={audioRef} src={src} preload="metadata"></audio>
+            <audio ref={audioRef} preload="auto" playsInline>
+                {mimeType ? (
+                  <source src={src} type={mimeType} />
+                ) : (
+                  <source src={src} />
+                )}
+            </audio>
             <Button onClick={togglePlayPause} size="icon" className="rounded-full w-8 h-8" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : (isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />)}
             </Button>
@@ -365,10 +371,14 @@ const CreatePost = () => {
 
         await new Promise((r) => setTimeout(r, 500));
 
-        const { type } = mimeRef.current;
-        const finalBlob = new Blob(chunksRef.current, {
-          type: type.split(";")[0],
-        });
+        const candidateType = (
+          mediaRecorder?.mimeType ||
+          (chunksRef.current && chunksRef.current[0]?.type) ||
+          mimeRef.current?.type ||
+          'audio/mp4'
+        );
+        const finalType = (candidateType || 'audio/mp4').split(';')[0];
+        const finalBlob = new Blob(chunksRef.current, { type: finalType });
 
         console.log("🎧 Taille audio finale :", finalBlob.size, "octets");
 
@@ -692,7 +702,7 @@ const CreatePost = () => {
         
         {audioBlob && !recording && (
              <div className="relative p-2 bg-gray-100 rounded-lg mb-3">
-                <AudioPlayer src={URL.createObjectURL(audioBlob)} onCanPlay={(d) => setAudioDuration(d)} />
+                <AudioPlayer src={URL.createObjectURL(audioBlob)} onCanPlay={(d) => setAudioDuration(d)} mimeType={(mimeRef.current?.type || audioBlob.type || 'audio/mp4').split(';')[0]} />
                 <Button size="icon" variant="destructive" onClick={handleRemoveAudio} className="absolute -top-1 -right-1 h-5 w-5 rounded-full">
                     <X className="h-3 w-3" />
                 </Button>
