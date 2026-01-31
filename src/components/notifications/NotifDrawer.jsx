@@ -16,15 +16,27 @@ function routeForNotification(n) {
       if (typeof n.url === 'string' && n.url.startsWith('/')) return n.url
     }
   }
+  if (n?.data?.deeplink && n.data.deeplink !== '/') return n.data.deeplink
+  if (n?.data?.url && n.data.url !== '/') {
+    try {
+      const u2 = new URL(n.data.url, window.location.origin)
+      if (u2.origin === window.location.origin) {
+        return `${u2.pathname}${u2.search}${u2.hash}` || '/'
+      }
+      return u2.href
+    } catch (_) {
+      if (typeof n.data.url === 'string' && n.data.url.startsWith('/')) return n.data.url
+    }
+  }
 
-  const t = (n?.type || '').toLowerCase()
-  const postId = n?.postId || (n?.contentType === 'post' ? n?.contentId : null)
-  const audioId = n?.audioId || (n?.contentType === 'echange' && n?.isAudio ? n?.contentId : null)
-  const commentId = n?.commentId || n?.replyId || null
+  const t = ((n?.type || (n?.data && n.data.type) || '') + '').toLowerCase()
   const data = n?.data || {}
+  const postId = n?.postId || data?.postId || data?.post_id || (((n?.contentType || data?.contentType) === 'post') ? (n?.contentId || data?.contentId) : null)
+  const audioId = n?.audioId || data?.audioId || data?.audio_id || (((n?.contentType || data?.contentType) === 'echange' && (n?.isAudio || data?.isAudio)) ? (n?.contentId || data?.contentId) : null)
+  const commentId = n?.commentId || n?.replyId || data?.commentId || data?.replyId || data?.comment_id || null
 
   // 2) Redirections précises Échange (posts / audio / commentaires)
-  if (['echange', 'post', 'post_like', 'post_comment', 'comment', 'mentions', 'echange_audio', 'audio_post', 'audio_comment'].includes(t)) {
+  if (['echange', 'post', 'post_like', 'post_comment', 'comment', 'like', 'mention', 'mentions', 'echange_audio', 'audio_post', 'audio_comment', 'audio_like'].includes(t)) {
     if (postId) {
       return `/echange?postId=${encodeURIComponent(postId)}${commentId ? `&commentId=${encodeURIComponent(commentId)}` : ''}`
     }
@@ -43,6 +55,15 @@ function routeForNotification(n) {
   if (/(review|avis)/.test(t)) {
     return '/marketplace/ma-boutique'
   }
+  if (/(group|groupe)/.test(t) || t === 'group_message' || t === 'groupes_message') {
+    const groupId = n?.groupId || n?.group_id || data?.groupId || data?.group_id || n?.contentId
+    const messageId = n?.messageId || data?.messageId || data?.id
+    if (groupId) {
+      const qp = messageId ? `?messageId=${encodeURIComponent(messageId)}` : ''
+      return `/groupes/${encodeURIComponent(groupId)}${qp}`
+    }
+    return '/groupes'
+  }
 
   switch (t) {
     case 'annonce':
@@ -51,14 +72,17 @@ function routeForNotification(n) {
       return '/annonces'
     case 'evenement':
     case 'evenements':
+      if (n?.contentId) return `/evenements?eventId=${n.contentId}`
       return '/evenements'
     case 'systeme':
       return '/aide'
     case 'partenaire':
     case 'partenaires':
+      if (n?.contentId) return `/partenaires?partnerId=${n.contentId}`
       return '/partenaires'
     case 'fait_divers':
     case 'faits_divers':
+      if (n?.contentId) return `/faits-divers?articleId=${n.contentId}`
       return '/faits-divers'
     case 'groupes':
       return '/groupes'
@@ -66,7 +90,17 @@ function routeForNotification(n) {
       return '/rencontre/profil'
     case 'rencontre_match':
     case 'rencontre_message':
-      return '/rencontre/messages'
+      {
+        const matchId = n?.matchId || data?.matchId || n?.contentId
+        if (matchId) return `/rencontre/messages/${encodeURIComponent(matchId)}`
+        return '/rencontre/messages'
+      }
+    case 'rencontre_like':
+      {
+        const likerUserId = n?.likerUserId || data?.likerUserId
+        if (likerUserId) return `/rencontre?rid=${encodeURIComponent(likerUserId)}`
+        return '/rencontre'
+      }
     case 'donation':
       return '/ok-coins'
     default:
