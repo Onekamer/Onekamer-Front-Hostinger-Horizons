@@ -2,13 +2,27 @@ import React from 'react'
 import { Button } from '@/components/ui/button'
 
 function routeForNotification(n) {
-  // 1️⃣ Si un deeplink précis est présent et non générique, on le réutilise
-  if (n?.deeplink && n.deeplink !== '/' && n.deeplink !== '/annonces') return n.deeplink
+  // 1) Si un deeplink précis est présent, on le privilégie
+  if (n?.deeplink && n.deeplink !== '/') return n.deeplink
 
-  const t = n?.type
+  const t = (n?.type || '').toLowerCase()
+  const postId = n?.postId || (n?.contentType === 'post' ? n?.contentId : null)
+  const audioId = n?.audioId || (n?.contentType === 'echange' && n?.isAudio ? n?.contentId : null)
+  const commentId = n?.commentId || n?.replyId || null
+
+  // 2) Redirections précises Échange (posts / audio / commentaires)
+  if (['echange', 'post', 'post_like', 'post_comment', 'comment', 'mentions', 'echange_audio', 'audio_post', 'audio_comment'].includes(t)) {
+    if (postId) {
+      return `/echange?postId=${encodeURIComponent(postId)}${commentId ? `&commentId=${encodeURIComponent(commentId)}` : ''}`
+    }
+    if (audioId) {
+      return `/echange?audioId=${encodeURIComponent(audioId)}${commentId ? `&commentId=${encodeURIComponent(commentId)}` : ''}`
+    }
+    // fallback échange sans id
+    return '/echange'
+  }
+
   switch (t) {
-    case 'mentions':
-      return '/echange'
     case 'annonce':
     case 'annonces':
       if (n?.contentId) return `/annonces?annonceId=${n.contentId}`

@@ -313,7 +313,7 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
   );
 };
 
-const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioParentId, refreshBalance }) => {
+const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioParentId, refreshBalance, highlightCommentId }) => {
   const { user, profile } = useAuth();
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
@@ -850,6 +850,19 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     return acc;
   }, {});
 
+  useEffect(() => {
+    if (!highlightCommentId) return;
+    const el = document.getElementById(`comment-${highlightCommentId}`);
+    if (el) {
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) { el.scrollIntoView(); }
+      el.classList.add('ring-2', 'ring-emerald-400');
+      const t = setTimeout(() => {
+        try { el.classList.remove('ring-2', 'ring-emerald-400'); } catch (_) {}
+      }, 2500);
+      return () => clearTimeout(t);
+    }
+  }, [highlightCommentId, comments.length]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -863,7 +876,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           topLevel.length > 0 ? (
             <div className="space-y-3 mb-4">
               {topLevel.map((comment) => (
-                <div key={comment.id} className="flex flex-col gap-2">
+                <div key={comment.id} id={`comment-${comment.id}`} className="flex flex-col gap-2">
                   <div className="flex gap-2 items-start">
                     <div className="cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>
                       <CommentAvatar avatarPath={comment.author?.avatar_url} username={comment.author?.username} userId={comment.author?.id} />
@@ -890,7 +903,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                   {(childrenMap[comment.id] || []).length > 0 && (
                     <div className="ml-10 space-y-2">
                       {(childrenMap[comment.id] || []).map((child) => (
-                        <div key={child.id} className="flex gap-2 items-start">
+                        <div key={child.id} id={`comment-${child.id}`} className="flex gap-2 items-start">
                           <div className="cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>
                             <CommentAvatar avatarPath={child.author?.avatar_url} username={child.author?.username} userId={child.author?.id} />
                           </div>
@@ -984,7 +997,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
 };
 
 
-const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments, onToggleComments, refreshBalance }) => {
+const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments, onToggleComments, refreshBalance, highlightCommentId }) => {
   const navigate = useNavigate();
   const { onlineUserIds } = useAuth();
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
@@ -1059,6 +1072,10 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   const videoUrl = post.video_url;
 
   const canWarn = isAdmin && user && !isMyPost && typeof onWarn === 'function';
+
+  useEffect(() => {
+    if (autoOpen) setCommentsOpen(true);
+  }, [autoOpen]);
 
   const submitWarn = async () => {
     try {
@@ -1202,14 +1219,23 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           )}
         </div>
         <AnimatePresence>
-          {showComments && <CommentSection postId={post.id} postOwnerId={post.user_id} authorName={profile?.username} postContent={post.content} refreshBalance={refreshBalance} />}
+          {showComments && (
+            <CommentSection
+              postId={post.id}
+              postOwnerId={post.user_id}
+              authorName={profile?.username}
+              postContent={post.content}
+              refreshBalance={refreshBalance}
+              highlightCommentId={highlightCommentId}
+            />
+          )}
         </AnimatePresence>
       </CardContent>
     </Card>
   )
 }
 
-const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }) => {
+const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, autoOpen, highlightCommentId }) => {
   const navigate = useNavigate();
   const { onlineUserIds } = useAuth();
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
@@ -1465,6 +1491,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }
                   postContent={post.content}
                   audioParentId={post.id}
                   refreshBalance={refreshBalance}
+                  highlightCommentId={highlightCommentId}
                 />
               )}
             </AnimatePresence>
@@ -1480,6 +1507,7 @@ const Echange = () => {
   const [feedItems, setFeedItems] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [openComments, setOpenComments] = useState({});
+  const [deeplinkTarget, setDeeplinkTarget] = useState({ feedType: null, id: null, commentId: null });
   const location = useLocation();
 
   const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
@@ -1582,12 +1610,13 @@ const Echange = () => {
     }
   }, [fetchFeed]);
 
-  // Deep-link: scroll to targeted item and open comments when applicable
+  // Deep-link: scroll to targeted item, highlight briefly, and open comments when applicable
   useEffect(() => {
     try {
       const params = new URLSearchParams(location.search || "");
       let targetId = null;
       let feedType = "post";
+      const commentId = params.get("commentId");
       if (params.get("postId")) {
         targetId = params.get("postId");
         feedType = "post";
@@ -1599,8 +1628,14 @@ const Echange = () => {
       const el = document.getElementById(`feed-item-${feedType}-${targetId}`);
       if (el) {
         try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_e) { el.scrollIntoView(); }
+        // highlight card briefly
+        try {
+          el.classList.add('ring-2', 'ring-emerald-400');
+          setTimeout(() => { try { el.classList.remove('ring-2', 'ring-emerald-400'); } catch (_) {} }, 2500);
+        } catch (_) {}
         if (feedType === "post") { setOpenComments((prev) => ({ ...prev, [targetId]: true })); }
       }
+      setDeeplinkTarget({ feedType, id: targetId, commentId: commentId || null });
     } catch (_e) {}
   }, [location.search, loadingPosts, feedItems]);
 
@@ -1720,9 +1755,19 @@ const Echange = () => {
                       showComments={!!openComments[item.id]}
                       onToggleComments={() => handleToggleComments(item.id)}
                       refreshBalance={refreshBalance}
+                      highlightCommentId={deeplinkTarget.feedType === 'post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
                     />
                   ) : (
-                    <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} onWarn={handleWarnUser} refreshBalance={refreshBalance} />
+                    <AudioPostCard
+                      post={item}
+                      user={user}
+                      profile={profile}
+                      onDelete={handleDeleteAudioPost}
+                      onWarn={handleWarnUser}
+                      refreshBalance={refreshBalance}
+                      autoOpen={deeplinkTarget.feedType === 'audio_post' && deeplinkTarget.id === item.id}
+                      highlightCommentId={deeplinkTarget.feedType === 'audio_post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
+                    />
                   )}
                 </motion.div>
               ))
@@ -1743,9 +1788,19 @@ const Echange = () => {
                       showComments={!!openComments[item.id]}
                       onToggleComments={() => handleToggleComments(item.id)}
                       refreshBalance={refreshBalance}
+                      highlightCommentId={deeplinkTarget.feedType === 'post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
                     />
                   ) : (
-                     <AudioPostCard post={item} user={user} profile={profile} onDelete={handleDeleteAudioPost} onWarn={handleWarnUser} refreshBalance={refreshBalance} />
+                     <AudioPostCard
+                       post={item}
+                       user={user}
+                       profile={profile}
+                       onDelete={handleDeleteAudioPost}
+                       onWarn={handleWarnUser}
+                       refreshBalance={refreshBalance}
+                       autoOpen={deeplinkTarget.feedType === 'audio_post' && deeplinkTarget.id === item.id}
+                       highlightCommentId={deeplinkTarget.feedType === 'audio_post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
+                     />
                   )}
                 </motion.div>
               ))
