@@ -190,7 +190,24 @@ const safeAreaStyle = isCapIOS ? { paddingTop: 'var(--safe-top)' } : undefined;
         markAllRead={markAllRead}
         onNavigate={(to) => {
           setOpen(false)
-          navigate(to)
+          try {
+            if (typeof to === 'string' && /^https?:\/\//i.test(to)) {
+              const u = new URL(to, window.location.origin)
+              if (u.origin !== window.location.origin) {
+                window.location.href = u.href
+                return
+              }
+              navigate(`${u.pathname}${u.search}${u.hash}`)
+              return
+            }
+            navigate(to || '/')
+          } catch (_) {
+            if (typeof to === 'string' && to.startsWith('/')) {
+              navigate(to)
+            } else {
+              navigate('/')
+            }
+          }
         }}
       />
     </header>

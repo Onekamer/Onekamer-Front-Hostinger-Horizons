@@ -5,10 +5,23 @@ function routeForNotification(n) {
   // 1) Si un deeplink précis est présent, on le privilégie
   if (n?.deeplink && n.deeplink !== '/') return n.deeplink
 
+  if (n?.url && n.url !== '/') {
+    try {
+      const u = new URL(n.url, window.location.origin)
+      if (u.origin === window.location.origin) {
+        return `${u.pathname}${u.search}${u.hash}` || '/'
+      }
+      return u.href
+    } catch (_) {
+      if (typeof n.url === 'string' && n.url.startsWith('/')) return n.url
+    }
+  }
+
   const t = (n?.type || '').toLowerCase()
   const postId = n?.postId || (n?.contentType === 'post' ? n?.contentId : null)
   const audioId = n?.audioId || (n?.contentType === 'echange' && n?.isAudio ? n?.contentId : null)
   const commentId = n?.commentId || n?.replyId || null
+  const data = n?.data || {}
 
   // 2) Redirections précises Échange (posts / audio / commentaires)
   if (['echange', 'post', 'post_like', 'post_comment', 'comment', 'mentions', 'echange_audio', 'audio_post', 'audio_comment'].includes(t)) {
@@ -20,6 +33,15 @@ function routeForNotification(n) {
     }
     // fallback échange sans id
     return '/echange'
+  }
+
+  if (/(market|commande|order)/.test(t)) {
+    const orderId = n?.orderId || data?.orderId || data?.order_id || (/(order|commande)/.test(t) ? (n?.contentId || data?.id) : null)
+    if (orderId) return `/market/orders/${encodeURIComponent(orderId)}`
+    return '/market/orders'
+  }
+  if (/(review|avis)/.test(t)) {
+    return '/marketplace/ma-boutique'
   }
 
   switch (t) {

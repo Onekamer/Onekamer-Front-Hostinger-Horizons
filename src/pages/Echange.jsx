@@ -1073,10 +1073,6 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
 
   const canWarn = isAdmin && user && !isMyPost && typeof onWarn === 'function';
 
-  useEffect(() => {
-    if (autoOpen) setCommentsOpen(true);
-  }, [autoOpen]);
-
   const submitWarn = async () => {
     try {
       if (!warnReason.trim() || !warnMessage.trim()) {
