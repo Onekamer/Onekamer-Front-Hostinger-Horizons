@@ -569,6 +569,7 @@ const CreatePost = () => {
                 authorName: profile?.username || user?.email || 'Un membre OneKamer',
                 excerpt: currentPostText,
                 postId: insertedComment?.id,
+                preview: { text80: currentPostText || '', mediaType: 'audio' },
               });
             } catch (notificationError) {
               console.error('Erreur notification OneSignal (commentaire audio):', notificationError);
@@ -601,11 +602,14 @@ const CreatePost = () => {
 
           if (insertedPost && mentionProfiles.length) {
             try {
+              const mediaType = insertedPost?.image_url ? 'image' : (insertedPost?.video_url ? 'video' : null);
+              const mediaUrl = insertedPost?.image_url || insertedPost?.video_url || null;
               await notifyMentions({
                 mentionedUserIds: mentionProfiles.map((m) => m.id),
                 authorName: profile?.username || user?.email || 'Un membre OneKamer',
                 excerpt: currentPostText,
                 postId: insertedPost.id,
+                preview: { text80: currentPostText || '', mediaType, mediaUrl },
               });
             } catch (notificationError) {
               console.error('Erreur notification OneSignal (mentions):', notificationError);

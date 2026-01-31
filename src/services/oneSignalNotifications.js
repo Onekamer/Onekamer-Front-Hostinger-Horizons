@@ -27,6 +27,8 @@ const clip = (s, n = 80) => {
   return t.length > n ? `${t.slice(0, n)}…` : t;
 };
 
+const mediaLabel = (mt) => (mt === 'image' ? '🖼️ Image' : (mt === 'video' ? '🎬 Vidéo' : (mt === 'audio' ? '🎧 Fichier audio' : '')));
+
 const postNotification = async (payload = {}) => {
   const endpoint = resolveEndpoint();
   if (!endpoint) return false;
@@ -94,10 +96,11 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
 
   const name = actorName || authorName || 'Un membre';
   const text80 = clip((preview?.text80 || excerpt || ''));
+  const l3 = text80 || mediaLabel(preview?.mediaType);
 
   return postNotification({
     title: 'Echange communautaire',
-    message: `${name} vous a mentionné\n${text80 || ''}`.trim(),
+    message: `${name} vous a mentionné${l3 ? ` — ${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
@@ -213,10 +216,11 @@ export const notifyPostLiked = async ({ receiverId, actorName, postId, excerpt, 
 
   const name = actorName || 'Un membre';
   const text80 = clip((preview?.text80 || excerpt || ''));
+  const l3 = text80 || mediaLabel(preview?.mediaType);
 
   return postNotification({
     title: 'Echange communautaire',
-    message: `${name} a liké\n${text80 || ''}`.trim(),
+    message: `${name} a liké${l3 ? ` — ${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
@@ -239,10 +243,11 @@ export const notifyPostCommented = async ({ receiverId, actorName, postId, excer
 
   const name = actorName || 'Un membre';
   const text80 = clip((preview?.text80 || excerpt || ''));
+  const l3 = text80 || mediaLabel(preview?.mediaType);
 
   return postNotification({
     title: 'Echange communautaire',
-    message: `${name} a commenté\n${text80 || ''}`.trim(),
+    message: `${name} a commenté${l3 ? ` — ${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}${commentId ? `&commentId=${commentId}` : ''}` : '/echange',
     data: {

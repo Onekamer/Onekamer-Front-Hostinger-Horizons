@@ -813,7 +813,11 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             payload.content_id = postId;
             if (replyTo) payload.parent_comment_id = replyTo;
         }
-        const { error: insertError } = await supabase.from('comments').insert([payload]);
+        const { data: insertedComment, error: insertError } = await supabase
+          .from('comments')
+          .insert([payload])
+          .select('id, type, media_url, media_type, audio_url')
+          .single();
 
         if (insertError) throw insertError;
         try {
@@ -822,7 +826,12 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
               receiverId: postOwnerId,
               actorName: (user?.user_metadata?.username) || authorName || 'Un membre',
               postId,
-              excerpt: postContent || '',
+              commentId: insertedComment?.id,
+              preview: {
+                text80: newComment || '',
+                mediaType: type === 'image' ? 'image' : (type === 'video' ? 'video' : (type === 'audio' ? 'audio' : null)),
+                mediaUrl: type === 'image' || type === 'video' ? (media_url || null) : null,
+              },
             });
           }
         } catch (_e) {}
@@ -1646,8 +1655,20 @@ const Echange = () => {
         const receiverId = postOwnerId || (feedItems.find((p) => p.feed_type === 'post' && p.id === postId)?.user_id);
         if (receiverId && receiverId !== user.id) {
           const actorName = (profile?.username) || (user?.user_metadata?.username) || 'Un membre';
-          const postContent = (feedItems.find((p) => p.feed_type === 'post' && p.id === postId)?.content) || '';
-          await notifyPostLiked({ receiverId, actorName, postId, excerpt: postContent });
+          const likedPost = feedItems.find((p) => p.feed_type === 'post' && p.id === postId);
+          const postContent = (likedPost?.content) || '';
+          const mediaType = likedPost?.image_url ? 'image' : (likedPost?.video_url ? 'video' : null);
+          const mediaUrl = likedPost?.image_url || likedPost?.video_url || null;
+          await notifyPostLiked({
+            receiverId,
+            actorName,
+            postId,
+            preview: {
+              text80: postContent,
+              mediaType,
+              mediaUrl,
+            },
+          });
         }
       } catch (_e) {}
     }
