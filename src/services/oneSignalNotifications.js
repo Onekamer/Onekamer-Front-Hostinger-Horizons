@@ -22,6 +22,11 @@ const normalizeUserIds = (userIds = []) => {
   return Array.from(new Set(userIds.filter(Boolean)));
 };
 
+const clip = (s, n = 80) => {
+  const t = (s || '').trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+};
+
 const postNotification = async (payload = {}) => {
   const endpoint = resolveEndpoint();
   if (!endpoint) return false;
@@ -83,22 +88,27 @@ const postNotification = async (payload = {}) => {
   }
 };
 
-export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorName, excerpt, postId }) => {
+export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorName, excerpt, postId, preview }) => {
   const targets = normalizeUserIds(mentionedUserIds);
   if (!targets.length) return false;
 
   const name = actorName || authorName || 'Un membre';
-  const safeExcerpt = (excerpt || '').trim();
-  const preview = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
+  const text80 = clip((preview?.text80 || excerpt || ''));
 
   return postNotification({
-    title: `📣 ${name} vous a mentionné`,
-    message: preview || 'Ouvrir la publication',
+    title: 'Echange communautaire',
+    message: `${name} vous a mentionné\n${text80 || ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
       type: 'mention',
       postId,
+      actorName: name,
+      preview: {
+        text80,
+        mediaType: preview?.mediaType || null,
+        mediaUrl: preview?.mediaUrl || null,
+      },
     },
   });
 };
@@ -197,43 +207,54 @@ export const notifyDonationReceived = async ({ receiverId, senderName, amount })
 };
 
 // Échanges: like sur un post
-export const notifyPostLiked = async ({ receiverId, actorName, postId, excerpt }) => {
+export const notifyPostLiked = async ({ receiverId, actorName, postId, excerpt, preview }) => {
   const targets = normalizeUserIds([receiverId]);
   if (!targets.length) return false;
 
   const name = actorName || 'Un membre';
-  const safeExcerpt = (excerpt || '').trim();
-  const preview = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
+  const text80 = clip((preview?.text80 || excerpt || ''));
 
   return postNotification({
-    title: `❤️ ${name} a liké votre post`,
-    message: preview || 'Ouvrir la publication',
+    title: 'Echange communautaire',
+    message: `${name} a liké\n${text80 || ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
       type: 'like',
       postId,
+      actorName: name,
+      preview: {
+        text80,
+        mediaType: preview?.mediaType || null,
+        mediaUrl: preview?.mediaUrl || null,
+      },
     },
   });
 };
 
 // Échanges: commentaire sur un post
-export const notifyPostCommented = async ({ receiverId, actorName, postId, excerpt }) => {
+export const notifyPostCommented = async ({ receiverId, actorName, postId, excerpt, commentId, preview }) => {
   const targets = normalizeUserIds([receiverId]);
   if (!targets.length) return false;
 
   const name = actorName || 'Un membre';
-  const safeExcerpt = (excerpt || '').trim();
-  const preview = safeExcerpt.length > 120 ? `${safeExcerpt.slice(0, 117)}...` : safeExcerpt;
+  const text80 = clip((preview?.text80 || excerpt || ''));
 
   return postNotification({
-    title: `💬 ${name} a commenté votre post`,
-    message: preview || 'Ouvrir la publication',
+    title: 'Echange communautaire',
+    message: `${name} a commenté\n${text80 || ''}`.trim(),
     targetUserIds: targets,
-    url: postId ? `/echange?postId=${postId}` : '/echange',
+    url: postId ? `/echange?postId=${postId}${commentId ? `&commentId=${commentId}` : ''}` : '/echange',
     data: {
       type: 'comment',
       postId,
+      commentId: commentId || null,
+      actorName: name,
+      preview: {
+        text80,
+        mediaType: preview?.mediaType || null,
+        mediaUrl: preview?.mediaUrl || null,
+      },
     },
   });
 };
