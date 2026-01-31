@@ -252,7 +252,7 @@ useEffect(() => {
       
     const swipedRencontreIds = swipedUserIdsData ? swipedUserIdsData.map(l => l.liked_id) : [];
 
-    let query = supabase.from('rencontres').select('*, ville:ville_id(nom)').neq('user_id', user.id);
+    let query = supabase.from('rencontres').select('*, ville:ville_id(nom), profiles(id, is_deleted)').neq('user_id', user.id);
     
     if (swipedRencontreIds.length > 0) {
       query = query.not('id', 'in', `(${swipedRencontreIds.join(',')})`);
@@ -268,7 +268,8 @@ useEffect(() => {
     if (error) {
       toast({ title: "Erreur", description: "Impossible de charger les profils.", variant: "destructive" });
     } else {
-      const normalizedProfiles = (data || []).map(profile => ({
+      const eligible = (data || []).filter((p) => !(p?.profiles?.is_deleted === true));
+      const normalizedProfiles = (eligible || []).map(profile => ({
         ...profile,
         photos: Array.isArray(profile.photos) ? profile.photos.filter(Boolean) : [],
       }));

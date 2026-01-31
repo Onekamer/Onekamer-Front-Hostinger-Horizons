@@ -989,18 +989,20 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   const { onlineUserIds } = useAuth();
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
   const [isLiked, setIsLiked] = useState(false);
-  const [warnOpen, setWarnOpen] = useState(false);
-  const [warnReason, setWarnReason] = useState('Contenu inapproprié');
-  const [warnMessage, setWarnMessage] = useState('');
-  const [warnSending, setWarnSending] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentsCount, setCommentsCount] = useState(0);
   const isMyPost = user?.id === post.user_id;
   const isAdmin =
     profile?.is_admin === true ||
     profile?.is_admin === 1 ||
     profile?.is_admin === 'true' ||
     String(profile?.role || '').toLowerCase() === 'admin';
+  const isDeletedAuthor = post?.profiles?.is_deleted === true;
+  const [warnOpen, setWarnOpen] = useState(false);
+  const [warnReason, setWarnReason] = useState('Contenu inapproprié');
+  const [warnMessage, setWarnMessage] = useState('');
+  const [warnSending, setWarnSending] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(0);
+  // moved isMyPost / isAdmin above to compute isDeletedAuthor consistently
 
   const checkLiked = useCallback(async () => {
     if (!user) return;
@@ -1087,9 +1089,9 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
         <div className="flex items-start gap-3 mb-4">
           <div
             className="relative shrink-0 cursor-pointer"
-            onClick={() => navigate(`/profil/${post.user_id}`)}
+            onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}
           >
-             <UserAvatar avatarUrl={post.profiles?.avatar_url} username={post.profiles?.username} className="w-10 h-10" />
+             <UserAvatar avatarUrl={isDeletedAuthor ? null : post.profiles?.avatar_url} username={isDeletedAuthor ? 'Compte supprimé' : post.profiles?.username} className="w-10 h-10" />
              {isOnline && (
                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
              )}
@@ -1097,8 +1099,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           <div className="flex-1">
             <div className="flex justify-between items-start">
               <div>
-                <div className="font-semibold cursor-pointer hover:underline" onClick={() => navigate(`/profil/${post.user_id}`)}>
-                  {post.profiles?.username || 'Anonyme'}
+                <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
+                  {isDeletedAuthor ? 'Compte supprimé' : (post.profiles?.username || 'Anonyme')}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
               </div>
@@ -1225,6 +1227,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }
     profile?.is_admin === 1 ||
     profile?.is_admin === 'true' ||
     String(profile?.role || '').toLowerCase() === 'admin';
+  const isDeletedAuthor = post?.author?.is_deleted === true;
 
   const canWarn = isAdmin && user && !isMyPost && typeof onWarn === 'function';
 
@@ -1348,9 +1351,9 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }
         <div className="flex items-start gap-3">
           <div
             className="relative shrink-0 cursor-pointer"
-            onClick={() => navigate(`/profil/${post.user_id}`)}
+            onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}
           >
-            <UserAvatar avatarUrl={post.author?.avatar_url} username={post.author?.username} className="w-10 h-10" />
+            <UserAvatar avatarUrl={isDeletedAuthor ? null : post.author?.avatar_url} username={isDeletedAuthor ? 'Compte supprimé' : post.author?.username} className="w-10 h-10" />
             {isOnline && (
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
             )}
@@ -1358,8 +1361,8 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance }
           <div className="flex-1">
             <div className="flex justify-between items-start">
               <div>
-                <div className="font-semibold cursor-pointer hover:underline" onClick={() => navigate(`/profil/${post.user_id}`)}>
-                  {post.author?.username || 'Anonyme'}
+                <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
+                  {isDeletedAuthor ? 'Compte supprimé' : (post.author?.username || 'Anonyme')}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
               </div>
@@ -1548,13 +1551,7 @@ const Echange = () => {
 
     combinedFeed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    const filtered = combinedFeed.filter((item) => {
-      if (item.feed_type === 'post') return item?.profiles?.is_deleted !== true;
-      if (item.feed_type === 'audio_post') return item?.author?.is_deleted !== true;
-      return true;
-    });
-
-    setFeedItems(filtered);
+    setFeedItems(combinedFeed);
     setLoadingPosts(false);
   }, []);
   
