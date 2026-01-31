@@ -245,7 +245,7 @@ const Rechercher = () => {
     }
     if (filter === 'all' || filter === 'posts') {
         searchPromises.push(
-            supabase.from('posts').select('*, profiles(username, avatar_url)').ilike('content', query).limit(10)
+            supabase.from('posts').select('*, profiles(username, avatar_url, is_deleted)').ilike('content', query).limit(10)
             .then(res => ({ type: 'posts', ...res }))
         );
     }
@@ -343,6 +343,8 @@ const Rechercher = () => {
       } catch {}
     }
 
+    // Exclure les posts dont l'auteur est supprimé
+    allResults = allResults.filter((r) => !(r.type === 'posts' && r.data?.profiles?.is_deleted === true));
     setResults(allResults);
     setLoading(false);
 
@@ -368,7 +370,7 @@ const Rechercher = () => {
         if (want('annonces')) push(supabase.from('annonces').select('id, titre, description, media_url').ilike('titre', like).limit(5), 'annonces');
         if (want('partenaires')) push(supabase.from('partenaires').select('id, name, media_url, address').ilike('name', like).limit(5), 'partenaires');
         if (want('evenements')) push(supabase.from('evenements').select('id, title, media_url, date, location').ilike('title', like).limit(5), 'evenements');
-        if (want('posts')) push(supabase.from('posts').select('id, content, profiles(username, avatar_url)').ilike('content', like).limit(5), 'posts');
+        if (want('posts')) push(supabase.from('posts').select('id, content, profiles(username, avatar_url, is_deleted)').ilike('content', like).limit(5), 'posts');
         if (want('faits_divers')) push(supabase.from('faits_divers').select('id, title, image_url').ilike('title', like).limit(5), 'faits_divers');
         const responses = await Promise.all(promises);
         const list = [];
@@ -411,7 +413,8 @@ const Rechercher = () => {
             }
           } catch {}
         }
-        setSuggestions(list.slice(0, 12));
+        const filtered = list.filter((x) => !(x.type === 'posts' && x.data?.profiles?.is_deleted === true));
+        setSuggestions(filtered.slice(0, 12));
       } catch { setSuggestions([]); }
       setSuggestLoading(false);
     }, 250);

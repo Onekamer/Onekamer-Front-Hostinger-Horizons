@@ -59,29 +59,47 @@ const MessagesPrives = () => {
       .order("created_at", { ascending: false });
 
     if (!error) {
-      setMatches(data);
-      const users = {};
-      const otherUserIds = [];
-      data.forEach(match => {
-        const otherUser = match.user1_id === myRencontreId ? match.user2 : match.user1;
-        users[otherUser.id] = otherUser;
-        if (otherUser?.user_id) otherUserIds.push(String(otherUser.user_id));
+      // Collecter tous les autres user_id pour enrichir avec is_deleted
+      const otherUserIdsAll = [];
+      (data || []).forEach(match => {
+        const other = match.user1_id === myRencontreId ? match.user2 : match.user1;
+        if (other?.user_id) otherUserIdsAll.push(String(other.user_id));
       });
-      setOtherUsers(users);
-
-      const uniqueIds = Array.from(new Set(otherUserIds));
+      const uniqueIds = Array.from(new Set(otherUserIdsAll));
+      let byId = {};
       if (uniqueIds.length > 0) {
         const { data: profs } = await supabase
           .from('profiles')
-          .select('id, show_online_status, last_seen_at')
+          .select('id, show_online_status, last_seen_at, is_deleted')
           .in('id', uniqueIds);
-        const byId = (profs || []).reduce((acc, p) => {
+        byId = (profs || []).reduce((acc, p) => {
           acc[String(p.id)] = p;
           return acc;
         }, {});
         setPresenceByUserId(byId);
       } else {
         setPresenceByUserId({});
+      }
+
+      // Filtrer les matchs dont l'autre profil est supprimé
+      const filtered = (data || []).filter((m) => {
+        const other = m.user1_id === myRencontreId ? m.user2 : m.user1;
+        const uid = other?.user_id ? String(other.user_id) : null;
+        return uid && !(byId[uid]?.is_deleted === true);
+      });
+      setMatches(filtered);
+
+      // Construire le mapping des autres utilisateurs pour les cartes de liste
+      const users = {};
+      filtered.forEach(match => {
+        const otherUser = match.user1_id === myRencontreId ? match.user2 : match.user1;
+        users[otherUser.id] = otherUser;
+      });
+      setOtherUsers(users);
+
+      // Si le match sélectionné n'existe plus après filtrage, le désélectionner
+      if (selectedMatch && !filtered.some(m => m.id === selectedMatch)) {
+        setSelectedMatch(null);
       }
     }
     setLoading(false);
@@ -471,10 +489,13 @@ const MessagesPrives = () => {
               {(() => {
                 const selectedMatchRow = matches.find(m => m.id === selectedMatch);
                 const isEnded = Boolean(selectedMatchRow?.ended_at);
+                const other = selectedMatchRow ? (selectedMatchRow.user1_id === myRencontreId ? selectedMatchRow.user2 : selectedMatchRow.user1) : null;
+                const otherDeleted = other?.user_id ? Boolean(presenceByUserId[String(other.user_id)]?.is_deleted) : false;
+                const isBlocked = isEnded || otherDeleted;
                 return (
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-sm text-gray-600">{isEnded ? 'Match archivé' : 'Conversation'}</div>
-                    {!isEnded && (
+                    {!isBlocked && (
                       <Button variant="outline" size="sm" onClick={endMatch}>
                         <XCircle className="h-4 w-4 mr-1" /> Terminer le match
                       </Button>
@@ -523,8 +544,14 @@ const MessagesPrives = () => {
               {(() => {
                 const selectedMatchRow = matches.find(m => m.id === selectedMatch);
                 const isEnded = Boolean(selectedMatchRow?.ended_at);
+                const other = selectedMatchRow ? (selectedMatchRow.user1_id === myRencontreId ? selectedMatchRow.user2 : selectedMatchRow.user1) : null;
+                const otherDeleted = other?.user_id ? Boolean(presenceByUserId[String(other.user_id)]?.is_deleted) : false;
+                const isBlocked = isEnded || otherDeleted;
                 return (
                   <div className="mt-auto">
+                    {otherDeleted && (
+                      <div className="text-xs text-gray-600 mb-2">Ce profil a été supprimé. La conversation est désactivée.</div>
+                    )}
                     {mediaPreviewUrl ? (
                       <div className="mb-2">
                         {String(mediaFile?.type||'').startsWith('video/') ? (
@@ -532,24 +559,24 @@ const MessagesPrives = () => {
                         ) : (
                           <img src={mediaPreviewUrl} alt="preview" className="w-40 rounded" />
                         )}
-                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveMedia} className="mt-1"><X className="h-4 w-4 mr-1" /> Retirer</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveMedia} className="mt-1" disabled={isBlocked}><X className="h-4 w-4 mr-1" /> Retirer</Button>
                       </div>
                     ) : null}
                     {audioBlob ? (
                       <div className="mb-2 flex items-center gap-2">
                         <audio src={URL.createObjectURL(audioBlob)} controls className="w-full" />
-                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveAudio}><X className="h-4 w-4 mr-1" /> Retirer</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveAudio} disabled={isBlocked}><X className="h-4 w-4 mr-1" /> Retirer</Button>
                       </div>
                     ) : null}
                     <div className="flex gap-2 items-center">
                       {!isRecording && !audioBlob && (
-                        <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={isEnded} aria-label="Ajouter média">
+                        <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={isBlocked} aria-label="Ajouter média">
                           <ImageIcon className="h-4 w-4" />
                         </Button>
                       )}
-                      <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isEnded || isRecording || !!audioBlob} />
+                      <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isBlocked || isRecording || !!audioBlob} />
                       {!isRecording && !audioBlob && (
-                        <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isEnded} aria-label="Enregistrer audio">
+                        <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isBlocked} aria-label="Enregistrer audio">
                           <Mic className="h-4 w-4" />
                         </Button>
                       )}
@@ -560,14 +587,14 @@ const MessagesPrives = () => {
                       )}
                       <div className="text-xs text-gray-600 min-w-[48px]">{isRecording ? `${recordingTime}s` : ''}</div>
                       <Input
-                        placeholder={isEnded ? 'Chat terminé' : 'Votre message...'}
+                        placeholder={isEnded ? 'Chat terminé' : (otherDeleted ? 'Profil supprimé' : 'Votre message...')}
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && !isEnded && sendMessage()}
+                        onKeyDown={(e) => e.key === 'Enter' && !isBlocked && sendMessage()}
                         onFocus={() => setTimeout(scrollToBottom, 50)}
-                        disabled={isEnded}
+                        disabled={isBlocked}
                       />
-                      <Button onClick={sendMessage} disabled={isEnded || (!newMessage.trim() && !mediaFile && !audioBlob)} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                      <Button onClick={sendMessage} disabled={isBlocked || (!newMessage.trim() && !mediaFile && !audioBlob)} className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
                         <Send className="h-5 w-5" />
                       </Button>
                     </div>

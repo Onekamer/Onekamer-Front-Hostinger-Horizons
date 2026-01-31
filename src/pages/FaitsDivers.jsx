@@ -251,13 +251,20 @@ const CommentSection = ({ articleId }) => {
     setLoadingComments(true);
     const { data, error } = await supabase
       .from('faits_divers_comments')
-      .select('*, user:profiles(id, username, avatar_url)')
+      .select('*, user:profiles(id, username, avatar_url, is_deleted)')
       .eq('fait_divers_id', articleId)
       .order('created_at', { ascending: true });
     if (error) {
       console.error('Error fetching comments', error);
     } else {
-      setComments(data || []);
+      const normalized = (data || []).map((c) => {
+        const u = c?.user;
+        if (u && u.is_deleted === true) {
+          return { ...c, user: { ...u, id: null, username: 'Compte supprimé', avatar_url: null } };
+        }
+        return c;
+      });
+      setComments(normalized);
     }
     setLoadingComments(false);
   }, [articleId]);
@@ -269,9 +276,11 @@ const CommentSection = ({ articleId }) => {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'faits_divers_comments', filter: `fait_divers_id=eq.${articleId}` },
         async (payload) => {
           const { data: profileData, error: profileError } = await supabase
-            .from('profiles').select('id, username, avatar_url').eq('id', payload.new.user_id).single();
+            .from('profiles').select('id, username, avatar_url, is_deleted').eq('id', payload.new.user_id).single();
           if (!profileError) {
-            setComments((prev) => [...prev, { ...payload.new, user: profileData }]);
+            const userRaw = profileData || { username: 'Anonyme', avatar_url: null };
+            const user = userRaw?.is_deleted ? { ...userRaw, id: null, username: 'Compte supprimé', avatar_url: null } : userRaw;
+            setComments((prev) => [...prev, { ...payload.new, user }]);
           }
         }
       ).subscribe();
@@ -337,11 +346,11 @@ const CommentSection = ({ articleId }) => {
           <div className="space-y-3 mb-4">
             {comments.map((comment) => (
               <div key={comment.id} className="flex gap-2 items-start">
-                <div className="cursor-pointer" onClick={() => navigate(`/profil/${comment.user?.id}`)}>
+                <div className="cursor-pointer" onClick={() => { if (comment.user?.id) navigate(`/profil/${comment.user.id}`) }}>
                   <CommentAvatar avatarPath={comment.user?.avatar_url} username={comment.user?.username} />
                 </div>
                 <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
-                  <p className="text-sm font-semibold cursor-pointer" onClick={() => navigate(`/profil/${comment.user?.id}`)}>{comment.user?.username}</p>
+                  <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.user?.id) navigate(`/profil/${comment.user.id}`) }}>{comment.user?.username}</p>
                   <p className="text-sm text-gray-700">{comment.content}</p>
                 </div>
               </div>

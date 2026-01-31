@@ -384,7 +384,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             audio_duration,
             type,
             parent_comment_id,
-            author:profiles ( id, username, avatar_url )
+            author:profiles ( id, username, avatar_url, is_deleted )
           `)
           .eq('content_type', 'echange')
           .eq('parent_comment_id', audioParentId)
@@ -407,7 +407,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
               audio_duration,
               type,
               parent_comment_id,
-              author:profiles ( id, username, avatar_url )
+              author:profiles ( id, username, avatar_url, is_deleted )
             `)
             .eq('content_type', 'echange')
             .in('parent_comment_id', rootIds)
@@ -416,7 +416,14 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           children = kids || [];
         }
         const normalized = [...(roots || []), ...(children || [])].map((c) => normalizeAudioEntry(c));
-        setComments(normalized);
+        const normalized2 = normalized.map((c) => {
+          const a = c?.author;
+          if (a && a.is_deleted === true) {
+            return { ...c, author: { ...a, username: 'Compte supprimé', avatar_url: null, id: null } };
+          }
+          return c;
+        });
+        setComments(normalized2);
       } else {
         const { data, error } = await supabase
           .from('comments')
@@ -431,14 +438,21 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             audio_duration,
             type,
             parent_comment_id,
-            author:profiles ( id, username, avatar_url )
+            author:profiles ( id, username, avatar_url, is_deleted )
           `)
           .eq('content_id', postId)
           .eq('content_type', 'post')
           .order('created_at', { ascending: true });
         if (error) throw error;
         const normalized = (data || []).map((comment) => normalizeAudioEntry(comment));
-        setComments(normalized);
+        const normalized2 = normalized.map((c) => {
+          const a = c?.author;
+          if (a && a.is_deleted === true) {
+            return { ...c, author: { ...a, username: 'Compte supprimé', avatar_url: null, id: null } };
+          }
+          return c;
+        });
+        setComments(normalized2);
       }
     } catch (e) {
       console.error('Erreur chargement commentaires :', e.message || e);
@@ -457,10 +471,11 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           async (payload) => {
             const { data: profileData } = await supabase
               .from('profiles')
-              .select('id, username, avatar_url')
+              .select('id, username, avatar_url, is_deleted')
               .eq('id', payload.new.user_id)
               .single();
-            const author = profileData || { username: 'Anonyme', avatar_url: null };
+            const authorRaw = profileData || { username: 'Anonyme', avatar_url: null };
+            const author = authorRaw?.is_deleted ? { ...authorRaw, username: 'Compte supprimé', avatar_url: null, id: null } : authorRaw;
             const resolved = normalizeAudioEntry({ ...payload.new, author });
             setComments((prev) => [...prev, resolved]);
           }
@@ -476,10 +491,11 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           async (payload) => {
             const { data: profileData } = await supabase
               .from('profiles')
-              .select('id, username, avatar_url')
+              .select('id, username, avatar_url, is_deleted')
               .eq('id', payload.new.user_id)
               .single();
-            const author = profileData || { username: 'Anonyme', avatar_url: null };
+            const authorRaw = profileData || { username: 'Anonyme', avatar_url: null };
+            const author = authorRaw?.is_deleted ? { ...authorRaw, username: 'Compte supprimé', avatar_url: null, id: null } : authorRaw;
             const resolved = normalizeAudioEntry({ ...payload.new, author });
             setComments((prev) => [...prev, resolved]);
           }
@@ -849,16 +865,16 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
               {topLevel.map((comment) => (
                 <div key={comment.id} className="flex flex-col gap-2">
                   <div className="flex gap-2 items-start">
-                    <div className="cursor-pointer" onClick={() => navigate(`/profil/${comment.author?.id}`)}>
+                    <div className="cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>
                       <CommentAvatar avatarPath={comment.author?.avatar_url} username={comment.author?.username} userId={comment.author?.id} />
                     </div>
                     <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
-                      <p className="text-sm font-semibold cursor-pointer" onClick={() => navigate(`/profil/${comment.author?.id}`)}>{comment.author?.username}</p>
+                      <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>{comment.author?.username}</p>
                       {comment.type === 'audio' ? <AudioPlayer src={comment.audio_url} initialDuration={comment.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(comment.content)}</p> }
                       {comment.media_url && <CommentMedia url={comment.media_url} type={comment.media_type} />}
                       <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
                         <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
-                        {user && comment.author?.id !== user.id && (
+                        {user && comment.author?.id && comment.author.id !== user.id && (
                           <DonationDialog
                             post={{ user_id: comment.author?.id, profiles: { username: comment.author?.username } }}
                             user={user}
@@ -875,16 +891,16 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                     <div className="ml-10 space-y-2">
                       {(childrenMap[comment.id] || []).map((child) => (
                         <div key={child.id} className="flex gap-2 items-start">
-                          <div className="cursor-pointer" onClick={() => navigate(`/profil/${child.author?.id}`)}>
+                          <div className="cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>
                             <CommentAvatar avatarPath={child.author?.avatar_url} username={child.author?.username} userId={child.author?.id} />
                           </div>
                           <div className="bg-gray-50 rounded-lg px-3 py-2 w-full">
-                            <p className="text-sm font-semibold cursor-pointer" onClick={() => navigate(`/profil/${child.author?.id}`)}>{child.author?.username}</p>
+                            <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>{child.author?.username}</p>
                             {child.type === 'audio' ? <AudioPlayer src={child.audio_url} initialDuration={child.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(child.content)}</p> }
                             {child.media_url && <CommentMedia url={child.media_url} type={child.media_type} />}
                             <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
                               <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
-                              {user && child.author?.id !== user.id && (
+                              {user && child.author?.id && child.author.id !== user.id && (
                                 <DonationDialog
                                   post={{ user_id: child.author?.id, profiles: { username: child.author?.username } }}
                                   user={user}
@@ -1506,7 +1522,7 @@ const Echange = () => {
 
     const { data: postsData, error: postsError } = await supabase
       .from('posts')
-      .select('*, profiles(id, username, avatar_url)')
+      .select('*, profiles(id, username, avatar_url, is_deleted)')
       .order('created_at', { ascending: false });
 
     if (postsError) {
@@ -1516,7 +1532,7 @@ const Echange = () => {
 
     const { data: audioData, error: audioError } = await supabase
       .from('comments')
-      .select(`*, author:profiles (id, username, avatar_url)`)
+      .select(`*, author:profiles (id, username, avatar_url, is_deleted)`)
       .eq('content_type', 'echange')
       .is('parent_comment_id', null)
       .order('created_at', { ascending: false });
@@ -1532,7 +1548,13 @@ const Echange = () => {
 
     combinedFeed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    setFeedItems(combinedFeed);
+    const filtered = combinedFeed.filter((item) => {
+      if (item.feed_type === 'post') return item?.profiles?.is_deleted !== true;
+      if (item.feed_type === 'audio_post') return item?.author?.is_deleted !== true;
+      return true;
+    });
+
+    setFeedItems(filtered);
     setLoadingPosts(false);
   }, []);
   

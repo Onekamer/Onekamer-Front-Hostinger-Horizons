@@ -307,7 +307,27 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                     uniqueMessages.set(row.message_id, row);
                 }
             });
-            setMessages(Array.from(uniqueMessages.values()));
+            const baseMessages = Array.from(uniqueMessages.values());
+            setMessages(baseMessages);
+
+            // Normaliser les auteurs supprimés (post-traitement)
+            try {
+              const ids = Array.from(new Set(baseMessages.map((m) => m.sender_id).filter(Boolean)));
+              if (ids.length > 0) {
+                const { data: profs } = await supabase
+                  .from('profiles')
+                  .select('id, is_deleted')
+                  .in('id', ids);
+                const byId = (profs || []).reduce((acc, p) => { acc[String(p.id)] = p; return acc; }, {});
+                setMessages((prev) => (prev || []).map((m) => {
+                  const p = byId[String(m.sender_id)];
+                  if (p && p.is_deleted === true) {
+                    return { ...m, sender_username: 'Compte supprimé', sender_avatar: null };
+                  }
+                  return m;
+                }));
+              }
+            } catch (_) {}
         }
 
         setLoading(false);
@@ -339,18 +359,21 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             async (payload) => {
               const { data: senderProfile } = await supabase
                 .from('profiles')
-                .select('username, avatar_url')
+                .select('username, avatar_url, is_deleted')
                 .eq('id', payload.new.sender_id)
                 .single();
-      
+
+              const sender_username = senderProfile?.is_deleted ? 'Compte supprimé' : senderProfile?.username;
+              const sender_avatar = senderProfile?.is_deleted ? null : senderProfile?.avatar_url;
+
               const newMessage = {
                 message_id: payload.new.id,
                 message_contenu: payload.new.contenu,
                 message_date: payload.new.created_at,
                 sender_id: payload.new.sender_id,
                 likes_count: 0,
-                sender_username: senderProfile?.username,
-                sender_avatar: senderProfile?.avatar_url,
+                sender_username,
+                sender_avatar,
                 is_system_message: payload.new.is_system_message
               };
       
