@@ -1397,7 +1397,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
           .select('id')
           .eq('content_id', post.id)
           .eq('user_id', user.id)
-          .in('content_type', ['comment', 'audio', 'echange'])
+          .in('content_type', ['comment', 'echange'])
           .maybeSingle();
         setIsLiked(!!data);
       } else {
@@ -1408,7 +1408,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
         .from('likes')
         .select('id', { count: 'exact', head: true })
         .eq('content_id', post.id)
-        .in('content_type', ['comment', 'audio', 'echange']);
+        .in('content_type', ['comment', 'echange']);
       setLikesCount(Number(count) || 0);
     } catch (_) {}
   }, [post?.id, user?.id]);
@@ -1436,22 +1436,10 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       if (next) {
-        // Insertion via content_id uniquement (content_type: comment/audio/echange)
-        let { error: insErr } = await supabase
+        // Audio posts sont stockés dans 'comments' -> on like avec content_type='comment'
+        const { error: insErr } = await supabase
           .from('likes')
           .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
-        if (insErr && !isDuplicateError(insErr) && isContentTypeCheckError(insErr)) {
-          const r2 = await supabase
-            .from('likes')
-            .insert({ content_id: post.id, user_id: user.id, content_type: 'audio' });
-          insErr = r2.error;
-        }
-        if (insErr && !isDuplicateError(insErr) && isContentTypeCheckError(insErr)) {
-          const r3 = await supabase
-            .from('likes')
-            .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
-          insErr = r3.error;
-        }
         if (insErr && !isDuplicateError(insErr)) throw insErr;
       } else {
         const { error: delErr } = await supabase
@@ -1459,7 +1447,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
           .delete()
           .eq('content_id', post.id)
           .eq('user_id', user.id)
-          .in('content_type', ['comment', 'audio', 'echange']);
+          .in('content_type', ['comment', 'echange']);
         if (delErr) throw delErr;
       }
       await checkLiked();
