@@ -155,62 +155,6 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
     }
   };
 
-  const handleCommentChange = (e) => {
-    const value = e.target.value;
-    setNewComment(value);
-    try {
-      const pos = e.target.selectionStart || value.length;
-      const textBefore = value.slice(0, pos);
-      const m = textBefore.match(/(^|\s)@([^@\n]{1,30})$/);
-      if (m) {
-        setMentionQuery(m[2]);
-        setShowSuggestions(true);
-      } else {
-        setShowSuggestions(false);
-      }
-    } catch (_) {
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleMentionPick = (username) => {
-    const input = commentInputRef.current;
-    const value = newComment;
-    const pos = input?.selectionStart ?? value.length;
-    const before = value.slice(0, pos);
-    const after = value.slice(pos);
-    const re = /(^|\s)@([^@\n]{1,30})$/;
-    const m = before.match(re);
-    if (!m) return;
-    const insert = `${m[1]}@${username} `;
-    const newBefore = before.replace(re, insert);
-    const next = newBefore + after;
-    setNewComment(next);
-    setShowSuggestions(false);
-    setMentionQuery('');
-    setTimeout(() => {
-      try {
-        const idx = newBefore.length;
-        input.setSelectionRange(idx, idx);
-        input.focus();
-      } catch (_) {}
-    }, 0);
-  };
-
-  useEffect(() => {
-    const tid = setTimeout(async () => {
-      if (!showSuggestions || !mentionQuery) return;
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url')
-          .ilike('username', `${mentionQuery}%`)
-          .limit(5);
-        if (!error && Array.isArray(data)) setSuggestions(data);
-      } catch (_) {}
-    }, 200);
-    return () => clearTimeout(tid);
-  }, [mentionQuery, showSuggestions]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -812,6 +756,64 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     console.log('[Echange] uploadToBunny success', data?.url);
     return data.url;
   };
+
+  // Mentions: saisie commentaire + suggestions
+  const handleCommentChange = (e) => {
+    const value = e.target.value;
+    setNewComment(value);
+    try {
+      const pos = e.target.selectionStart || value.length;
+      const textBefore = value.slice(0, pos);
+      const m = textBefore.match(/(^|\s)@([^@\n]{1,30})$/);
+      if (m) {
+        setMentionQuery(m[2]);
+        setShowSuggestions(true);
+      } else {
+        setShowSuggestions(false);
+      }
+    } catch (_) {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleMentionPick = (username) => {
+    const input = commentInputRef.current;
+    const value = newComment;
+    const pos = input?.selectionStart ?? value.length;
+    const before = value.slice(0, pos);
+    const after = value.slice(pos);
+    const re = /(^|\s)@([^@\n]{1,30})$/;
+    const m = before.match(re);
+    if (!m) return;
+    const insert = `${m[1]}@${username} `;
+    const newBefore = before.replace(re, insert);
+    const next = newBefore + after;
+    setNewComment(next);
+    setShowSuggestions(false);
+    setMentionQuery('');
+    setTimeout(() => {
+      try {
+        const idx = newBefore.length;
+        input.setSelectionRange(idx, idx);
+        input.focus();
+      } catch (_) {}
+    }, 0);
+  };
+
+  useEffect(() => {
+    const tid = setTimeout(async () => {
+      if (!showSuggestions || !mentionQuery) return;
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .ilike('username', `${mentionQuery}%`)
+          .limit(5);
+        if (!error && Array.isArray(data)) setSuggestions(data);
+      } catch (_) {}
+    }, 200);
+    return () => clearTimeout(tid);
+  }, [mentionQuery, showSuggestions]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
