@@ -1422,45 +1422,48 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       toast({ title: 'Connectez-vous pour aimer ce message vocal.', variant: 'destructive' });
       return;
     }
+    const isDuplicateError = (err) => {
+      const msg = String(err?.message || err?.details || '').toLowerCase();
+      return err?.code === '23505' || msg.includes('duplicate') || msg.includes('unique');
+    };
     const next = !isLiked;
     setIsLiked(next);
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       if (next) {
-        // Idempotent: ne pas insérer si déjà liké (quel que soit le type)
-        const { data: existing } = await supabase
+        // Essai 1: insert comme 'comment'
+        const { error: insErr1 } = await supabase
           .from('likes')
-          .select('id')
-          .eq('content_id', post.id)
-          .eq('user_id', user.id)
-          .in('content_type', ['comment', 'echange'])
-          .limit(1);
-        if (!existing || existing.length === 0) {
-          const { error: insErr1 } = await supabase
+          .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
+        if (insErr1 && !isDuplicateError(insErr1)) {
+          // Essai 2: insert comme 'echange'
+          const { error: insErr2 } = await supabase
             .from('likes')
-            .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
-          if (insErr1) {
-            const { error: insErr2 } = await supabase
-              .from('likes')
-              .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
-            if (insErr2) throw insErr2;
-          }
+            .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
+          if (insErr2 && !isDuplicateError(insErr2)) throw insErr2;
         }
       } else {
-        const { error: delErr } = await supabase
+        // Supprimer sur les deux types, ignorer les erreurs 0 ligne
+        await supabase
           .from('likes')
           .delete()
           .eq('content_id', post.id)
           .eq('user_id', user.id)
-          .in('content_type', ['comment', 'echange']);
-        if (delErr) throw delErr;
+          .eq('content_type', 'comment');
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('content_id', post.id)
+          .eq('user_id', user.id)
+          .eq('content_type', 'echange');
       }
       await checkLiked();
     } catch (e) {
       // rollback simple en cas d'erreur
       setIsLiked(!next);
       setLikesCount((c) => (!next ? c + 1 : Math.max(0, c - 1)));
-      toast({ title: 'Erreur', description: "Impossible de mettre à jour le like.", variant: 'destructive' });
+      console.error('[Audio like] update failed:', e);
+      toast({ title: 'Erreur', description: e?.message || "Impossible de mettre à jour le like.", variant: 'destructive' });
     }
   };
 
