@@ -1113,6 +1113,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   const { onlineUserIds } = useAuth();
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
   const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(Number(post?.likes_count) || 0);
   const isMyPost = user?.id === post.user_id;
   const isAdmin =
     profile?.is_admin === true ||
@@ -1128,22 +1129,38 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   const [commentsCount, setCommentsCount] = useState(0);
   // moved isMyPost / isAdmin above to compute isDeletedAuthor consistently
 
+  useEffect(() => {
+    setLikesCount(Number(post?.likes_count) || 0);
+  }, [post?.likes_count]);
+
   const checkLiked = useCallback(async () => {
-    if (!user) return;
+    if (!post?.id) return;
     try {
+      // statut like (pour l'utilisateur)
+      if (user?.id) {
         const { data, error } = await supabase
-            .from('likes')
-            .select('id')
-            .eq('content_id', post.id)
-            .eq('user_id', user.id)
-            .eq('content_type', 'post')
-            .maybeSingle();
+          .from('likes')
+          .select('id')
+          .eq('content_id', post.id)
+          .eq('user_id', user.id)
+          .eq('content_type', 'post')
+          .maybeSingle();
         if (error) throw error;
         setIsLiked(!!data);
-    } catch(error) {
-        console.error("Error checking like status:", error);
+      } else {
+        setIsLiked(false);
+      }
+      // compteur global
+      const { count } = await supabase
+        .from('likes')
+        .select('id', { count: 'exact', head: true })
+        .eq('content_id', post.id)
+        .eq('content_type', 'post');
+      setLikesCount(Number(count) || 0);
+    } catch (error) {
+      console.error('Error checking like status/count:', error);
     }
-  }, [post.id, user]);
+  }, [post?.id, user?.id]);
   
   useEffect(() => {
     checkLiked();
@@ -1151,12 +1168,22 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
 
   const handleLike = async () => {
     if (!user) {
-        toast({ title: 'Connectez-vous pour aimer ce post.', variant: 'destructive'});
-        return;
+      toast({ title: 'Connectez-vous pour aimer ce post.', variant: 'destructive'});
+      return;
     }
-    
-    setIsLiked(!isLiked); 
-    await onLike(post.id, isLiked, post.user_id);
+    const next = !isLiked;
+    setIsLiked(next);
+    setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
+    try {
+      await onLike(post.id, isLiked, post.user_id);
+      await checkLiked();
+    } catch (e) {
+      // rollback simple
+      setIsLiked(!next);
+      setLikesCount((c) => (!next ? c + 1 : Math.max(0, c - 1)));
+      console.error('[Post like] update failed:', e);
+      toast({ title: 'Erreur', description: e?.message || 'Impossible de mettre à jour le like.', variant: 'destructive' });
+    }
   };
 
 
@@ -1306,7 +1333,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             onClick={handleLike}
           >
             <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
-            <span>{post.likes_count || 0}</span>
+            <span>{likesCount}</span>
           </button>
           <button className="flex items-center gap-2 hover:text-[#2BA84A] transition-colors" onClick={onToggleComments}>
             <MessageCircle className="h-5 w-5" />
@@ -1730,6 +1757,40 @@ const Echange = () => {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
         fetchFeed();
+      })
+      // Mises à jour de likes en temps réel sans recharger tout le feed
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, (payload) => {
+        try {
+          const rec = payload?.new || {};
+          const cid = rec.content_id;
+          const ctype = rec.content_type;
+          if (!cid || !ctype) return;
+          setFeedItems((current) => current.map((item) => {
+            const isPostTarget = ctype === 'post' && item.feed_type === 'post' && item.id === cid;
+            const isAudioTarget = (ctype === 'comment' || ctype === 'echange') && item.feed_type === 'audio_post' && item.id === cid;
+            if (isPostTarget || isAudioTarget) {
+              return { ...item, likes_count: Number(item.likes_count || 0) + 1 };
+            }
+            return item;
+          }));
+        } catch (_) {}
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, (payload) => {
+        try {
+          const rec = payload?.old || {};
+          const cid = rec.content_id;
+          const ctype = rec.content_type;
+          if (!cid || !ctype) return;
+          setFeedItems((current) => current.map((item) => {
+            const isPostTarget = ctype === 'post' && item.feed_type === 'post' && item.id === cid;
+            const isAudioTarget = (ctype === 'comment' || ctype === 'echange') && item.feed_type === 'audio_post' && item.id === cid;
+            if (isPostTarget || isAudioTarget) {
+              const next = Math.max(0, Number(item.likes_count || 0) - 1);
+              return { ...item, likes_count: next };
+            }
+            return item;
+          }));
+        } catch (_) {}
       })
       .subscribe();
 
