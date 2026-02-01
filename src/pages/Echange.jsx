@@ -1436,20 +1436,20 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       if (next) {
-        // Insertion via content_id, forcer post_id=null pour neutraliser la FK éventuelle
+        // Insertion via content_id uniquement (content_type: comment/audio/echange)
         let { error: insErr } = await supabase
           .from('likes')
-          .insert({ content_id: post.id, post_id: null, user_id: user.id, content_type: 'comment' });
+          .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
         if (insErr && !isDuplicateError(insErr) && isContentTypeCheckError(insErr)) {
           const r2 = await supabase
             .from('likes')
-            .insert({ content_id: post.id, post_id: null, user_id: user.id, content_type: 'audio' });
+            .insert({ content_id: post.id, user_id: user.id, content_type: 'audio' });
           insErr = r2.error;
         }
         if (insErr && !isDuplicateError(insErr) && isContentTypeCheckError(insErr)) {
           const r3 = await supabase
             .from('likes')
-            .insert({ content_id: post.id, post_id: null, user_id: user.id, content_type: 'echange' });
+            .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
           insErr = r3.error;
         }
         if (insErr && !isDuplicateError(insErr)) throw insErr;
