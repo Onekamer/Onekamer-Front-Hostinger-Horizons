@@ -1397,7 +1397,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
           .select('id')
           .eq('content_id', post.id)
           .eq('user_id', user.id)
-          .eq('content_type', 'comment')
+          .in('content_type', ['comment', 'audio', 'echange', 'post'])
           .maybeSingle();
         setIsLiked(!!data);
       } else {
@@ -1408,7 +1408,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
         .from('likes')
         .select('id', { count: 'exact', head: true })
         .eq('content_id', post.id)
-        .eq('content_type', 'comment');
+        .in('content_type', ['comment', 'audio', 'echange', 'post']);
       setLikesCount(Number(count) || 0);
     } catch (_) {}
   }, [post?.id, user?.id]);
@@ -1422,22 +1422,54 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       toast({ title: 'Connectez-vous pour aimer ce message vocal.', variant: 'destructive' });
       return;
     }
+    const isDuplicateError = (err) => {
+      const msg = String(err?.message || err?.details || '').toLowerCase();
+      return err?.code === '23505' || msg.includes('duplicate') || msg.includes('unique');
+    };
+    const isContentTypeCheckError = (err) => {
+      const msg = String(err?.message || err?.details || '').toLowerCase();
+      return msg.includes('content_type') && msg.includes('check');
+    };
     const next = !isLiked;
     setIsLiked(next);
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       if (next) {
-        const { error: insErr } = await supabase
+        // Essai 1: 'comment' (cas le plus probable)
+        let { error: insErr } = await supabase
           .from('likes')
           .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
-        if (insErr) throw insErr;
+        if (insErr && !isDuplicateError(insErr)) {
+          // Essai 1bis: 'post' si contrainte de check
+          if (isContentTypeCheckError(insErr)) {
+            const resp1b = await supabase
+              .from('likes')
+              .insert({ content_id: post.id, user_id: user.id, content_type: 'post' });
+            insErr = resp1b.error;
+          }
+          // Essai 2: 'audio' si contrainte de check
+          if (isContentTypeCheckError(insErr)) {
+            const resp2 = await supabase
+              .from('likes')
+              .insert({ content_id: post.id, user_id: user.id, content_type: 'audio' });
+            insErr = resp2.error;
+          }
+          // Essai 3: 'echange' si encore contrainte
+          if (insErr && !isDuplicateError(insErr) && isContentTypeCheckError(insErr)) {
+            const resp3 = await supabase
+              .from('likes')
+              .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
+            insErr = resp3.error;
+          }
+          if (insErr && !isDuplicateError(insErr)) throw insErr;
+        }
       } else {
         const { error: delErr } = await supabase
           .from('likes')
           .delete()
           .eq('content_id', post.id)
           .eq('user_id', user.id)
-          .eq('content_type', 'comment');
+          .in('content_type', ['comment', 'audio', 'echange', 'post']);
         if (delErr) throw delErr;
       }
       await checkLiked();
