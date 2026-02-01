@@ -1428,7 +1428,8 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
     };
     const isContentTypeCheckError = (err) => {
       const msg = String(err?.message || err?.details || '').toLowerCase();
-      return msg.includes('content_type') && msg.includes('check');
+      // 23514 = check_violation (PostgreSQL)
+      return err?.code === '23514' || msg.includes('likes_content_type_check') || (msg.includes('content_type') && msg.includes('check'));
     };
     const next = !isLiked;
     setIsLiked(next);
