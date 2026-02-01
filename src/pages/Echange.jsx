@@ -1390,54 +1390,26 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
   const checkLiked = useCallback(async () => {
     try {
       if (!post?.id) return;
-      // statut like par l'utilisateur
+      // statut like par l'utilisateur (uniquement via comment_id pour audio)
       if (user?.id) {
-        // 1) Essai via comment_id (schéma probable pour audio)
-        let { data: d1, error: e1 } = await supabase
+        const { data } = await supabase
           .from('likes')
           .select('id')
           .eq('comment_id', post.id)
           .eq('user_id', user.id)
           .in('content_type', ['comment', 'audio', 'echange'])
           .maybeSingle();
-        // 2) Fallback via content_id si la colonne comment_id n'existe pas ou aucun résultat
-        if ((!d1 && !e1) || (e1 && (String(e1.message||'').includes('does not exist') || e1.code === '42703'))) {
-          const { data: d2 } = await supabase
-            .from('likes')
-            .select('id')
-            .eq('content_id', post.id)
-            .eq('user_id', user.id)
-            .in('content_type', ['comment', 'audio', 'echange', 'post'])
-            .maybeSingle();
-          setIsLiked(!!d2);
-        } else {
-          setIsLiked(!!d1);
-        }
+        setIsLiked(!!data);
       } else {
         setIsLiked(false);
       }
-      // compteur de likes
-      let count1 = 0;
-      let err1 = null;
-      try {
-        const { count: c1 } = await supabase
-          .from('likes')
-          .select('id', { count: 'exact', head: true })
-          .eq('comment_id', post.id)
-          .in('content_type', ['comment', 'audio', 'echange']);
-        count1 = Number(c1) || 0;
-      } catch (e) { err1 = e; }
-
-      if (count1 > 0 || !err1) {
-        setLikesCount(count1);
-      } else {
-        const { count: c2 } = await supabase
-          .from('likes')
-          .select('id', { count: 'exact', head: true })
-          .eq('content_id', post.id)
-          .in('content_type', ['comment', 'audio', 'echange', 'post']);
-        setLikesCount(Number(c2) || 0);
-      }
+      // compteur de likes (uniquement via comment_id pour audio)
+      const { count } = await supabase
+        .from('likes')
+        .select('id', { count: 'exact', head: true })
+        .eq('comment_id', post.id)
+        .in('content_type', ['comment', 'audio', 'echange']);
+      setLikesCount(Number(count) || 0);
     } catch (_) {}
   }, [post?.id, user?.id]);
 
