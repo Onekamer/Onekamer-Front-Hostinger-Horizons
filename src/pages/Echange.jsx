@@ -1441,13 +1441,6 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
           .from('likes')
           .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
         if (insErr && !isDuplicateError(insErr)) {
-          // Essai 1bis: 'post' si contrainte de check
-          if (isContentTypeCheckError(insErr)) {
-            const resp1b = await supabase
-              .from('likes')
-              .insert({ content_id: post.id, user_id: user.id, content_type: 'post' });
-            insErr = resp1b.error;
-          }
           // Essai 2: 'audio' si contrainte de check
           if (isContentTypeCheckError(insErr)) {
             const resp2 = await supabase
