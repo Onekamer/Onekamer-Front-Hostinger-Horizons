@@ -1171,18 +1171,21 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
       toast({ title: 'Connectez-vous pour aimer ce post.', variant: 'destructive'});
       return;
     }
+    const y = window.scrollY;
     const next = !isLiked;
     setIsLiked(next);
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       await onLike(post.id, isLiked, post.user_id);
       await checkLiked();
+      setTimeout(() => { try { window.scrollTo(0, y); } catch (_) {} }, 0);
     } catch (e) {
       // rollback simple
       setIsLiked(!next);
       setLikesCount((c) => (!next ? c + 1 : Math.max(0, c - 1)));
       console.error('[Post like] update failed:', e);
       toast({ title: 'Erreur', description: e?.message || 'Impossible de mettre à jour le like.', variant: 'destructive' });
+      setTimeout(() => { try { window.scrollTo(0, y); } catch (_) {} }, 0);
     }
   };
 
@@ -1449,6 +1452,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       toast({ title: 'Connectez-vous pour aimer ce message vocal.', variant: 'destructive' });
       return;
     }
+    const y = window.scrollY;
     const isDuplicateError = (err) => {
       const msg = String(err?.message || err?.details || '').toLowerCase();
       return err?.code === '23505' || msg.includes('duplicate') || msg.includes('unique');
@@ -1478,12 +1482,14 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
         if (delErr) throw delErr;
       }
       await checkLiked();
+      setTimeout(() => { try { window.scrollTo(0, y); } catch (_) {} }, 0);
     } catch (e) {
       // rollback simple en cas d'erreur
       setIsLiked(!next);
       setLikesCount((c) => (!next ? c + 1 : Math.max(0, c - 1)));
       console.error('[Audio like] update failed:', e);
       toast({ title: 'Erreur', description: e?.message || "Impossible de mettre à jour le like.", variant: 'destructive' });
+      setTimeout(() => { try { window.scrollTo(0, y); } catch (_) {} }, 0);
     }
   };
 
@@ -1667,6 +1673,54 @@ const Echange = () => {
 
   const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
 
+  const getScrollAnchor = useCallback(() => {
+    try {
+      const nodes = Array.from(document.querySelectorAll('[id^="feed-item-"]'));
+      let anchor = null;
+      let minTop = Number.POSITIVE_INFINITY;
+      for (const el of nodes) {
+        const rect = el.getBoundingClientRect();
+        if (rect && rect.top >= 0 && rect.top < minTop) {
+          anchor = { id: el.id, top: rect.top };
+          minTop = rect.top;
+        }
+      }
+      if (!anchor && nodes.length) {
+        const el = nodes[0];
+        const rect = el.getBoundingClientRect();
+        anchor = { id: el.id, top: rect ? rect.top : 0 };
+      }
+      return anchor;
+    } catch (_) { return null; }
+  }, []);
+
+  const restoreScrollAnchor = useCallback((anchor) => {
+    if (!anchor || !anchor.id) return;
+    try {
+      const el = document.getElementById(anchor.id);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (!rect) return;
+      const delta = rect.top - anchor.top;
+      window.scrollTo(0, window.scrollY + delta);
+    } catch (_) {}
+  }, []);
+
+  const withScrollAnchor = useCallback((fn) => {
+    const anchor = getScrollAnchor();
+    try {
+      const ret = typeof fn === 'function' ? fn() : undefined;
+      if (ret && typeof ret.finally === 'function') {
+        return ret.finally(() => restoreScrollAnchor(anchor));
+      }
+      setTimeout(() => restoreScrollAnchor(anchor), 0);
+      return ret;
+    } catch (e) {
+      setTimeout(() => restoreScrollAnchor(anchor), 0);
+      throw e;
+    }
+  }, [getScrollAnchor, restoreScrollAnchor]);
+
   const handleWarnUser = async ({ targetUserId, contentType, contentId, reason, message }) => {
     try {
       const token = session?.access_token;
@@ -1743,20 +1797,36 @@ const Echange = () => {
     
     const channel = supabase
       .channel('public-echange-feed-unified')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
-        fetchFeed();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (_payload) => {
+        withScrollAnchor(() => fetchFeed());
       })
+      // Eviter tout refresh global lors d'un commentaire sur un audio:
+      // si parent_comment_id est présent, on incrémente localement le compteur du post audio cible
+      // (si parent_comment_id est null, c'est un nouveau "audio_post" root: on laisse le refresh global possible plus tard au besoin)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: 'content_type=eq.echange' }, (payload) => {
-        fetchFeed();
+        try {
+          const rec = payload?.new || {};
+          const parent = rec.parent_comment_id;
+          if (!parent) return;
+          withScrollAnchor(() => setFeedItems((current) => current.map((item) => {
+            if (item.feed_type === 'audio_post' && item.id === parent) {
+              return { ...item, comments_count: Number(item.comments_count || 0) + 1 };
+            }
+            return item;
+          })));
+        } catch (_) {}
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, (payload) => {
-          setFeedItems(current => current.filter(p => p.feed_type === 'post' && p.id !== payload.old.id));
+          withScrollAnchor(() => setFeedItems(current => current.filter(p => p.feed_type === 'post' && p.id !== payload.old.id)));
       })
        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, (payload) => {
-          setFeedItems(current => current.filter(p => p.feed_type === 'audio_post' && p.id !== payload.old.id));
+          withScrollAnchor(() => setFeedItems(current => current.filter(p => p.feed_type === 'audio_post' && p.id !== payload.old.id)));
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
-        fetchFeed();
+      // Eviter le refresh global sur UPDATE posts (souvent déclenché par des compteurs).
+      // Les compteurs de likes sont déjà traités par la souscription 'likes' ci-dessous.
+      // Si besoin, on pourra cibler d'autres champs précis ici sans recharger tout le feed.
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (_payload) => {
+        // no-op pour préserver la position du scroll
       })
       // Mises à jour de likes en temps réel sans recharger tout le feed
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, (payload) => {
@@ -1765,14 +1835,14 @@ const Echange = () => {
           const cid = rec.content_id;
           const ctype = rec.content_type;
           if (!cid || !ctype) return;
-          setFeedItems((current) => current.map((item) => {
+          withScrollAnchor(() => setFeedItems((current) => current.map((item) => {
             const isPostTarget = ctype === 'post' && item.feed_type === 'post' && item.id === cid;
             const isAudioTarget = (ctype === 'comment' || ctype === 'echange') && item.feed_type === 'audio_post' && item.id === cid;
             if (isPostTarget || isAudioTarget) {
               return { ...item, likes_count: Number(item.likes_count || 0) + 1 };
             }
             return item;
-          }));
+          })));
         } catch (_) {}
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, (payload) => {
@@ -1781,7 +1851,7 @@ const Echange = () => {
           const cid = rec.content_id;
           const ctype = rec.content_type;
           if (!cid || !ctype) return;
-          setFeedItems((current) => current.map((item) => {
+          withScrollAnchor(() => setFeedItems((current) => current.map((item) => {
             const isPostTarget = ctype === 'post' && item.feed_type === 'post' && item.id === cid;
             const isAudioTarget = (ctype === 'comment' || ctype === 'echange') && item.feed_type === 'audio_post' && item.id === cid;
             if (isPostTarget || isAudioTarget) {
@@ -1789,7 +1859,7 @@ const Echange = () => {
               return { ...item, likes_count: next };
             }
             return item;
-          }));
+          })));
         } catch (_) {}
       })
       .subscribe();
