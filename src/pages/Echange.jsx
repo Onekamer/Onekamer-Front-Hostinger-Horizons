@@ -1395,8 +1395,9 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
         const { data } = await supabase
           .from('likes')
           .select('id')
-          .eq('comment_id', post.id)
+          .eq('content_id', post.id)
           .eq('user_id', user.id)
+          .eq('content_type', 'comment')
           .maybeSingle();
         setIsLiked(!!data);
       } else {
@@ -1406,7 +1407,8 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       const { count } = await supabase
         .from('likes')
         .select('id', { count: 'exact', head: true })
-        .eq('comment_id', post.id);
+        .eq('content_id', post.id)
+        .eq('content_type', 'comment');
       setLikesCount(Number(count) || 0);
     } catch (_) {}
   }, [post?.id, user?.id]);
@@ -1427,14 +1429,15 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       if (next) {
         const { error: insErr } = await supabase
           .from('likes')
-          .insert({ comment_id: post.id, user_id: user.id });
+          .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
         if (insErr) throw insErr;
       } else {
         const { error: delErr } = await supabase
           .from('likes')
           .delete()
-          .eq('comment_id', post.id)
-          .eq('user_id', user.id);
+          .eq('content_id', post.id)
+          .eq('user_id', user.id)
+          .eq('content_type', 'comment');
         if (delErr) throw delErr;
       }
       await checkLiked();
