@@ -131,7 +131,8 @@ const CreatePost = () => {
     if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const textBeforeCursor = range.startContainer.textContent.substring(0, range.startOffset);
-        const mentionMatch = textBeforeCursor.match(/@(\w+)$/);
+        // Autoriser espaces et caractères usuels dans les pseudos
+        const mentionMatch = textBeforeCursor.match(/@([^\n@]{1,30})$/);
         
         if (mentionMatch) {
             setMentionQuery(mentionMatch[1]);
@@ -161,7 +162,7 @@ const CreatePost = () => {
     const range = sel.getRangeAt(0);
     const node = range.startContainer;
     const text = node.textContent.substring(0, range.startOffset);
-    const match = text.match(/@(\w+)$/);
+    const match = text.match(/@([^\n@]{1,30})$/);
 
     if (match) {
       e.preventDefault();

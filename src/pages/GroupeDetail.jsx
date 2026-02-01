@@ -18,7 +18,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import GroupMembers from '@/pages/groupes/GroupMembers';
     import GroupAdmin from '@/pages/groupes/GroupAdmin';
     import { uploadAudioFile } from '@/utils/audioStorage';
-    import { notifyGroupMessage } from '@/services/oneSignalNotifications';
+    import { notifyGroupMessage, notifyGroupMention } from '@/services/oneSignalNotifications';
+    import { extractUniqueMentions } from '@/utils/mentions';
 
     const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
       const audioRef = useRef(null);
@@ -642,6 +643,24 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                   messageId: inserted?.id,
                   excerpt: newMessage,
                 });
+              }
+            } catch (_) {}
+            try {
+              const usernames = extractUniqueMentions(newMessage);
+              if (usernames.length) {
+                const { data: profs } = await supabase
+                  .from('profiles')
+                  .select('id, username')
+                  .in('username', usernames);
+                const ids = (profs || []).map((p) => p.id).filter((id) => id && id !== user.id);
+                if (ids.length) {
+                  await notifyGroupMention({
+                    mentionedUserIds: ids,
+                    actorName: user?.user_metadata?.username || user?.email || 'Un membre',
+                    groupId,
+                    messageExcerpt: newMessage,
+                  });
+                }
               }
             } catch (_) {}
         }

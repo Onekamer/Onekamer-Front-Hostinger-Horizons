@@ -328,6 +328,27 @@ export const notifyRencontreLike = async ({ receiverId, likerUserId, likerName }
   });
 };
 
+// Groupes: mention dans un message
+export const notifyGroupMention = async ({ mentionedUserIds = [], actorName, groupId, messageExcerpt }) => {
+  const targets = normalizeUserIds(mentionedUserIds);
+  if (!targets.length) return false;
+
+  const name = (actorName || 'Un membre').trim();
+  const text80 = clip(messageExcerpt || '');
+
+  return postNotification({
+    title: 'Espace Groupes',
+    message: `${name} t’a mentionné${text80 ? ` — ${text80}` : ''}`.trim(),
+    targetUserIds: targets,
+    url: groupId ? `/groupes/${groupId}` : '/groupes',
+    data: {
+      type: 'group_mention',
+      groupId,
+      preview: { text80 },
+    },
+  });
+};
+
 export const notifyMentionInComment = async ({ mentionedUserIds = [], authorName, articleId }) => {
   const targets = normalizeUserIds(mentionedUserIds);
   if (!targets.length) return false;
@@ -356,5 +377,6 @@ export default {
   notifyRencontreMessage,
   notifyRencontreLike,
   notifyMentionInComment,
+  notifyGroupMention,
   notifyGroupMessage,
 };
