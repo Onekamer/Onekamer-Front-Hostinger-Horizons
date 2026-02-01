@@ -24,7 +24,7 @@ const normalizeUserIds = (userIds = []) => {
 
 const clip = (s, n = 80) => {
   const t = (s || '').trim();
-  return t.length > n ? `${t.slice(0, n)}…` : t;
+  return t.length > n ? `${t.slice(0, n)}...` : t;
 };
 
 const mediaLabel = (mt) => (mt === 'image' ? '🖼️ Image' : (mt === 'video' ? '🎬 Vidéo' : (mt === 'audio' ? '🎧 Fichier audio' : '')));
@@ -98,21 +98,27 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
   const text80 = clip((preview?.text80 || excerpt || ''));
   const l3 = text80 || mediaLabel(preview?.mediaType);
 
+  const isAudio = (preview?.mediaType || '').toLowerCase() === 'audio';
+  const url = postId ? (isAudio ? `/echange?audioId=${postId}` : `/echange?postId=${postId}`) : '/echange';
+  const data = {
+    type: 'mention',
+    actorName: name,
+    preview: {
+      text80,
+      mediaType: preview?.mediaType || null,
+      mediaUrl: preview?.mediaUrl || null,
+    },
+  };
+  if (postId) {
+    if (isAudio) data.audioId = postId; else data.postId = postId;
+  }
+
   return postNotification({
     title: 'Echange communautaire',
     message: `${name} vous a mentionné${l3 ? ` — ${l3}` : ''}`.trim(),
     targetUserIds: targets,
-    url: postId ? `/echange?postId=${postId}` : '/echange',
-    data: {
-      type: 'mention',
-      postId,
-      actorName: name,
-      preview: {
-        text80,
-        mediaType: preview?.mediaType || null,
-        mediaUrl: preview?.mediaUrl || null,
-      },
-    },
+    url,
+    data,
   });
 };
 

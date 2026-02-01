@@ -113,7 +113,7 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
 
   const clip = (s, n = 80) => {
     const t = (s || '').trim()
-    return t.length > n ? `${t.slice(0, n)}…` : t
+    return t.length > n ? `${t.slice(0, n)}...` : t
   }
 
   const formatEchange = (n) => {
