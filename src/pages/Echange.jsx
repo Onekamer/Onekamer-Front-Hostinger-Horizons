@@ -1395,9 +1395,8 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
         const { data } = await supabase
           .from('likes')
           .select('id')
-          .eq('content_id', post.id)
+          .eq('comment_id', post.id)
           .eq('user_id', user.id)
-          .in('content_type', ['comment', 'echange'])
           .maybeSingle();
         setIsLiked(!!data);
       } else {
@@ -1407,8 +1406,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       const { count } = await supabase
         .from('likes')
         .select('id', { count: 'exact', head: true })
-        .eq('content_id', post.id)
-        .in('content_type', ['comment', 'echange']);
+        .eq('comment_id', post.id);
       setLikesCount(Number(count) || 0);
     } catch (_) {}
   }, [post?.id, user?.id]);
@@ -1422,40 +1420,22 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       toast({ title: 'Connectez-vous pour aimer ce message vocal.', variant: 'destructive' });
       return;
     }
-    const isDuplicateError = (err) => {
-      const msg = String(err?.message || err?.details || '').toLowerCase();
-      return err?.code === '23505' || msg.includes('duplicate') || msg.includes('unique');
-    };
     const next = !isLiked;
     setIsLiked(next);
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       if (next) {
-        // Essai 1: insert comme 'comment'
-        const { error: insErr1 } = await supabase
+        const { error: insErr } = await supabase
           .from('likes')
-          .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
-        if (insErr1 && !isDuplicateError(insErr1)) {
-          // Essai 2: insert comme 'echange'
-          const { error: insErr2 } = await supabase
-            .from('likes')
-            .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
-          if (insErr2 && !isDuplicateError(insErr2)) throw insErr2;
-        }
+          .insert({ comment_id: post.id, user_id: user.id });
+        if (insErr) throw insErr;
       } else {
-        // Supprimer sur les deux types, ignorer les erreurs 0 ligne
-        await supabase
+        const { error: delErr } = await supabase
           .from('likes')
           .delete()
-          .eq('content_id', post.id)
-          .eq('user_id', user.id)
-          .eq('content_type', 'comment');
-        await supabase
-          .from('likes')
-          .delete()
-          .eq('content_id', post.id)
-          .eq('user_id', user.id)
-          .eq('content_type', 'echange');
+          .eq('comment_id', post.id)
+          .eq('user_id', user.id);
+        if (delErr) throw delErr;
       }
       await checkLiked();
     } catch (e) {
