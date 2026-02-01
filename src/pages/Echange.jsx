@@ -1427,14 +1427,24 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       if (next) {
-        const { error: insErr1 } = await supabase
+        // Idempotent: ne pas insérer si déjà liké (quel que soit le type)
+        const { data: existing } = await supabase
           .from('likes')
-          .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
-        if (insErr1) {
-          const { error: insErr2 } = await supabase
+          .select('id')
+          .eq('content_id', post.id)
+          .eq('user_id', user.id)
+          .in('content_type', ['comment', 'echange'])
+          .limit(1);
+        if (!existing || existing.length === 0) {
+          const { error: insErr1 } = await supabase
             .from('likes')
-            .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
-          if (insErr2) throw insErr2;
+            .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
+          if (insErr1) {
+            const { error: insErr2 } = await supabase
+              .from('likes')
+              .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
+            if (insErr2) throw insErr2;
+          }
         }
       } else {
         const { error: delErr } = await supabase
@@ -1446,7 +1456,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
         if (delErr) throw delErr;
       }
       await checkLiked();
-    } catch (_) {
+    } catch (e) {
       // rollback simple en cas d'erreur
       setIsLiked(!next);
       setLikesCount((c) => (!next ? c + 1 : Math.max(0, c - 1)));
