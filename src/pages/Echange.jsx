@@ -1392,24 +1392,52 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
       if (!post?.id) return;
       // statut like par l'utilisateur
       if (user?.id) {
-        const { data } = await supabase
+        // 1) Essai via comment_id (schéma probable pour audio)
+        let { data: d1, error: e1 } = await supabase
           .from('likes')
           .select('id')
-          .eq('content_id', post.id)
+          .eq('comment_id', post.id)
           .eq('user_id', user.id)
-          .in('content_type', ['comment', 'audio', 'echange', 'post'])
+          .in('content_type', ['comment', 'audio', 'echange'])
           .maybeSingle();
-        setIsLiked(!!data);
+        // 2) Fallback via content_id si la colonne comment_id n'existe pas ou aucun résultat
+        if ((!d1 && !e1) || (e1 && (String(e1.message||'').includes('does not exist') || e1.code === '42703'))) {
+          const { data: d2 } = await supabase
+            .from('likes')
+            .select('id')
+            .eq('content_id', post.id)
+            .eq('user_id', user.id)
+            .in('content_type', ['comment', 'audio', 'echange', 'post'])
+            .maybeSingle();
+          setIsLiked(!!d2);
+        } else {
+          setIsLiked(!!d1);
+        }
       } else {
         setIsLiked(false);
       }
       // compteur de likes
-      const { count } = await supabase
-        .from('likes')
-        .select('id', { count: 'exact', head: true })
-        .eq('content_id', post.id)
-        .in('content_type', ['comment', 'audio', 'echange', 'post']);
-      setLikesCount(Number(count) || 0);
+      let count1 = 0;
+      let err1 = null;
+      try {
+        const { count: c1 } = await supabase
+          .from('likes')
+          .select('id', { count: 'exact', head: true })
+          .eq('comment_id', post.id)
+          .in('content_type', ['comment', 'audio', 'echange']);
+        count1 = Number(c1) || 0;
+      } catch (e) { err1 = e; }
+
+      if (count1 > 0 || !err1) {
+        setLikesCount(count1);
+      } else {
+        const { count: c2 } = await supabase
+          .from('likes')
+          .select('id', { count: 'exact', head: true })
+          .eq('content_id', post.id)
+          .in('content_type', ['comment', 'audio', 'echange', 'post']);
+        setLikesCount(Number(c2) || 0);
+      }
     } catch (_) {}
   }, [post?.id, user?.id]);
 
@@ -1436,35 +1464,93 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
     setLikesCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
     try {
       if (next) {
-        // Essai 1: 'comment' (cas le plus probable)
-        let { error: insErr } = await supabase
+        let insErr = null;
+        let respA = await supabase
           .from('likes')
-          .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
+          .insert({ comment_id: post.id, post_id: null, user_id: user.id, content_type: 'comment' });
+        insErr = respA.error;
         if (insErr && !isDuplicateError(insErr)) {
-          // Essai 2: 'audio' si contrainte de check
-          if (isContentTypeCheckError(insErr)) {
-            const resp2 = await supabase
+          const msg = String(insErr?.message || insErr?.details || '').toLowerCase();
+          const isUndefinedColumn = insErr?.code === '42703' || (msg.includes('column') && msg.includes('does not exist'));
+          const isFkPost = insErr?.code === '23503' && msg.includes('likes_post_id_fkey');
+          if (isFkPost) {
+            const respA2 = await supabase
               .from('likes')
-              .insert({ content_id: post.id, user_id: user.id, content_type: 'audio' });
-            insErr = resp2.error;
+              .insert({ comment_id: post.id, post_id: null, user_id: user.id, content_type: 'comment' });
+            insErr = respA2.error;
           }
-          // Essai 3: 'echange' si encore contrainte
-          if (insErr && !isDuplicateError(insErr) && isContentTypeCheckError(insErr)) {
-            const resp3 = await supabase
+          if (isContentTypeCheckError(insErr)) {
+            const respB = await supabase
               .from('likes')
-              .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
-            insErr = resp3.error;
+              .insert({ comment_id: post.id, post_id: null, user_id: user.id, content_type: 'audio' });
+            insErr = respB.error;
+          }
+          if (insErr && !isDuplicateError(insErr) && isContentTypeCheckError(insErr)) {
+            const respC = await supabase
+              .from('likes')
+              .insert({ comment_id: post.id, post_id: null, user_id: user.id, content_type: 'echange' });
+            insErr = respC.error;
+          }
+          if (isUndefinedColumn && !isDuplicateError(insErr)) {
+            let e1 = null;
+            let r1 = await supabase
+              .from('likes')
+              .insert({ content_id: post.id, post_id: null, user_id: user.id, content_type: 'comment' });
+            e1 = r1.error;
+            if (e1 && (e1.code === '42703' || String(e1.message||'').toLowerCase().includes('does not exist'))) {
+              const r1b = await supabase
+                .from('likes')
+                .insert({ content_id: post.id, user_id: user.id, content_type: 'comment' });
+              e1 = r1b.error;
+            }
+            if (e1 && !isDuplicateError(e1) && isContentTypeCheckError(e1)) {
+              let r2 = await supabase
+                .from('likes')
+                .insert({ content_id: post.id, post_id: null, user_id: user.id, content_type: 'audio' });
+              e1 = r2.error;
+              if (e1 && (e1.code === '42703' || String(e1.message||'').toLowerCase().includes('does not exist'))) {
+                const r2b = await supabase
+                  .from('likes')
+                  .insert({ content_id: post.id, user_id: user.id, content_type: 'audio' });
+                e1 = r2b.error;
+              }
+            }
+            if (e1 && !isDuplicateError(e1) && isContentTypeCheckError(e1)) {
+              let r3 = await supabase
+                .from('likes')
+                .insert({ content_id: post.id, post_id: null, user_id: user.id, content_type: 'echange' });
+              e1 = r3.error;
+              if (e1 && (e1.code === '42703' || String(e1.message||'').toLowerCase().includes('does not exist'))) {
+                const r3b = await supabase
+                  .from('likes')
+                  .insert({ content_id: post.id, user_id: user.id, content_type: 'echange' });
+                e1 = r3b.error;
+              }
+            }
+            insErr = e1;
           }
           if (insErr && !isDuplicateError(insErr)) throw insErr;
         }
       } else {
-        const { error: delErr } = await supabase
+        let { error: delErr } = await supabase
           .from('likes')
           .delete()
-          .eq('content_id', post.id)
-          .eq('user_id', user.id)
-          .in('content_type', ['comment', 'audio', 'echange', 'post']);
-        if (delErr) throw delErr;
+          .eq('comment_id', post.id)
+          .eq('user_id', user.id);
+        if (delErr) {
+          const msg = String(delErr?.message || delErr?.details || '').toLowerCase();
+          const isUndefinedColumn = delErr?.code === '42703' || (msg.includes('column') && msg.includes('does not exist'));
+          if (isUndefinedColumn) {
+            const respDel = await supabase
+              .from('likes')
+              .delete()
+              .eq('content_id', post.id)
+              .eq('user_id', user.id)
+              .in('content_type', ['comment', 'audio', 'echange', 'post']);
+            delErr = respDel.error;
+          }
+          if (delErr) throw delErr;
+        }
       }
       await checkLiked();
     } catch (e) {
