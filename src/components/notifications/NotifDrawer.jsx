@@ -228,6 +228,89 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
     }
   }
 
+  const formatRencontre = (n) => {
+    const data = n?.data || {}
+    const t = ((n?.type || data.type || '') + '').toLowerCase()
+    const isRencontre = ['rencontre_match', 'rencontre_message', 'rencontre_like'].includes(t)
+    if (!isRencontre) return null
+
+    const l1 = 'Rencontres'
+
+    if (t === 'rencontre_match') {
+      const body = (n?.body || '').trim()
+      const firstLine = (body.split('\n')[0] || '').trim()
+      const beforeComma = (firstLine.split(',')[0] || '').trim()
+      let name = ''
+      if (beforeComma) {
+        const parts = beforeComma.split('&').map(s => (s || '').trim()).filter(Boolean)
+        if (parts.length >= 2) name = parts[1]
+        else if (parts.length === 1) name = parts[0]
+      }
+      if (!name) name = 'Un membre'
+      return {
+        l1,
+        l2: `Nouveau match avec ${name}`,
+        l3: 'Commencez à discutez dès maintenant !',
+      }
+    }
+
+    if (t === 'rencontre_message') {
+      const body = (n?.body || '').trim()
+      const lines = body.split('\n')
+      let sender = ''
+      if (lines.length >= 2) {
+        const line2 = (lines[1] || '').trim()
+        const idx = line2.indexOf(' : ')
+        sender = (idx >= 0 ? line2.slice(0, idx) : line2).trim()
+      }
+      if (!sender) sender = 'Match'
+
+      const mediaTypeData = (data?.preview && data.preview.mediaType) || data?.mediaType || null
+      let preview = ''
+      if (mediaTypeData === 'audio') preview = 'Message audio'
+      else if (mediaTypeData === 'video') preview = 'Message vidéo'
+      else if (mediaTypeData === 'image') preview = 'Message image'
+      else if (lines.length >= 2) {
+        const line2 = (lines[1] || '').trim()
+        if (/message audio/i.test(line2)) preview = 'Message audio'
+        else if (/message vid[ée]o/i.test(line2)) preview = 'Message vidéo'
+        else if (/message image/i.test(line2)) preview = 'Message image'
+        else {
+          const m = line2.match(/:\s*"(.+?)"/)
+          if (m && m[1]) preview = m[1]
+          else if (/m[ée]dia partag[ée]/i.test(line2)) preview = 'Média partagé'
+        }
+      }
+      if (preview) {
+        const addDots = preview.length > 60 && !/\.\.\.$/.test(preview)
+        if (preview.length > 80) preview = preview.slice(0, 80)
+        if (addDots) preview = `${preview}...`
+      } else {
+        preview = 'Message'
+      }
+
+      return {
+        l1,
+        l2: sender,
+        l3: preview,
+      }
+    }
+
+    if (t === 'rencontre_like') {
+      const body = (n?.body || '').trim()
+      const firstLine = (body.split('\n')[0] || '').trim()
+      let name = firstLine.startsWith('🧡') ? firstLine.slice(2).trim() : firstLine
+      if (!name) name = 'Un membre'
+      return {
+        l1,
+        l2: `${name} vous a liké 💚`,
+        l3: 'Cliquez pour regarder son profil',
+      }
+    }
+
+    return null
+  }
+
   return (
     <div className="fixed top-16 top-safe-16 right-0 z-[60] w-full sm:w-[380px] bg-white shadow-xl border-l border-gray-200">
       <div className="flex items-center justify-between p-4 border-b">
@@ -243,7 +326,7 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
             <li className="p-4 text-sm text-gray-500">Aucune notification.</li>
           )}
           {items && items.map((n) => {
-            const fmt = formatGroup(n) || formatEchange(n)
+            const fmt = formatGroup(n) || formatEchange(n) || formatRencontre(n)
             return (
               <li key={n.id} className="p-4 flex items-start gap-3">
                 <div className={`${n.is_read ? 'bg-gray-300' : 'bg-[#2BA84A]'} mt-1 h-2 w-2 rounded-full`} />
