@@ -26,6 +26,7 @@ const SectionHeader = ({ title, icon: Icon, path, navigate }) => (
 const Home = () => {
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
+  const [trending, setTrending] = useState([]);
   const [events, setEvents] = useState([]);
   const [faitsDivers, setFaitsDivers] = useState([]); // Changed from partners
   const [annonces, setAnnonces] = useState([]);
@@ -34,12 +35,26 @@ const Home = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      
-      const fetchPosts = supabase
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Tendances: Top 2 posts + audios (7j) classés par likes
+      const fetchTrendingPosts = supabase
         .from('posts')
         .select('*, profiles(username, avatar_url)')
+        .gte('created_at', sevenDaysAgo)
+        .order('likes_count', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(2);
+        .limit(5);
+
+      const fetchTrendingAudios = supabase
+        .from('comments')
+        .select('*, author:profiles (username, avatar_url)')
+        .eq('content_type', 'echange')
+        .is('parent_comment_id', null)
+        .gte('created_at', sevenDaysAgo)
+        .order('likes_count', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(5);
 
       const fetchEvents = supabase
         .from('evenements')
@@ -60,13 +75,39 @@ const Home = () => {
         .limit(2);
 
       const [
-        postsResult,
+        trendingPostsResult,
+        trendingAudiosResult,
         eventsResult,
         faitsDiversResult, // Changed from partnersResult
         annoncesResult
-      ] = await Promise.all([fetchPosts, fetchEvents, fetchFaitsDivers, fetchAnnonces]); // Changed from partnersResult
+      ] = await Promise.all([fetchTrendingPosts, fetchTrendingAudios, fetchEvents, fetchFaitsDivers, fetchAnnonces]); // Changed from partnersResult
 
-      setPosts(postsResult.data || []);
+      // Fusionner posts et audios, trier par likes puis date, garder Top 2
+      const normalizedPosts = (trendingPostsResult.data || []).map(p => ({
+        id: p.id,
+        type: 'post',
+        created_at: p.created_at,
+        content: p.content,
+        likes_count: Number(p.likes_count) || 0,
+        comments_count: Number(p.comments_count) || 0,
+        profiles: p.profiles || null,
+      }));
+
+      const normalizedAudios = (trendingAudiosResult.data || []).map(a => ({
+        id: a.id,
+        type: 'audio_post',
+        created_at: a.created_at,
+        content: a.content,
+        likes_count: Number(a.likes_count) || 0,
+        comments_count: Number(a.comments_count) || 0,
+        profiles: a.author || null,
+      }));
+
+      const merged = [...normalizedPosts, ...normalizedAudios]
+        .sort((a, b) => (b.likes_count - a.likes_count) || (new Date(b.created_at) - new Date(a.created_at)))
+        .slice(0, 2);
+
+      setTrending(merged);
       setEvents(eventsResult.data || []);
       setFaitsDivers(faitsDiversResult.data || []); // Changed from setPartners
       setAnnonces(annoncesResult.data || []);
@@ -106,26 +147,26 @@ const Home = () => {
         ) : (
           <>
             <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-              <SectionHeader title="Tendances Communauté" icon={TrendingUp} path="/echange" navigate={navigate} />
+              <SectionHeader title="Tendances" icon={TrendingUp} path="/echange" navigate={navigate} />
               <div className="space-y-4">
-                {posts.map(post => (
-                  <Card key={post.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/echange')}>
+                {trending.map(item => (
+                  <Card key={`${item.type}-${item.id}`} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/echange')}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                          <MediaDisplay bucket="avatars" path={post.profiles?.avatar_url} alt={post.profiles?.username} className="w-full h-full object-cover" fallback={
+                          <MediaDisplay bucket="avatars" path={item.profiles?.avatar_url} alt={item.profiles?.username} className="w-full h-full object-cover" fallback={
                             <div className="w-10 h-10 bg-gray-200 flex items-center justify-center text-gray-500 font-bold">
-                              {post.profiles?.username?.charAt(0).toUpperCase() || '?'}
+                              {item.profiles?.username?.charAt(0).toUpperCase() || '?'}
                             </div>
                           }/>
                         </div>
                         <div className="flex-grow">
-                          <p className="font-bold text-sm">{post.profiles?.username}</p>
-                          <p className="text-xs text-gray-500">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</p>
-                          <p className="text-sm text-gray-700 my-2 line-clamp-2">{post.content}</p>
+                          <p className="font-bold text-sm">{item.profiles?.username}</p>
+                          <p className="text-xs text-gray-500">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: fr })}</p>
+                          <p className="text-sm text-gray-700 my-2 line-clamp-2">{item.content}</p>
                           <div className="flex items-center gap-4 text-gray-500">
-                            <span className="flex items-center gap-1 text-xs"><Heart className="h-4 w-4 text-red-500" /> {post.likes_count}</span>
-                            <span className="flex items-center gap-1 text-xs"><MessageCircle className="h-4 w-4 text-blue-500" /> {post.comments_count}</span>
+                            <span className="flex items-center gap-1 text-xs"><Heart className="h-4 w-4 text-red-500" /> {item.likes_count}</span>
+                            <span className="flex items-center gap-1 text-xs"><MessageCircle className="h-4 w-4 text-blue-500" /> {item.comments_count}</span>
                           </div>
                         </div>
                       </div>
