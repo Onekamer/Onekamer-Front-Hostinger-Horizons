@@ -38,14 +38,23 @@ const normalizeAudioEntry = (entry) => {
 
 const parseMentions = (text) => {
   if (!text) return '';
-  const mentionRegex = /@(?:\u200B)?([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g;
-  const parts = text.split(mentionRegex);
-  return parts.map((part, index) => {
-    if (index % 2 === 1) {
-      return <span key={index} className="mention">@{part}</span>;
-    }
-    return part;
-  });
+  const re = /(\[\[m:([A-Za-z0-9][A-Za-z0-9._-]{0,30})\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g;
+  const out = [];
+  let lastIndex = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const start = m.index;
+    const full = m[0];
+    const isToken = !!m[1];
+    const username = isToken ? m[2] : m[4];
+    const before = isToken ? '' : (m[3] || '');
+    if (start > lastIndex) out.push(text.slice(lastIndex, start));
+    if (before) out.push(before);
+    out.push(<span key={`${start}-${username}`} className="mention text-[#2BA84A] font-semibold">@{username}</span>);
+    lastIndex = start + full.length;
+  }
+  if (lastIndex < text.length) out.push(text.slice(lastIndex));
+  return out;
 };
 
 const UserAvatar = ({ avatarUrl, username, className }) => {
@@ -861,8 +870,9 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             type = 'audio';
         }
 
-        // Neutraliser les mentions pour éviter les triggers obsolètes côté DB (NEW.post_id)
-        const safeContent = (newComment || '').replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g, '$1@\u200B$2');
+        // Remplacer les mentions par un token sans '@' pour éviter tout trigger, puis neutraliser les '@' restants
+        let safeContent = (newComment || '').replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g, '$1[[m:$2]]');
+        safeContent = safeContent.replace(/@/g, '\uFF20');
 
         const payload = {
             user_id: user.id,
