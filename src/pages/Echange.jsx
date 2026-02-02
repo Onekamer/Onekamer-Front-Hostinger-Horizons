@@ -2046,7 +2046,19 @@ const Echange = () => {
           </TabsContent>
           <TabsContent value="trending" className="space-y-4 mt-4">
             {loadingPosts ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div> :
-              [...feedItems].sort((a, b) => ((b.likes_count || 0) + (b.comments_count || 0)) - ((a.likes_count || 0) + (a.comments_count || 0))).map((item, index) => (
+              (() => {
+                const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const last7 = [...feedItems].filter((it) => {
+                  try {
+                    return new Date(it.created_at) >= sevenDaysAgo;
+                  } catch (_) {
+                    return true;
+                  }
+                });
+                if (last7.length) {
+                  return last7
+                    .sort((a, b) => (Number(b.likes_count || 0) - Number(a.likes_count || 0)) || (new Date(b.created_at) - new Date(a.created_at)))
+                    .map((item, index) => (
                 <motion.div key={`${item.feed_type}-${item.id}-trending`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
                   {item.feed_type === 'post' ? (
                     <PostCard 
@@ -2074,7 +2086,41 @@ const Echange = () => {
                      />
                   )}
                 </motion.div>
-              ))
+                    ));
+                }
+                // Fallback: s'il n'y a rien sur 7 jours, afficher les plus récents (ordre par date)
+                return [...feedItems]
+                  .sort((a, b) => (new Date(b.created_at) - new Date(a.created_at)))
+                  .map((item, index) => (
+                <motion.div key={`${item.feed_type}-${item.id}-trending`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                  {item.feed_type === 'post' ? (
+                    <PostCard 
+                      post={item} 
+                      user={user}
+                      profile={profile}
+                      onLike={handleLike} 
+                      onDelete={handleDeletePost}
+                      onWarn={handleWarnUser}
+                      showComments={!!openComments[item.id]}
+                      onToggleComments={() => handleToggleComments(item.id)}
+                      refreshBalance={refreshBalance}
+                      highlightCommentId={deeplinkTarget.feedType === 'post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
+                    />
+                  ) : (
+                     <AudioPostCard
+                       post={item}
+                       user={user}
+                       profile={profile}
+                       onDelete={handleDeleteAudioPost}
+                       onWarn={handleWarnUser}
+                       refreshBalance={refreshBalance}
+                       autoOpen={deeplinkTarget.feedType === 'audio_post' && deeplinkTarget.id === item.id}
+                       highlightCommentId={deeplinkTarget.feedType === 'audio_post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
+                     />
+                  )}
+                </motion.div>
+                  ));
+              })()
             }
           </TabsContent>
         </Tabs>
