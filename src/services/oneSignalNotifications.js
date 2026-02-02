@@ -95,8 +95,17 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
   if (!targets.length) return false;
 
   const name = actorName || authorName || 'Un membre';
-  const text80 = clip((preview?.text80 || excerpt || ''));
-  const l3 = text80 || mediaLabel(preview?.mediaType);
+  const raw = (excerpt || preview?.text80 || '').trim();
+  const mediaType = (preview && preview.mediaType) || null;
+  let l3 = '';
+  if (mediaType === 'audio') l3 = '🎧 Message audio';
+  else if (mediaType === 'video') l3 = '🎬 Message vidéo';
+  else if (mediaType === 'image') l3 = '🖼️ Message image';
+  else if (raw) {
+    const addDots = raw.length > 60;
+    l3 = raw.length > 80 ? raw.slice(0, 80) : raw;
+    if (addDots && !/\.\.\.$/.test(l3)) l3 = `${l3}...`;
+  }
 
   const isAudio = (preview?.mediaType || '').toLowerCase() === 'audio';
   const url = postId ? (isAudio ? `/echange?audioId=${postId}` : `/echange?postId=${postId}`) : '/echange';
@@ -104,7 +113,7 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
     type: 'mention',
     actorName: name,
     preview: {
-      text80,
+      text80: raw ? clip(raw, 80) : '',
       mediaType: preview?.mediaType || null,
       mediaUrl: preview?.mediaUrl || null,
     },
@@ -115,7 +124,7 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
 
   return postNotification({
     title: 'La Place du Kwat',
-    message: `${name} vous a mentionné${l3 ? ` — ${l3}` : ''}`.trim(),
+    message: `${name} vous a mentionné${l3 ? `\n${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url,
     data,
@@ -135,15 +144,32 @@ export const notifyGroupMessage = async ({ recipientIds = [], actorName, groupNa
   const baseUrl = groupId ? `/groupes/${groupId}` : '/groupes';
   const url = messageId ? `${baseUrl}?messageId=${messageId}` : baseUrl;
 
+  // Option B médias pour cross-canaux
+  const raw = (preview || safeExcerpt || '').trim();
+  let l3 = '';
+  if (/\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/i.test(raw)) l3 = '🖼️ Message image';
+  else if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(raw)) l3 = '🎬 Message vidéo';
+  else if (/\.(webm|ogg|m4a|mp3)(\?|$)/i.test(raw)) l3 = '🎧 Message audio';
+  else if (/message image/i.test(raw)) l3 = '🖼️ Message image';
+  else if (/message vid[ée]o/i.test(raw)) l3 = '🎬 Message vidéo';
+  else if (/message audio/i.test(raw)) l3 = '🎧 Message audio';
+  else if (raw) {
+    const addDots = raw.length > 60;
+    l3 = raw.length > 80 ? raw.slice(0, 80) : raw;
+    if (addDots && !/\.\.\.$/.test(l3)) l3 = `${l3}...`;
+  }
+
   return postNotification({
-    title: name,
-    message: preview ? `${groupLabel}\n${preview}` : groupLabel,
+    title: 'Groupes',
+    message: `${groupLabel}${name ? `\n${name}${l3 ? ` : "${l3}"` : ''}` : ''}`.trim(),
     targetUserIds: targets,
     url,
     data: {
       type: 'group_message',
       groupId,
       messageId,
+      actorName: name,
+      preview: { text80: l3 || (preview || '') },
     },
   });
 };
@@ -221,12 +247,21 @@ export const notifyPostLiked = async ({ receiverId, actorName, postId, excerpt, 
   if (!targets.length) return false;
 
   const name = actorName || 'Un membre';
-  const text80 = clip((preview?.text80 || excerpt || ''));
-  const l3 = text80 || mediaLabel(preview?.mediaType);
+  const raw = (excerpt || preview?.text80 || '').trim();
+  const mediaType = (preview && preview.mediaType) || null;
+  let l3 = '';
+  if (mediaType === 'audio') l3 = '🎧 Message audio';
+  else if (mediaType === 'video') l3 = '🎬 Message vidéo';
+  else if (mediaType === 'image') l3 = '🖼️ Message image';
+  else if (raw) {
+    const addDots = raw.length > 60;
+    l3 = raw.length > 80 ? raw.slice(0, 80) : raw;
+    if (addDots && !/\.\.\.$/.test(l3)) l3 = `${l3}...`;
+  }
 
   return postNotification({
     title: 'La Place du Kwat',
-    message: `${name} a liké${l3 ? ` — ${l3}` : ''}`.trim(),
+    message: `${name} a liké${l3 ? `\n${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
     data: {
@@ -234,7 +269,7 @@ export const notifyPostLiked = async ({ receiverId, actorName, postId, excerpt, 
       postId,
       actorName: name,
       preview: {
-        text80,
+        text80: raw ? clip(raw, 80) : '',
         mediaType: preview?.mediaType || null,
         mediaUrl: preview?.mediaUrl || null,
       },
@@ -248,12 +283,21 @@ export const notifyPostCommented = async ({ receiverId, actorName, postId, excer
   if (!targets.length) return false;
 
   const name = actorName || 'Un membre';
-  const text80 = clip((preview?.text80 || excerpt || ''));
-  const l3 = text80 || mediaLabel(preview?.mediaType);
+  const raw = (excerpt || preview?.text80 || '').trim();
+  const mediaType = (preview && preview.mediaType) || null;
+  let l3 = '';
+  if (mediaType === 'audio') l3 = '🎧 Message audio';
+  else if (mediaType === 'video') l3 = '🎬 Message vidéo';
+  else if (mediaType === 'image') l3 = '🖼️ Message image';
+  else if (raw) {
+    const addDots = raw.length > 60;
+    l3 = raw.length > 80 ? raw.slice(0, 80) : raw;
+    if (addDots && !/\.\.\.$/.test(l3)) l3 = `${l3}...`;
+  }
 
   return postNotification({
     title: 'La Place du Kwat',
-    message: `${name} a commenté${l3 ? ` — ${l3}` : ''}`.trim(),
+    message: `${name} a commenté${l3 ? `\n${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}${commentId ? `&commentId=${commentId}` : ''}` : '/echange',
     data: {
@@ -262,7 +306,7 @@ export const notifyPostCommented = async ({ receiverId, actorName, postId, excer
       commentId: commentId || null,
       actorName: name,
       preview: {
-        text80,
+        text80: raw ? clip(raw, 80) : '',
         mediaType: preview?.mediaType || null,
         mediaUrl: preview?.mediaUrl || null,
       },
@@ -366,17 +410,30 @@ export const notifyGroupMention = async ({ mentionedUserIds = [], actorName, gro
   if (!targets.length) return false;
 
   const name = (actorName || 'Un membre').trim();
-  const text80 = clip(messageExcerpt || '');
+  const raw = (messageExcerpt || '').trim();
+  let l3 = '';
+  if (/\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/i.test(raw)) l3 = '🖼️ Message image';
+  else if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(raw)) l3 = '🎬 Message vidéo';
+  else if (/\.(webm|ogg|m4a|mp3)(\?|$)/i.test(raw)) l3 = '🎧 Message audio';
+  else if (/message image/i.test(raw)) l3 = '🖼️ Message image';
+  else if (/message vid[ée]o/i.test(raw)) l3 = '🎬 Message vidéo';
+  else if (/message audio/i.test(raw)) l3 = '🎧 Message audio';
+  else if (raw) {
+    const addDots = raw.length > 60;
+    l3 = raw.length > 80 ? raw.slice(0, 80) : raw;
+    if (addDots && !/\.\.\.$/.test(l3)) l3 = `${l3}...`;
+  }
 
   return postNotification({
-    title: 'Espace Groupes',
-    message: `${name} t’a mentionné${text80 ? ` — ${text80}` : ''}`.trim(),
+    title: 'Groupes',
+    message: `${name} t’a mentionné${l3 ? `\n${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: groupId ? `/groupes/${groupId}` : '/groupes',
     data: {
       type: 'group_mention',
       groupId,
-      preview: { text80 },
+      actorName: name,
+      preview: { text80: l3 || (raw ? clip(raw, 80) : '') },
     },
   });
 };
