@@ -38,8 +38,7 @@ const normalizeAudioEntry = (entry) => {
 
 const parseMentions = (text) => {
   if (!text) return '';
-  // Autorise espaces, underscore, point et tiret dans les pseudos
-  const mentionRegex = /@([A-Za-z0-9][A-Za-z0-9 _.-]{0,30})/g;
+  const mentionRegex = /@(?:\u200B)?([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g;
   const parts = text.split(mentionRegex);
   return parts.map((part, index) => {
     if (index % 2 === 1) {
@@ -862,9 +861,12 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             type = 'audio';
         }
 
+        // Neutraliser les mentions pour éviter les triggers obsolètes côté DB (NEW.post_id)
+        const safeContent = (newComment || '').replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g, '$1@\u200B$2');
+
         const payload = {
             user_id: user.id,
-            content: newComment,
+            content: safeContent,
             media_url,
             media_type,
             audio_url,
