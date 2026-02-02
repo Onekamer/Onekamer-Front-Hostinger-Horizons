@@ -274,13 +274,33 @@ export const notifyRencontreMatch = async ({ userIds = [], names = [], matchId }
   const targets = normalizeUserIds(userIds);
   if (!targets.length) return false;
 
-  const label = names.filter(Boolean).join(' & ');
+  const baseUrl = matchId ? `/rencontre/messages/${matchId}` : '/rencontre/messages';
 
+  // Si on peut aligner userIds et names (même longueur), on envoie un message personnalisé par cible
+  if (Array.isArray(userIds) && Array.isArray(names) && userIds.length === names.length && userIds.length >= 2) {
+    const results = await Promise.all(userIds.map((uid, i) => {
+      const otherIdx = (i + 1) % userIds.length;
+      const otherName = (names[otherIdx] || 'Un membre').trim();
+      return postNotification({
+        title: 'Rencontres',
+        message: `Nouveau match avec ${otherName}\nCommencez à discutez dès maintenant !`,
+        targetUserIds: [uid],
+        url: baseUrl,
+        data: {
+          type: 'rencontre_match',
+          matchId,
+        },
+      });
+    }));
+    return results.some(Boolean);
+  }
+
+  // Fallback générique (nom indisponible)
   return postNotification({
-    title: '💞 Nouveau match',
-    message: label ? `${label}, vous avez matché !` : 'Vous avez un nouveau match 🎉',
+    title: 'Rencontres',
+    message: `Nouveau match\nCommencez à discutez dès maintenant !`,
     targetUserIds: targets,
-    url: matchId ? `/rencontre/messages/${matchId}` : '/rencontre/messages',
+    url: baseUrl,
     data: {
       type: 'rencontre_match',
       matchId,
@@ -288,18 +308,30 @@ export const notifyRencontreMatch = async ({ userIds = [], names = [], matchId }
   });
 };
 
-export const notifyRencontreMessage = async ({ recipientId, senderName, message, matchId }) => {
+export const notifyRencontreMessage = async ({ recipientId, senderName, message, matchId, preview }) => {
   const targets = normalizeUserIds([recipientId]);
   if (!targets.length) return false;
 
-  const safeMessage = (message || '').trim();
-  const preview = safeMessage.length > 80 ? `${safeMessage.slice(0, 77)}...` : safeMessage;
   const name = (senderName || 'Un membre').trim();
-  const body = `Espace Rencontres -\n${name}${preview ? ` : "${preview}"` : ''}`;
+
+  // Déterminer L3: label média prioritaire, sinon texte tronqué (80c) + '...' si longueur d'origine > 60
+  const raw = (message || '').trim();
+  let l3 = '';
+  const mediaType = (preview && preview.mediaType) || null;
+  if (mediaType === 'audio' || /message audio/i.test(raw)) l3 = '🎧 Message audio';
+  else if (mediaType === 'video' || /message vid[ée]o/i.test(raw)) l3 = '🎬 Message vidéo';
+  else if (mediaType === 'image' || /message image/i.test(raw)) l3 = '🖼️ Message image';
+  else if (/m[ée]dia partag[ée]/i.test(raw)) l3 = 'Média partagé';
+  else {
+    const addDots = raw.length > 60;
+    l3 = raw.length > 80 ? raw.slice(0, 80) : raw;
+    if (addDots && !/\.\.\.$/.test(l3)) l3 = `${l3}...`;
+    if (!l3) l3 = 'Message';
+  }
 
   return postNotification({
-    title: '💬 Nouveau message',
-    message: body,
+    title: 'Rencontres',
+    message: `${name}\n${l3}`,
     targetUserIds: targets,
     url: matchId ? `/rencontre/messages/${matchId}` : '/rencontre/messages',
     data: {
@@ -317,8 +349,8 @@ export const notifyRencontreLike = async ({ receiverId, likerUserId, likerName }
   const url = likerUserId ? `/rencontre?rid=${likerUserId}` : '/rencontre';
 
   return postNotification({
-    title: 'Espace Rencontres',
-    message: `🧡 ${name}\nvous a liké`,
+    title: 'Rencontres',
+    message: `${name} vous a liké 💚\nCliquez pour regarder son profil`,
     targetUserIds: targets,
     url,
     data: {
