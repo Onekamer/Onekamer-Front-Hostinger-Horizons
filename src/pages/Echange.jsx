@@ -1052,7 +1052,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                         disabled={isPostingComment || !!audioBlob}
                       />
                       {showSuggestions && suggestions.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-md shadow z-10">
+                        <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border rounded-md shadow z-10">
                           {suggestions.map((s) => (
                             <div key={s.id} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer" onClick={() => handleMentionPick(s.username)}>
                               <img src={s.avatar_url || ''} alt={s.username} className="w-5 h-5 rounded-full object-cover" />
