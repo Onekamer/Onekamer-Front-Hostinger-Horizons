@@ -130,7 +130,24 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
     }
     groupName = (groupName || 'Espace Groupes').trim()
 
-    const actor = (data?.actorName || n?.actorName || n?.title || 'Un membre').trim()
+    let actor = (data?.actorName || n?.actorName || '').trim()
+    if (!actor) {
+      if (t === 'group_message' || t === 'groupes_message') {
+        actor = (n?.title || 'Un membre').trim()
+      } else if (t === 'group_mention') {
+        if (typeof n?.body === 'string' && n.body) {
+          const m = n.body
+          const re = /(.*?)(?:\s+t[’']a mentionn\u00e9|\s+vous a mentionn\u00e9)/i
+          const match = m.match(re)
+          if (match && match[1]) {
+            actor = match[1].trim()
+          }
+        }
+        if (!actor) actor = 'Un membre'
+      } else {
+        actor = (n?.title || 'Un membre').trim()
+      }
+    }
 
     let text = pv?.text80 || ''
     if (!text && typeof n?.body === 'string') {
@@ -142,10 +159,16 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
 
     const mediaType = pv?.mediaType || data?.mediaType || null
     const mediaUrl = pv?.mediaUrl || data?.mediaUrl || null
-    if (!text && mediaType) {
-      if (mediaType === 'image') text = '🖼️ Fichier image'
-      else if (mediaType === 'video') text = '🎬 Fichier vidéo'
-      else if (mediaType === 'audio') text = '🎧 Fichier audio'
+    if (mediaType) {
+      const mediaLabel = mediaType === 'image' ? '🖼️ Fichier image'
+        : mediaType === 'video' ? '🎬 Fichier vidéo'
+        : mediaType === 'audio' ? '🎧 Fichier audio'
+        : ''
+      if (!text) {
+        text = mediaLabel
+      } else if (mediaLabel) {
+        text = `${text} — ${mediaLabel}`
+      }
     }
     text = clip(text, 80)
 
