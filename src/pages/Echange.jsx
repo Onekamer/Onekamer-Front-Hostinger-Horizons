@@ -1991,13 +1991,13 @@ const Echange = () => {
   return (
     <>
       <Helmet>
-        <title>Échange Communautaire - OneKamer.co</title>
-        <meta name="description" content="Partagez et échangez avec la communauté OneKamer.co" />
+        <title>La Place du Kwat - OneKamer.co</title>
+        <meta name="description" content="Partagez et échangez avec la communauté sur La Place du Kwat." />
       </Helmet>
 
       <div className="space-y-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-3xl font-bold text-[#2BA84A] mb-4">Échange Communautaire</h1>
+          <h1 className="text-3xl font-bold text-[#2BA84A] mb-4">La Place du Kwat</h1>
         </motion.div>
 
         {user && (

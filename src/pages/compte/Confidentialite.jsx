@@ -57,7 +57,7 @@ const Confidentialite = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Charte Communautaire</CardTitle>
+              <CardTitle>Charte d'utilisation d'OneKamer</CardTitle>
               <CardDescription>Règles et valeurs de notre communauté.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -69,7 +69,7 @@ const Confidentialite = () => {
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowCharte(true)}
                 >
-                  Charte de la communauté
+                  Charte générale
                 </p>
                 <div className="flex items-center space-x-2 font-semibold">
                   {profile?.has_accepted_charte ? (

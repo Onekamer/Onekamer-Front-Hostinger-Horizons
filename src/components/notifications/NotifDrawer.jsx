@@ -147,7 +147,7 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
       thumb = { kind: 'emoji', ch: '🎧' }
     }
     return {
-      l1: 'Echange communautaire',
+      l1: 'La Place du Kwat',
       l2: `${actor} ${action}`,
       l3: text,
       thumb,

@@ -11,7 +11,7 @@ const ChartePopup = ({ show, onAccept, onClose, readOnly = false, title, content
       <DialogContent hideClose className="max-w-lg z-50">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center text-[#2BA84A]">
-            {title || 'Charte d’utilisation de OneKamer.co 🇨🇲'}
+            {title || 'Charte d’OneKamer'}
           </DialogTitle>
         </DialogHeader>
         <ScrollArea className="h-[60vh] p-4 border rounded-md">

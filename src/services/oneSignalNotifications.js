@@ -114,7 +114,7 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
   }
 
   return postNotification({
-    title: 'Echange communautaire',
+    title: 'La Place du Kwat',
     message: `${name} vous a mentionné${l3 ? ` — ${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url,
@@ -225,7 +225,7 @@ export const notifyPostLiked = async ({ receiverId, actorName, postId, excerpt, 
   const l3 = text80 || mediaLabel(preview?.mediaType);
 
   return postNotification({
-    title: 'Echange communautaire',
+    title: 'La Place du Kwat',
     message: `${name} a liké${l3 ? ` — ${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}` : '/echange',
@@ -252,7 +252,7 @@ export const notifyPostCommented = async ({ receiverId, actorName, postId, excer
   const l3 = text80 || mediaLabel(preview?.mediaType);
 
   return postNotification({
-    title: 'Echange communautaire',
+    title: 'La Place du Kwat',
     message: `${name} a commenté${l3 ? ` — ${l3}` : ''}`.trim(),
     targetUserIds: targets,
     url: postId ? `/echange?postId=${postId}${commentId ? `&commentId=${commentId}` : ''}` : '/echange',
