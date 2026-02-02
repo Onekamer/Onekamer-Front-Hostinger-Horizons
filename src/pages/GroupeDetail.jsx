@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
     import { ArrowLeft, Send, Loader2, Heart, Mic, Square, X, Image as ImageIcon, Trash2 } from 'lucide-react';
-    import { Textarea } from '@/components/ui/textarea';
+    
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -15,6 +15,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { formatDistanceToNow } from 'date-fns';
     import { fr } from 'date-fns/locale';
     import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+    import { getInitials } from '@/lib/utils';
     import GroupMembers from '@/pages/groupes/GroupMembers';
     import GroupAdmin from '@/pages/groupes/GroupAdmin';
     import { uploadAudioFile } from '@/utils/audioStorage';
@@ -157,7 +158,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           const isMediaPath = c && c.includes('/');
           if (isMediaPath) return <MediaDisplay bucket="groupes" path={c} alt="Média partagé" className={`${baseVid} cursor-pointer`} />;
         } catch {}
-        return <p className="text-gray-800">{c}</p>;
+        const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const withMentions = esc(c).replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g, (m, pre, u) => `${pre}<span class=\"mention\">@${u}</span>`);
+        return <p className="text-gray-800" dangerouslySetInnerHTML={{ __html: withMentions }} />;
       };
 
       const isMyMessage = msg.sender_id === currentUserId;
@@ -239,6 +242,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const [messages, setMessages] = useState([]);
       const [loading, setLoading] = useState(true);
       const [newMessage, setNewMessage] = useState('');
+      const [mentionQuery, setMentionQuery] = useState('');
+      const [showSuggestions, setShowSuggestions] = useState(false);
+      const [suggestions, setSuggestions] = useState([]);
       const [sending, setSending] = useState(false);
       const [joinRequestStatus, setJoinRequestStatus] = useState('idle');
       const [tabValue, setTabValue] = useState('messages');
@@ -260,6 +266,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const recordingIntervalRef = useRef(null);
       const messagesEndRef = useRef(null);
       const scrolledToMsgRef = useRef(false);
+      const editableDivRef = useRef(null);
       const RAW_API = import.meta.env.VITE_API_URL || '';
       const API_API = RAW_API.endsWith('/api') ? RAW_API : `${RAW_API.replace(/\/+$/, '')}/api`;
     
@@ -619,16 +626,18 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           return;
         }
 
-        if (!newMessage.trim()) { setSending(false); return; }
+        const currentText = (editableDivRef.current?.innerText || newMessage || '').trim();
+        if (!currentText) { setSending(false); return; }
         const { data: inserted, error } = await supabase
           .from('messages_groupes')
-          .insert({ groupe_id: groupId, sender_id: user.id, contenu: newMessage })
+          .insert({ groupe_id: groupId, sender_id: user.id, contenu: currentText })
           .select('id')
           .single();
         if (error) {
             toast({ title: 'Erreur', description: 'Impossible d\'envoyer le message.', variant: 'destructive' });
         } else {
             setNewMessage('');
+            if (editableDivRef.current) editableDivRef.current.innerHTML = '';
             toast({ title: 'Envoyé', description: 'Message publié.' });
             try {
               const recipientIds = (members || [])
@@ -641,12 +650,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                   groupName: groupInfo?.groupe_nom,
                   groupId,
                   messageId: inserted?.id,
-                  excerpt: newMessage,
+                  excerpt: currentText,
                 });
               }
             } catch (_) {}
             try {
-              const usernames = extractUniqueMentions(newMessage);
+              const usernames = extractUniqueMentions(currentText);
               if (usernames.length) {
                 const { data: profs } = await supabase
                   .from('profiles')
@@ -658,13 +667,152 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                     mentionedUserIds: ids,
                     actorName: user?.user_metadata?.username || user?.email || 'Un membre',
                     groupId,
-                    messageExcerpt: newMessage,
+                    messageExcerpt: currentText,
                   });
                 }
               }
             } catch (_) {}
         }
         setSending(false);
+      };
+
+      const handleInput = (e) => {
+        const div = e.currentTarget;
+        const text = div.innerText;
+        setNewMessage(text);
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const rng = sel.getRangeAt(0);
+          const nodeText = rng.startContainer?.textContent || '';
+          const before = nodeText.substring(0, rng.startOffset);
+          const m = before.match(/(?:^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})$/);
+          if (m) {
+            setMentionQuery(m[1]);
+            setShowSuggestions(true);
+          } else {
+            setShowSuggestions(false);
+          }
+        }
+      };
+
+      const handleKeyDown = async (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          if (showSuggestions && suggestions.length > 0) {
+            e.preventDefault();
+            handleMentionSelect(suggestions[0].username);
+          } else {
+            e.preventDefault();
+            await handleSendMessage();
+          }
+        } else if (e.key === ' ' || e.key === ',') {
+          await processAndColorizeMention(e);
+        }
+      };
+
+      const processAndColorizeMention = async (e) => {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        const text = (node.textContent || '').substring(0, range.startOffset);
+        const match = text.match(/(?:^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})$/);
+        if (match) {
+          e.preventDefault();
+          const username = match[1];
+          const { data } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('username', username)
+            .maybeSingle();
+          if (data) {
+            handleMentionSelect(username);
+          }
+        }
+      };
+
+      useEffect(() => {
+        const doFetch = async () => {
+          if (!showSuggestions || !mentionQuery) return;
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .ilike('username', `${mentionQuery}%`)
+            .limit(5);
+          if (!error) setSuggestions(data || []);
+        };
+        const t = setTimeout(doFetch, 300);
+        return () => clearTimeout(t);
+      }, [mentionQuery, showSuggestions]);
+
+      const handleMentionSelect = (username) => {
+        setShowSuggestions(false);
+        setMentionQuery('');
+        const div = editableDivRef.current;
+        if (!div) return;
+        div.focus();
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        const textContent = node.textContent || '';
+        const endOffset = range.startOffset;
+        let startOffset = textContent.lastIndexOf('@', endOffset - 1);
+        if (startOffset > 0 && !/\s/.test(textContent[startOffset - 1])) return;
+        range.setStart(node, Math.max(0, startOffset));
+        range.setEnd(node, endOffset);
+        range.deleteContents();
+        const mention = document.createElement('span');
+        mention.className = 'mention';
+        mention.textContent = `@${username}`;
+        mention.setAttribute('contenteditable', 'false');
+        const space = document.createTextNode('\u00A0');
+        range.insertNode(space);
+        range.insertNode(mention);
+        range.setStartAfter(space);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        setNewMessage(div.innerText);
+      };
+
+      const MentionSuggestions = () => (
+        showSuggestions && suggestions.length > 0 ? (
+          <div className="absolute bottom-full left-0 z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mb-1 max-h-48 overflow-y-auto">
+            {suggestions.map((s) => (
+              <div key={s.id} className="mention-suggestion" onClick={() => handleMentionSelect(s.username)}>
+                <Avatar className="w-6 h-6">
+                  <AvatarImage src={s.avatar_url} alt={s.username} />
+                  <AvatarFallback>{getInitials(s.username)}</AvatarFallback>
+                </Avatar>
+                <span>{s.username}</span>
+              </div>
+            ))}
+          </div>
+        ) : null
+      );
+
+      const highlightExistingMentions = async () => {
+        const div = editableDivRef.current;
+        if (!div) return;
+        const text = div.innerText;
+        const mentionRegex = /@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g;
+        let match; const found = new Set();
+        while ((match = mentionRegex.exec(text)) !== null) { found.add(match[1]); }
+        if (found.size === 0) return;
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('username')
+          .in('username', Array.from(found));
+        const valid = new Set((profiles || []).map((p) => p.username));
+        let html = div.innerHTML;
+        valid.forEach((u) => {
+          const rg = new RegExp(`@${u}(?!</span>)`, 'g');
+          html = html.replace(rg, `<span class=\"mention\" contenteditable=\"false\">@${u}</span>`);
+        });
+        if (html !== div.innerHTML) {
+          div.innerHTML = html;
+          setNewMessage(div.innerText);
+        }
       };
 
       // Deep-link ?tab=demandes → ouvrir l'onglet demandes
@@ -897,22 +1045,21 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                             <span className="text-sm text-red-500 font-mono">{`${Math.floor(recordingTime/60)}:${String(recordingTime%60).padStart(2,'0')}`}</span>
                           </div>
                         ) : (
-                          <Textarea
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Votre message..."
-                            className="flex-1 bg-white"
-                            rows={1}
-                            disabled={!!audioBlob}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendMessage();
-                              }
-                            }}
-                          />
+                          <div className="relative flex-1">
+                            <div
+                              ref={editableDivRef}
+                              contentEditable={!isRecording && !audioBlob}
+                              onInput={handleInput}
+                              onKeyDown={handleKeyDown}
+                              onBlur={highlightExistingMentions}
+                              className="editable bg-white"
+                              data-placeholder="Votre message... Mentionnez un membre avec @"
+                              style={{ minHeight: '2.25rem' }}
+                            />
+                            <MentionSuggestions />
+                          </div>
                         )}
-                        <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={sending || (!newMessage.trim() && !audioBlob && !recorderPromiseRef.current && !mediaFile)}>
+                        <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={sending || (!((editableDivRef.current?.innerText || newMessage || '').trim()) && !audioBlob && !recorderPromiseRef.current && !mediaFile)}>
                           {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                         </Button>
                       </div>
