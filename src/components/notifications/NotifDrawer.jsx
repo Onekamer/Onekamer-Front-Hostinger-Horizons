@@ -116,6 +116,57 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
     return t.length > n ? `${t.slice(0, n)}...` : t
   }
 
+  const formatGroup = (n) => {
+    const data = n?.data || {}
+    const t = ((n?.type || data.type || '') + '').toLowerCase()
+    const isGroup = /(group|groupe)/.test(t) || t === 'group_message' || t === 'groupes_message' || t === 'group_mention'
+    if (!isGroup) return null
+
+    const pv = data?.preview || {}
+    let groupName = data.groupName || data.group || n?.groupName || n?.group || ''
+    if (!groupName && typeof n?.body === 'string') {
+      const firstLine = (n.body.split('\n')[0] || '').trim()
+      if (firstLine) groupName = firstLine
+    }
+    groupName = (groupName || 'Espace Groupes').trim()
+
+    const actor = (data?.actorName || n?.actorName || n?.title || 'Un membre').trim()
+
+    let text = pv?.text80 || ''
+    if (!text && typeof n?.body === 'string') {
+      const lines = n.body.split('\n')
+      if (lines.length > 1) {
+        text = lines.slice(1).join(' ').trim()
+      }
+    }
+
+    const mediaType = pv?.mediaType || data?.mediaType || null
+    const mediaUrl = pv?.mediaUrl || data?.mediaUrl || null
+    if (!text && mediaType) {
+      if (mediaType === 'image') text = '🖼️ Fichier image'
+      else if (mediaType === 'video') text = '🎬 Fichier vidéo'
+      else if (mediaType === 'audio') text = '🎧 Fichier audio'
+    }
+    text = clip(text, 80)
+
+    let thumb = null
+    if (mediaType === 'image' && typeof mediaUrl === 'string' && mediaUrl) {
+      thumb = { kind: 'img', url: mediaUrl }
+    } else if (mediaType === 'video') {
+      thumb = { kind: 'emoji', ch: '🎬' }
+    } else if (mediaType === 'audio') {
+      thumb = { kind: 'emoji', ch: '🎧' }
+    }
+
+    return {
+      l1: 'Groupes',
+      l2: groupName,
+      l3: actor,
+      l4: text,
+      thumb,
+    }
+  }
+
   const formatEchange = (n) => {
     const data = n?.data || {}
     const t = ((n?.type || data.type || '') + '').toLowerCase()
@@ -169,7 +220,7 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
             <li className="p-4 text-sm text-gray-500">Aucune notification.</li>
           )}
           {items && items.map((n) => {
-            const fmt = formatEchange(n)
+            const fmt = formatGroup(n) || formatEchange(n)
             return (
               <li key={n.id} className="p-4 flex items-start gap-3">
                 <div className={`${n.is_read ? 'bg-gray-300' : 'bg-[#2BA84A]'} mt-1 h-2 w-2 rounded-full`} />
@@ -178,9 +229,12 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold text-gray-900">{fmt.l1}</div>
-                        <div className="text-sm font-semibold text-gray-900">{fmt.l2}</div>
+                        <div className="text-sm font-bold text-gray-900">{fmt.l2}</div>
                         {fmt.l3 ? (
-                          <div className="text-xs text-gray-600 line-clamp-2">{fmt.l3}</div>
+                          <div className="text-xs text-gray-600">{fmt.l3}</div>
+                        ) : null}
+                        {fmt.l4 ? (
+                          <div className="text-xs text-gray-600 line-clamp-2">{fmt.l4}</div>
                         ) : null}
                         <div className="mt-1 text-[11px] text-gray-400">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
                         <div className="mt-2 flex items-center gap-2">
