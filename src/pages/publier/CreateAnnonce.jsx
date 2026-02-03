@@ -298,11 +298,14 @@ const CreateAnnonce = () => {
 
       if (newAnnonce) {
         try {
+          const catName = (categories.find((c) => String(c.id) === String(newAnnonce.categorie_id))?.nom) || '';
           await notifyNewAnnonce({
             annonceId: newAnnonce.id,
             title: newAnnonce.titre,
             authorName: profile?.username || user?.email || 'Un membre OneKamer',
             price: newAnnonce.prix,
+            categoryName: catName,
+            body: newAnnonce.description || '',
           });
         } catch (notificationError) {
           console.error('Erreur notification OneSignal (annonce):', notificationError);

@@ -9,6 +9,65 @@ const resolveEndpoint = () => {
   return `${API_BASE_URL}/notifications/dispatch`;
 };
 
+// Broadcast supabase_light: segment -> utilisateurs -> /notifications/dispatch
+const resolveBroadcastEndpoint = () => {
+  if (!API_BASE_URL) {
+    console.warn('Aucune URL API configurée pour le broadcast des notifications.');
+    return null;
+  }
+  return `${API_BASE_URL}/notifications/broadcast`;
+};
+
+const postBroadcast = async (payload = {}) => {
+  const endpoint = resolveBroadcastEndpoint();
+  if (!endpoint) return false;
+
+  try {
+    const { title, message, data, url, segment = 'subscribed_users' } = payload || {};
+    const base = (typeof window !== 'undefined' && window.location?.origin) || 'https://onekamer.co';
+    let absoluteUrl = '/';
+    try {
+      absoluteUrl = new URL(url || '/', base).href;
+    } catch (_e) {
+      absoluteUrl = `${base}/`;
+    }
+
+    const body = {
+      title: title || 'Notification',
+      message: message || '',
+      data: data || {},
+      url: absoluteUrl,
+      segment,
+    };
+
+    // premier essai
+    let response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const alt = endpoint.replace(/\/notifications\/broadcast$/, '/api/notifications/broadcast');
+      response = await fetch(alt, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.error('Échec broadcast notification:', response.status, errorText);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Impossible d’envoyer le broadcast notification:', error);
+    return false;
+  }
+};
+
 const resolveFallbackEndpoint = (endpoint) => {
   if (!endpoint) return null;
   // Bascule entre /notifications/dispatch et /api/notifications/dispatch
@@ -174,28 +233,48 @@ export const notifyGroupMessage = async ({ recipientIds = [], actorName, groupNa
   });
 };
 
-export const notifyNewAnnonce = async ({ annonceId, title, authorName, price }) => {
-  return postNotification({
-    title: '🛍️ Nouvelle annonce',
-    message: `${authorName || 'Un membre'} vient de publier "${title}"${price ? ` à ${price}` : ''}.`,
-    targetSegment: 'subscribed_users',
+export const notifyNewAnnonce = async ({ annonceId, title, authorName, price, categoryName, body }) => {
+  const l1 = 'Annonces';
+  const l2 = (categoryName || 'Catégorie').trim();
+  const l3 = (title || '').trim();
+  const raw = (body || '').trim();
+  const addDots = raw.length > 60;
+  let l4 = raw.length > 80 ? raw.slice(0, 80) : raw;
+  if (addDots && !/\.\.\.$/.test(l4)) l4 = `${l4}...`;
+  const msg = [l2, l3, l4].filter(Boolean).join('\n');
+
+  return postBroadcast({
+    title: l1,
+    message: msg,
     url: annonceId ? `/annonces?annonceId=${annonceId}` : '/annonces',
     data: {
-      type: 'annonce',
-      annonceId,
+      type: 'annonces',
+      contentId: annonceId,
+      categoryName: l2,
+      titleStr: l3,
+      body80: l4,
+      price: typeof price === 'number' ? price : null,
     },
   });
 };
 
-export const notifyNewEvenement = async ({ eventId, title, date, authorName }) => {
-  return postNotification({
-    title: '🎉 Nouvel événement',
-    message: `${authorName || 'Un membre'} organise ${title}${date ? ` le ${date}` : ''}.`,
-    targetSegment: 'subscribed_users',
+export const notifyNewEvenement = async ({ eventId, title, date, time, location, authorName, categoryName }) => {
+  const l1 = 'Evenements';
+  const l2 = (categoryName || 'Catégorie').trim();
+  const l3 = (title || '').trim();
+  const l4 = [location || '', date || '', time || ''].filter(Boolean).join(' · ');
+  const msg = [l2, l3, l4].filter(Boolean).join('\n');
+
+  return postBroadcast({
+    title: l1,
+    message: msg,
     url: eventId ? `/evenements?eventId=${eventId}` : '/evenements',
     data: {
-      type: 'evenement',
-      eventId,
+      type: 'evenements',
+      contentId: eventId,
+      categoryName: l2,
+      titleStr: l3,
+      details: l4,
     },
   });
 };
@@ -213,15 +292,26 @@ export const notifyNewPartenaire = async ({ partnerId, name, city, authorName })
   });
 };
 
-export const notifyNewFaitDivers = async ({ articleId, title, authorName }) => {
-  return postNotification({
-    title: '📰 Nouveau fait divers',
-    message: `${authorName || 'Un membre'} a publié "${title}".`,
-    targetSegment: 'subscribed_users',
+export const notifyNewFaitDivers = async ({ articleId, title, authorName, categoryName, excerpt }) => {
+  const l1 = 'Faits Divers';
+  const l2 = (categoryName || 'Catégorie').trim();
+  const l3 = (title || '').trim();
+  const raw = (excerpt || '').trim();
+  const addDots = raw.length > 60;
+  let l4 = raw.length > 80 ? raw.slice(0, 80) : raw;
+  if (addDots && !/\.\.\.$/.test(l4)) l4 = `${l4}...`;
+  const msg = [l2, l3, l4].filter(Boolean).join('\n');
+
+  return postBroadcast({
+    title: l1,
+    message: msg,
     url: articleId ? `/faits-divers?articleId=${articleId}` : '/faits-divers',
     data: {
-      type: 'fait_divers',
-      articleId,
+      type: 'faits_divers',
+      contentId: articleId,
+      categoryName: l2,
+      titleStr: l3,
+      body80: l4,
     },
   });
 };

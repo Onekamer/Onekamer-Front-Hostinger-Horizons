@@ -268,11 +268,15 @@ const CreateEvenement = () => {
 
       if (newEvent) {
         try {
+          const catName = (types.find((t) => String(t.id) === String(newEvent.type_id))?.nom) || '';
           await notifyNewEvenement({
             eventId: newEvent.id,
             title: newEvent.title,
             date: newEvent.date,
+            time: newEvent.time,
+            location: newEvent.location,
             authorName: profile?.username || user?.email || 'Un membre OneKamer',
+            categoryName: catName,
           });
         } catch (notificationError) {
           console.error('Erreur notification OneSignal (événement):', notificationError);

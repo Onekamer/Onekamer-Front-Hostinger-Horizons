@@ -5,6 +5,19 @@ function routeForNotification(n) {
   // 1) Si un deeplink précis est présent, on le privilégie
   if (n?.deeplink && n.deeplink !== '/') return n.deeplink
 
+  // 1bis) Lien brut (champ 'link' des notifications supabase_light)
+  if (n?.link && typeof n.link === 'string' && n.link !== '/') {
+    try {
+      const u = new URL(n.link, window.location.origin)
+      if (u.origin === window.location.origin) {
+        return `${u.pathname}${u.search}${u.hash}` || '/'
+      }
+      return u.href
+    } catch (_) {
+      if (n.link.startsWith('/')) return n.link
+    }
+  }
+
   if (n?.url && n.url !== '/') {
     try {
       const u = new URL(n.url, window.location.origin)
@@ -69,10 +82,12 @@ function routeForNotification(n) {
     case 'annonce':
     case 'annonces':
       if (n?.contentId) return `/annonces?annonceId=${n.contentId}`
+      if (data?.contentId) return `/annonces?annonceId=${data.contentId}`
       return '/annonces'
     case 'evenement':
     case 'evenements':
       if (n?.contentId) return `/evenements?eventId=${n.contentId}`
+      if (data?.contentId) return `/evenements?eventId=${data.contentId}`
       return '/evenements'
     case 'systeme':
       return '/aide'
@@ -83,6 +98,7 @@ function routeForNotification(n) {
     case 'fait_divers':
     case 'faits_divers':
       if (n?.contentId) return `/faits-divers?articleId=${n.contentId}`
+      if (data?.contentId) return `/faits-divers?articleId=${data.contentId}`
       return '/faits-divers'
     case 'groupes':
       return '/groupes'
@@ -311,6 +327,51 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
     return null
   }
 
+  const splitBody = (n) => {
+    const body = (n?.body || '').trim()
+    if (!body) return []
+    return body.split('\n').map((s) => s.trim()).filter(Boolean)
+  }
+
+  const formatAnnonces = (n) => {
+    const t = ((n?.type || '') + '').toLowerCase()
+    const isAnnonce = n?.title === 'Annonces' || t === 'annonce' || t === 'annonces'
+    if (!isAnnonce) return null
+    const parts = splitBody(n)
+    return {
+      l1: 'Annonces',
+      l2: parts[0] || 'Catégorie',
+      l3: parts[1] || '',
+      l4: parts[2] || '',
+    }
+  }
+
+  const formatEvenements = (n) => {
+    const t = ((n?.type || '') + '').toLowerCase()
+    const isEvt = n?.title === 'Evenements' || t === 'evenement' || t === 'evenements'
+    if (!isEvt) return null
+    const parts = splitBody(n)
+    return {
+      l1: 'Evenements',
+      l2: parts[0] || 'Catégorie',
+      l3: parts[1] || '',
+      l4: parts[2] || '',
+    }
+  }
+
+  const formatFaitsDivers = (n) => {
+    const t = ((n?.type || '') + '').toLowerCase()
+    const isFd = n?.title === 'Faits Divers' || t === 'fait_divers' || t === 'faits_divers'
+    if (!isFd) return null
+    const parts = splitBody(n)
+    return {
+      l1: 'Faits Divers',
+      l2: parts[0] || 'Catégorie',
+      l3: parts[1] || '',
+      l4: parts[2] || '',
+    }
+  }
+
   return (
     <div className="fixed top-16 top-safe-16 right-0 z-[60] w-full sm:w-[380px] bg-white shadow-xl border-l border-gray-200">
       <div className="flex items-center justify-between p-4 border-b">
@@ -326,7 +387,7 @@ export default function NotifDrawer({ open, setOpen, items, loading, hasMore, fe
             <li className="p-4 text-sm text-gray-500">Aucune notification.</li>
           )}
           {items && items.map((n) => {
-            const fmt = formatGroup(n) || formatEchange(n) || formatRencontre(n)
+            const fmt = formatGroup(n) || formatEchange(n) || formatRencontre(n) || formatAnnonces(n) || formatEvenements(n) || formatFaitsDivers(n)
             return (
               <li key={n.id} className="p-4 flex items-start gap-3">
                 <div className={`${n.is_read ? 'bg-gray-300' : 'bg-[#2BA84A]'} mt-1 h-2 w-2 rounded-full`} />

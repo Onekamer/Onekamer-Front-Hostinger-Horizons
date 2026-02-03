@@ -137,6 +137,8 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
           articleId: newArticle.id,
           title: newArticle.title,
           authorName: newArticle.author?.username || user?.email || 'Un membre OneKamer',
+          categoryName: newArticle.category?.nom || '',
+          excerpt: newArticle.excerpt || '',
         });
       } catch (notificationError) {
         console.error('Erreur notification OneSignal (fait divers):', notificationError);
