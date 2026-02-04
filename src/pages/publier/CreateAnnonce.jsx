@@ -211,7 +211,7 @@ const CreateAnnonce = () => {
         uploadFormData.append("type", "annonces");
         uploadFormData.append("recordId", user.id);
 
-        const res = await fetch("https://onekamer-server.onrender.com/api/upload-media", {
+        const res = await fetch(`${API_PREFIX}/upload`, {
           method: "POST",
           body: uploadFormData,
         });

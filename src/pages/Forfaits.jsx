@@ -153,6 +153,7 @@ const Forfaits = () => {
         '🗞️ Accès aux Faits divers',
         '👥 Accès aux Groupes (lecture)',
         '📱 Accès au QR Code pour les événements',
+        "🛒 Accès Marketplace : création d'une boutique + achat",
       ],
     },
     {
@@ -183,7 +184,6 @@ const Forfaits = () => {
         '👨‍👩‍👧‍👦 Création de groupes',
         '📱 Accès au QR Code pour les événements',
         '💎 Badge VIP sur le profil',
-        '🆓 1 mois d\'essai gratuit',
       ],
     }
   ];
@@ -229,16 +229,7 @@ const Forfaits = () => {
               {plan.isPopular && <div className="absolute top-0 right-4 -mt-3 bg-[#2BA84A] text-white text-xs font-bold px-3 py-1 rounded-full">POPULAIRE</div>}
               <CardHeader>
                 <CardTitle>
-                  {plan.key === 'vip' ? (
-                    <div className="flex items-center justify-between">
-                      <span>{plan.name}</span>
-                      <span className="ml-4 px-4 py-1.5 rounded-full text-sm font-semibold bg-[#2BA84A] text-white">
-                        1 mois d'essai gratuit
-                      </span>
-                    </div>
-                  ) : (
-                    plan.name
-                  )}
+                  {plan.name}
                 </CardTitle>
                 <CardDescription className="italic">{plan.description}</CardDescription>
               </CardHeader>
