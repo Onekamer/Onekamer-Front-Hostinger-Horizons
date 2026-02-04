@@ -40,7 +40,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
         return `${priceNumber.toFixed(2).replace('.', ',')} ${symbol}`;
     };
 
-    const AnnonceDetail = ({ annonce, onBack, onDelete, onEdit }) => {
+    const AnnonceDetail = ({ annonce, onBack, onDelete, onEdit, apiPrefix, session }) => {
       const { user, profile } = useAuth();
       const { toast } = useToast();
       const navigate = useNavigate();
@@ -50,6 +50,44 @@ const getDefaultAnnonceImage = (categorieNom) => {
         profile?.is_admin === 1 ||
         profile?.is_admin === 'true' ||
         String(profile?.role || '').toLowerCase() === 'admin';
+      const [interestLoading, setInterestLoading] = useState(true);
+      const [interested, setInterested] = useState(false);
+      const [interestCount, setInterestCount] = useState(0);
+
+      useEffect(() => {
+        let mounted = true;
+        (async () => {
+          try {
+            if (!user || !apiPrefix) { setInterestLoading(false); return; }
+            const token = session?.access_token;
+            if (!token) { setInterestLoading(false); return; }
+            const res = await fetch(`${apiPrefix}/annonces/${encodeURIComponent(String(annonce.id))}/interest/status`, { headers: { Authorization: `Bearer ${token}` } });
+            const data = await res.json().catch(() => ({}));
+            if (mounted && res.ok) {
+              setInterested(!!data?.interested);
+              setInterestCount(Number(data?.interests_count || 0));
+            }
+          } catch {}
+          if (mounted) setInterestLoading(false);
+        })();
+        return () => { mounted = false };
+      }, [user, session, apiPrefix, annonce?.id]);
+
+      const handleToggleInterest = async (e) => {
+        e?.stopPropagation?.();
+        try {
+          if (!user) { toast({ title: 'Connexion requise', description: "Connectez-vous pour indiquer votre intérêt.", variant: 'destructive' }); return; }
+          const token = session?.access_token;
+          if (!token) { toast({ title: 'Session requise', description: "Veuillez vous reconnecter.", variant: 'destructive' }); return; }
+          const res = await fetch(`${apiPrefix}/annonces/${encodeURIComponent(String(annonce.id))}/interest`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
+          setInterested(!!data?.interested);
+          setInterestCount(Number(data?.interests_count || 0));
+        } catch (err) {
+          toast({ title: 'Erreur', description: err?.message || 'Action impossible.', variant: 'destructive' });
+        }
+      };
 
       const handleShare = async () => {
         const shareData = {
@@ -93,6 +131,9 @@ const getDefaultAnnonceImage = (categorieNom) => {
             </div>
              <div className="absolute right-4 flex items-center gap-2 z-20 top-4 top-safe-4">
                 <FavoriteButton contentType="annonce" contentId={annonce.id} />
+                <Button variant="outline" size="sm" onClick={handleToggleInterest} disabled={interestLoading} className="bg-white/80 backdrop-blur-sm">
+                  {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
+                </Button>
                 {(isOwner || isAdmin) && (
                   <Button
                     variant="ghost"
@@ -176,8 +217,45 @@ const getDefaultAnnonceImage = (categorieNom) => {
       );
     };
 
-    const AnnonceCard = ({ annonce, onSelect }) => {
+    const AnnonceCard = ({ annonce, onSelect, apiPrefix, session }) => {
         const { toast } = useToast();
+        const { user } = useAuth();
+        const [interestLoading, setInterestLoading] = useState(true);
+        const [interested, setInterested] = useState(false);
+        const [interestCount, setInterestCount] = useState(0);
+        useEffect(() => {
+          let mounted = true;
+          (async () => {
+            try {
+              if (!user || !apiPrefix) { setInterestLoading(false); return; }
+              const token = session?.access_token;
+              if (!token) { setInterestLoading(false); return; }
+              const res = await fetch(`${apiPrefix}/annonces/${encodeURIComponent(String(annonce.id))}/interest/status`, { headers: { Authorization: `Bearer ${token}` } });
+              const data = await res.json().catch(() => ({}));
+              if (mounted && res.ok) {
+                setInterested(!!data?.interested);
+                setInterestCount(Number(data?.interests_count || 0));
+              }
+            } catch {}
+            if (mounted) setInterestLoading(false);
+          })();
+          return () => { mounted = false };
+        }, [user, session, apiPrefix, annonce?.id]);
+        const handleToggleInterest = async (e) => {
+          e.stopPropagation();
+          try {
+            if (!user) { toast({ title: 'Connexion requise', description: 'Connectez-vous pour indiquer votre intérêt.', variant: 'destructive' }); return; }
+            const token = session?.access_token;
+            if (!token) { toast({ title: 'Session requise', description: 'Veuillez vous reconnecter.', variant: 'destructive' }); return; }
+            const res = await fetch(`${apiPrefix}/annonces/${encodeURIComponent(String(annonce.id))}/interest`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || 'Erreur serveur');
+            setInterested(!!data?.interested);
+            setInterestCount(Number(data?.interests_count || 0));
+          } catch (err) {
+            toast({ title: 'Erreur', description: err?.message || 'Action impossible.', variant: 'destructive' });
+          }
+        };
         const mediaPath = annonce.media_url || getDefaultAnnonceImage(annonce.annonces_categories?.nom);
         const handleShare = async (e) => {
             e.stopPropagation();
@@ -207,6 +285,9 @@ const getDefaultAnnonceImage = (categorieNom) => {
                                 <FavoriteButton contentType="annonce" contentId={annonce.id} />
                                 <Button variant="ghost" size="icon" onClick={handleShare} className="text-white bg-black/20 hover:bg-black/40 rounded-full h-8 w-8">
                                     <Share2 className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={handleToggleInterest} disabled={interestLoading} className="text-white bg-black/20 hover:bg-black/40 rounded-full px-2 h-8">
+                                  {interested ? 'Intéressé' : 'Intéressé ?'}{!interestLoading ? ` (${interestCount})` : ''}
                                 </Button>
                             </div>
                         </div>
@@ -397,6 +478,8 @@ const getDefaultAnnonceImage = (categorieNom) => {
           onBack={() => setSelectedAnnonce(null)} 
           onDelete={handleDelete}
           onEdit={handleEdit}
+          apiPrefix={API_PREFIX}
+          session={session}
         />
       )}
     </AnimatePresence>
@@ -422,7 +505,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredAnnonces.map((annonce, index) => (
                   <motion.div key={annonce.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
-                     <AnnonceCard annonce={annonce} onSelect={setSelectedAnnonce} />
+                     <AnnonceCard annonce={annonce} onSelect={setSelectedAnnonce} apiPrefix={API_PREFIX} session={session} />
                   </motion.div>
                 ))}
               </div>
