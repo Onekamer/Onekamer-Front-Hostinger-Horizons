@@ -266,24 +266,24 @@ const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
     const displayDuration = duration > 0 ? duration : initialDuration;
 
     return (
-        <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2">
-            <audio ref={audioRef} preload="auto" playsInline>
+        <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2 w-full">
+            <audio ref={audioRef} preload="auto" playsInline className="hidden">
               {mimeType ? (
                 <source src={src} type={(mimeType || '').split(';')[0]} />
               ) : (
                 <source src={src} />
               )}
             </audio>
-            <Button onClick={togglePlayPause} size="icon" className="rounded-full w-8 h-8" disabled={isLoading}>
+            <Button onClick={togglePlayPause} size="icon" className="rounded-full w-8 h-8 shrink-0" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />)}
             </Button>
-            <div className="w-full bg-gray-300 rounded-full h-1.5">
+            <div className="flex-1 min-w-0 bg-gray-300 rounded-full h-1.5 overflow-hidden">
                 <div
                     className="bg-blue-500 h-1.5 rounded-full"
                     style={{ width: `${(currentTime / displayDuration) * 100 || 0}%` }}
                 ></div>
             </div>
-            <span className="text-xs text-gray-600 w-20 text-center">{formatTime(currentTime)} / {formatTime(displayDuration)}</span>
+            <span className="text-xs text-gray-600 w-20 text-center shrink-0">{formatTime(currentTime)} / {formatTime(displayDuration)}</span>
         </div>
     );
 };
