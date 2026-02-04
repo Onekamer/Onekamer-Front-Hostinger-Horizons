@@ -252,7 +252,7 @@ useEffect(() => {
       
     const swipedRencontreIds = swipedUserIdsData ? swipedUserIdsData.map(l => l.liked_id) : [];
 
-    let query = supabase.from('rencontres').select('*, ville:ville_id(nom), profiles(id, is_deleted, profile_public)').neq('user_id', user.id);
+    let query = supabase.from('rencontres').select('*, ville:ville_id(nom), profiles(id, is_deleted)').neq('user_id', user.id);
     
     if (swipedRencontreIds.length > 0) {
       query = query.not('id', 'in', `(${swipedRencontreIds.join(',')})`);
@@ -268,7 +268,7 @@ useEffect(() => {
     if (error) {
       toast({ title: "Erreur", description: "Impossible de charger les profils.", variant: "destructive" });
     } else {
-      const eligible = (data || []).filter((p) => !(p?.profiles?.is_deleted === true) && (p?.profiles?.profile_public !== false));
+      const eligible = (data || []).filter((p) => !(p?.profiles?.is_deleted === true) && (p?.profile_public_rencontres !== false));
       const normalizedProfiles = (eligible || []).map(profile => ({
         ...profile,
         photos: Array.isArray(profile.photos) ? profile.photos.filter(Boolean) : [],
@@ -323,6 +323,11 @@ useEffect(() => {
         error = res2.error;
       }
       if (data && !error) {
+        if (data.profile_public_rencontres === false) {
+          toast({ title: 'Profil indisponible', description: "Ce membre a rendu son profil Rencontre privé.", variant: 'destructive' });
+          setLoading(false);
+          return;
+        }
         setProfiles([{ 
           ...data,
           photos: Array.isArray(data.photos) ? data.photos.filter(Boolean) : [],
@@ -334,17 +339,10 @@ useEffect(() => {
         if (uid) {
           const { data: pref } = await supabase
             .from('profiles')
-            .select('id, show_online_status, profile_public')
+            .select('id, show_online_status')
             .eq('id', uid)
             .maybeSingle();
           if (pref?.id) {
-            if (pref.profile_public === false) {
-              setProfiles([]);
-              setView('card');
-              setCurrentIndex(0);
-              toast({ title: 'Profil indisponible', description: "Ce membre a rendu son profil privé.", variant: 'destructive' });
-              return;
-            }
             setPresenceFlagsByUserId((prev) => ({
               ...prev,
               [String(pref.id)]: { show_online_status: pref.show_online_status !== false },
