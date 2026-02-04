@@ -517,6 +517,8 @@ import React, { useState, useEffect, useCallback } from 'react';
       onBack={() => setSelectedEvent(null)} 
       onDelete={handleDelete}
       onEdit={handleEdit}
+      apiPrefix={API_PREFIX}
+      session={session}
     />
   )}
 </AnimatePresence>
@@ -536,7 +538,7 @@ import React, { useState, useEffect, useCallback } from 'react';
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {events.map((event, index) => (
                   <motion.div key={event.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
-                    <EvenementCard event={event} onSelect={setSelectedEvent} />
+                    <EvenementCard event={event} onSelect={setSelectedEvent} apiPrefix={API_PREFIX} session={session} />
                   </motion.div>
                 ))}
               </div>
