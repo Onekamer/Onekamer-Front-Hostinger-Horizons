@@ -22,6 +22,8 @@ const Compte = () => {
   const [onlineVisible, setOnlineVisible] = useState(true);
   const [onlineSaving, setOnlineSaving] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [profilePublic, setProfilePublic] = useState(true);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
@@ -229,6 +231,7 @@ const Compte = () => {
 
   useEffect(() => {
     setOnlineVisible(profile?.show_online_status !== false);
+    setProfilePublic(profile?.profile_public !== false);
   }, [profile?.show_online_status]);
 
   if (loading) {
@@ -432,6 +435,35 @@ const Compte = () => {
                     setOnlineVisible(profile?.show_online_status !== false);
                   } finally {
                     setOnlineSaving(false);
+                  }
+                }}
+              />
+            </div>
+
+            <div className="w-full flex justify-between items-center py-4 text-left">
+              <div>
+                <div className="font-medium">Profil public</div>
+                <div className="text-xs text-gray-500">Autoriser les autres à voir votre profil (dans événements, annonces, etc.).</div>
+              </div>
+              <Switch
+                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 border border-gray-300"
+                checked={profilePublic}
+                disabled={profileSaving}
+                onCheckedChange={async (checked) => {
+                  try {
+                    setProfileSaving(true);
+                    setProfilePublic(Boolean(checked));
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ profile_public: Boolean(checked), updated_at: new Date().toISOString() })
+                      .eq('id', user.id);
+                    if (error) throw error;
+                    await refreshProfile();
+                  } catch (e) {
+                    toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+                    setProfilePublic(profile?.profile_public !== false);
+                  } finally {
+                    setProfileSaving(false);
                   }
                 }}
               />

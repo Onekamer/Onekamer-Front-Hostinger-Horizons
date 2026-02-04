@@ -144,9 +144,9 @@ import React, { useState, useEffect, useCallback } from 'react';
       
       const navigateToProfile = (e) => {
         e.stopPropagation();
-        // No navigation if no specific user_id or if it's the generic "un membre"
-        if(event.user_id && event.profiles?.username) {
-            navigate(`/profil/${event.user_id}`);
+        const allowProfile = event?.profiles?.profile_public !== false;
+        if (allowProfile && event.user_id && event.profiles?.username) {
+          navigate(`/profil/${event.user_id}`);
         }
       }
 
@@ -203,8 +203,15 @@ import React, { useState, useEffect, useCallback } from 'react';
                 <div className="space-y-1">
                     <span className="bg-[#CDE1D5] text-[#2BA84A] text-xs font-semibold px-2.5 py-1 rounded-full">{event.evenements_types?.nom || 'Type'}</span>
                     <h1 className="text-2xl font-bold text-gray-800 mt-2">{event.title}</h1>
+                    <p className="text-sm text-gray-500">Organisé par <span className="font-semibold text-gray-700">{event.organisateur || '—'}</span></p>
                     <p className="text-sm text-gray-500">
-                      Organisé par <span className={`font-semibold text-gray-700 ${event.user_id && event.profiles?.username ? 'cursor-pointer hover:underline' : ''}`} onClick={navigateToProfile}>{event.profiles?.username || event.organisateur || 'un membre'}</span>
+                      Créé par {event?.profiles?.profile_public === false ? (
+                        <span className="font-semibold text-gray-700">un membre</span>
+                      ) : (
+                        <span className={`font-semibold text-gray-700 ${event.user_id && event.profiles?.username ? 'cursor-pointer hover:underline' : ''}`} onClick={navigateToProfile}>
+                          {event.profiles?.username || 'un membre'}
+                        </span>
+                      )}
                     </p>
                 </div>
                 
@@ -405,7 +412,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         try {
           const { data, error } = await supabase
             .from('view_evenements_accessible')
-            .select('*, evenements_types(nom), profiles(username), devises(symbole)')
+            .select('*, evenements_types(nom), profiles(username, profile_public), devises(symbole)')
             .order('date', { ascending: true });
           if (error) {
             console.error("Error fetching events:", error);

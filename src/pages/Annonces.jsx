@@ -168,7 +168,13 @@ const getDefaultAnnonceImage = (categorieNom) => {
                     <span className="bg-[#CDE1D5] text-[#2BA84A] text-xs font-semibold px-2.5 py-1 rounded-full">{annonce.annonces_categories?.nom || 'Catégorie'}</span>
                     <h1 className="text-2xl font-bold text-gray-800 pt-2">{annonce.titre}</h1>
                     <p className="text-sm text-gray-500">
-                      par <span className="font-semibold text-gray-700 cursor-pointer hover:underline" onClick={navigateToProfile}>{annonce.profiles?.username || 'un membre'}</span>
+                      Créé par {annonce?.profiles?.profile_public === false ? (
+                        <span className="font-semibold text-gray-700">un membre</span>
+                      ) : (
+                        <span className={`font-semibold text-gray-700 ${annonce.user_id && annonce.profiles?.username ? 'cursor-pointer hover:underline' : ''}`} onClick={navigateToProfile}>
+                          {annonce.profiles?.username || 'un membre'}
+                        </span>
+                      )}
                     </p>
                 </div>
                 
@@ -356,7 +362,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
         try {
           const { data, error } = await supabase
             .from('view_annonces_accessible')
-            .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url), devises(symbole)')
+            .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url, profile_public), devises(symbole)')
             .order('created_at', { ascending: false });
 
           if (error) {
