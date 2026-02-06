@@ -19,6 +19,8 @@ const Forfaits = () => {
   const [promoCode, setPromoCode] = useState('');
   const isIOS = Capacitor.getPlatform() === 'ios';
   const [subInfo, setSubInfo] = useState(null);
+  const [iapVipReady, setIapVipReady] = useState(false);
+  const [iapVipChecked, setIapVipChecked] = useState(false);
 
   useEffect(() => {
     const run = async () => {
@@ -36,6 +38,28 @@ const Forfaits = () => {
     };
     run();
   }, [user?.id, session?.access_token, profile?.plan]);
+
+  useEffect(() => {
+    let mounted = true;
+    const preload = async () => {
+      try {
+        if (!isIOS) { if (mounted) setIapVipChecked(true); return; }
+        const hasFn = typeof NativePurchases?.getProducts === 'function';
+        if (!hasFn) { if (mounted) setIapVipChecked(true); return; }
+        const res = await NativePurchases.getProducts({
+          productIdentifiers: ['onekamer_vip_monthly'],
+          productType: PURCHASE_TYPE.SUBS,
+        });
+        const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+        const vip = (list || []).find((p) => String(p?.productId || p?.productIdentifier) === 'onekamer_vip_monthly');
+        if (mounted) { setIapVipReady(!!vip); setIapVipChecked(true); }
+      } catch {
+        if (mounted) setIapVipChecked(true);
+      }
+    };
+    preload();
+    return () => { mounted = false; };
+  }, [isIOS]);
 
   const handleChoosePlan = async (plan) => {
     if (!user) {
@@ -200,18 +224,20 @@ const Forfaits = () => {
           <p className="text-lg text-gray-600 mt-2">Accédez à plus de fonctionnalités et soutenez la communauté.</p>
         </div>
 
-        <div className="max-w-md mx-auto flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Code promo (optionnel)</label>
-            <input
-              type="text"
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value)}
-              placeholder="Ex: WILLYFREE"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BA84A] focus:border-[#2BA84A]"
-            />
+        {!isIOS && (
+          <div className="max-w-md mx-auto flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Code promo (optionnel)</label>
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="Ex: WILLYFREE"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BA84A] focus:border-[#2BA84A]"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-8">
           {plans.map((plan) => {
@@ -253,15 +279,29 @@ const Forfaits = () => {
                   onClick={() => handleChoosePlan(plan)}
                   className={`w-full mt-4 ${isCurrentPlan ? 'bg-gray-400' : (plan.key === 'vip' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#2BA84A] hover:bg-[#24903f]')}`}
                   variant={'default'}
-                  disabled={loadingPlan === plan.key || isCurrentPlan || (isIOS && plan.key === 'standard')}
+                  disabled={
+                    loadingPlan === plan.key ||
+                    isCurrentPlan ||
+                    (isIOS && plan.key === 'standard') ||
+                    (isIOS && plan.key === 'vip' && iapVipChecked && !iapVipReady)
+                  }
                 >
-                  {loadingPlan === plan.key ? <Loader2 className="h-4 w-4 animate-spin" /> : 
-                   isCurrentPlan ? 'Votre plan actuel' : 
-                   (isIOS && plan.key === 'standard') ? 'Bientôt disponible' : 
-                   plan.key === 'free' ? 'Gratuit' : 
-                   plan.key === 'standard' ? 'Souscrire au forfait Standard' : 
+                  {loadingPlan === plan.key ? <Loader2 className="h-4 w-4 animate-spin" /> :
+                   isCurrentPlan ? 'Votre plan actuel' :
+                   (isIOS && plan.key === 'standard') ? 'Bientôt disponible' :
+                   (isIOS && plan.key === 'vip' && iapVipChecked && !iapVipReady) ? 'Indisponible (Sandbox requis)' :
+                   plan.key === 'free' ? 'Gratuit' :
+                   plan.key === 'standard' ? 'Souscrire au forfait Standard' :
                    'Devenir membre VIP'}
                 </Button>
+                {isIOS && plan.key === 'vip' && (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    En appuyant sur "Devenir membre VIP", vous acceptez
+                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
+                    nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
               </CardContent>
             </Card>
           )})}

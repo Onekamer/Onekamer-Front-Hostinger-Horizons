@@ -41,6 +41,8 @@ const OKCoins = () => {
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
   const [buyingPackId, setBuyingPackId] = useState(null);
   const isIOS = Capacitor.getPlatform() === 'ios';
+  const [iapOkcReady, setIapOkcReady] = useState(false);
+  const [iapOkcChecked, setIapOkcChecked] = useState(false);
   
   const [receiverSuggestions, setReceiverSuggestions] = useState([]);
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
@@ -130,6 +132,28 @@ const OKCoins = () => {
     loadLedger();
     loadWithdrawals();
   }, [session?.access_token, fetchServerBalance, loadLedger, loadWithdrawals]);
+
+  useEffect(() => {
+    let mounted = true;
+    const preload = async () => {
+      try {
+        if (!isIOS) { if (mounted) setIapOkcChecked(true); return; }
+        const hasFn = typeof NativePurchases?.getProducts === 'function';
+        if (!hasFn) { if (mounted) setIapOkcChecked(true); return; }
+        const res = await NativePurchases.getProducts({
+          productIdentifiers: ['onekamer_okcoins_pack_10'],
+          productType: PURCHASE_TYPE.INAPP,
+        });
+        const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+        const ok = (list || []).some((p) => String(p?.productId || p?.productIdentifier) === 'onekamer_okcoins_pack_10');
+        if (mounted) { setIapOkcReady(!!ok); setIapOkcChecked(true); }
+      } catch {
+        if (mounted) setIapOkcChecked(true);
+      }
+    };
+    preload();
+    return () => { mounted = false; };
+  }, [isIOS]);
 
   const handleReceiverSearch = (searchTerm) => {
     if (debounceTimeout.current) {
@@ -250,6 +274,10 @@ const OKCoins = () => {
     if (isIOS && Number(pack?.coins) === 1000) {
       setBuyingPackId(pack.id);
       try {
+        if (iapOkcChecked && !iapOkcReady) {
+          toast({ title: 'Indisponible sur cet appareil', description: "Le produit IAP n’a pas été résolu (compte Sandbox requis / produit non attaché).", variant: 'destructive' });
+          return;
+        }
         const result = await NativePurchases.purchaseProduct({
           productIdentifier: 'onekamer_okcoins_pack_10',
           productType: PURCHASE_TYPE.INAPP,
@@ -493,13 +521,19 @@ const OKCoins = () => {
                       <Button
                         className="w-full mt-4 bg-[#2BA84A]"
                         onClick={() => handleBuyPack(pack)}
-                        disabled={buyingPackId === pack.id || (isIOS && Number(pack?.coins) !== 1000)}
+                        disabled={
+                          buyingPackId === pack.id ||
+                          (isIOS && Number(pack?.coins) !== 1000) ||
+                          (isIOS && Number(pack?.coins) === 1000 && iapOkcChecked && !iapOkcReady)
+                        }
                       >
                         {buyingPackId === pack.id
                           ? <Loader2 className="h-4 w-4 animate-spin"/>
                           : (isIOS && Number(pack?.coins) !== 1000)
                             ? 'Bientôt disponible'
-                            : 'Acheter'}
+                            : (isIOS && Number(pack?.coins) === 1000 && iapOkcChecked && !iapOkcReady)
+                              ? 'Indisponible (Sandbox requis)'
+                              : 'Acheter'}
                       </Button>
                     </CardContent>
                   </Card>
