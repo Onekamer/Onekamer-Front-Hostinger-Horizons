@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, MessageCircle, ArrowLeft, Send, Share2, Loader2, FileImage as ImageIcon, X, Pencil, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, ArrowLeft, Send, Share2, Loader2, FileImage as ImageIcon, X, Pencil, Trash2, EyeOff, Flag } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -27,6 +27,27 @@ import FavoriteButton from '@/components/FavoriteButton';
 import { canUserAccess } from '@/lib/accessControl';
 import { notifyNewFaitDivers, notifyMentionInComment } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
+
+// Helpers masquage local et extrait pour commentaires Faits Divers
+const getHiddenSet = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch (_) {
+    return new Set();
+  }
+};
+
+const saveHiddenSet = (key, set) => {
+  try { localStorage.setItem(key, JSON.stringify(Array.from(set))); } catch (_) {}
+};
+
+const makeExcerpt = (str, n = 120) => {
+  const s = String(str || '').trim();
+  if (s.length <= n) return s;
+  return s.slice(0, n) + '…';
+};
 
 const AddNewsForm = ({ categories, onArticleAdded }) => {
   const { user } = useAuth();
@@ -241,13 +262,61 @@ const CommentAvatar = ({ avatarPath, username }) => {
 };
 
 const CommentSection = ({ articleId }) => {
-  const { user, profile, blockUser, unblockUser } = useAuth();
+  const { user, profile } = useAuth();
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Masquage local par utilisateur
+  const viewerId = user?.id ? String(user.id) : 'anon';
+  const hiddenKey = React.useMemo(() => `ok_hidden_comments_v1:${viewerId}`, [viewerId]);
+  const [hiddenSet, setHiddenSet] = useState(() => getHiddenSet(hiddenKey));
+  useEffect(() => { saveHiddenSet(hiddenKey, hiddenSet); }, [hiddenKey, hiddenSet]);
+  const hideLocal = React.useCallback((cid) => {
+    setHiddenSet((prev) => { const next = new Set(prev); next.add(`fdcomment:${cid}`); return next; });
+    toast({ title: 'Commentaire masqué' });
+  }, [toast]);
+  const unhideLocal = React.useCallback((cid) => {
+    setHiddenSet((prev) => { const next = new Set(prev); next.delete(`fdcomment:${cid}`); return next; });
+  }, []);
+
+  // Signalement commentaire
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reporting, setReporting] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null); // { id, authorId, excerpt }
+  const openReport = React.useCallback((c) => {
+    setReportTarget({ id: c?.id, authorId: c?.user?.id || c?.user_id || null, excerpt: c?.content || '' });
+    setReportOpen(true);
+  }, []);
+  const submitReport = React.useCallback(async () => {
+    try {
+      if (!user?.id) { toast({ variant: 'destructive', title: 'Connexion requise' }); return; }
+      setReporting(true);
+      const { error } = await supabase.from('support_requests').insert({
+        user_id: user.id,
+        type: 'report',
+        target_user_id: reportTarget?.authorId || null,
+        category: reportReason?.trim() || null,
+        message: `Report fait-divers comment #${reportTarget?.id}: ${makeExcerpt(reportTarget?.excerpt || '', 120)} — ${reportDetails?.trim() || ''}`,
+        status: 'pending',
+      });
+      if (error) throw error;
+      toast({ title: 'Merci', description: 'Nous avons bien pris en compte votre signalement. Il sera traité sous 24h. Merci de contribuer à une communauté saine.' });
+      setReportOpen(false);
+      setReportReason('');
+      setReportDetails('');
+      setReportTarget(null);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || "Impossible d’envoyer le signalement." });
+    } finally {
+      setReporting(false);
+    }
+  }, [user?.id, reportTarget, reportReason, reportDetails, toast]);
 
   const fetchComments = useCallback(async () => {
     setLoadingComments(true);
@@ -361,15 +430,27 @@ const CommentSection = ({ articleId }) => {
                 <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.user?.id) navigate(`/profil/${comment.user.id}`) }}>{comment.user?.username}</p>
-                    {user && comment.user?.id && String(comment.user.id) !== String(user.id) && (
-                      (Array.isArray(profile?.blocked_user_ids) && profile.blocked_user_ids.map(String).includes(String(comment.user.id))) ? (
-                        <button className="text-xs text-gray-600 hover:underline" onClick={() => unblockUser(comment.user.id)}>Ne plus bloquer</button>
-                      ) : (
-                        <button className="text-xs text-red-600 hover:underline" onClick={() => blockUser(comment.user.id)}>Bloquer</button>
-                      )
-                    )}
                   </div>
-                  <p className="text-sm text-gray-700">{comment.content}</p>
+                  {hiddenSet.has(`fdcomment:${comment.id}`) ? (
+                    <div className="flex items-center justify-between text-xs text-gray-500 italic">
+                      <span>Commentaire masqué</span>
+                      <button className="hover:underline" onClick={() => unhideLocal(comment.id)}>Afficher</button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-700">{comment.content}</p>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                        <button className="flex items-center gap-1 hover:text-gray-600" onClick={() => hideLocal(comment.id)}>
+                          <EyeOff className="h-4 w-4" />
+                          <span>Masquer</span>
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-red-600" onClick={() => openReport(comment)}>
+                          <Flag className="h-4 w-4" />
+                          <span>Signaler</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -387,6 +468,22 @@ const CommentSection = ({ articleId }) => {
         </div>
         {!user && <p className="text-xs text-gray-500 mt-2">Vous devez être <a href="/compte" className="underline text-green-600">connecté</a> pour commenter.</p>}
       </form>
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="bg-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Signaler ce commentaire</DialogTitle>
+            <DialogDescription>Explique brièvement la raison de ton signalement.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Raison (ex: harcèlement, spam…)" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
+            <Textarea placeholder="Détails (optionnel)" value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReportOpen(false)}>Annuler</Button>
+            <Button onClick={submitReport} disabled={reporting}>{reporting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Envoyer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

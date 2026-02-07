@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Shield, Award, MessageSquare as MessageSquareQuote, Gem, Star, Crown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Shield, Award, MessageSquare as MessageSquareQuote, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -144,12 +144,15 @@ const UserProfile = () => {
                   <span>{statusText}</span>
                 </div>
                 {authUser?.id && String(authUser.id) !== String(userId) && (
-                  <div className="mt-3">
+                  <div className="mt-3 flex items-center gap-2">
                     {isBlocked ? (
                       <Button variant="outline" onClick={() => unblockUser(userId)}>Ne plus bloquer</Button>
                     ) : (
                       <Button variant="outline" onClick={() => blockUser(userId)}>Bloquer</Button>
                     )}
+                    <Button variant="ghost" onClick={() => navigate(`/aide?type=report&userId=${encodeURIComponent(userId)}`)}>
+                      <Flag className="h-4 w-4 mr-1" /> Signaler
+                    </Button>
                   </div>
                 )}
                 

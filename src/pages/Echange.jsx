@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Share2, Send, Loader2, Trash2, Image as ImageIcon, X, Coins, Mic, Square, Play, Pause } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Send, Loader2, Trash2, Image as ImageIcon, X, Coins, Mic, Square, Play, Pause, EyeOff, Flag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -13,6 +13,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import CreatePost from '@/components/posts/CreatePost';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -55,6 +56,27 @@ const parseMentions = (text) => {
   }
   if (lastIndex < text.length) out.push(text.slice(lastIndex));
   return out;
+};
+
+// Helpers masquage local et extrait
+const getHiddenSet = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch (_) {
+    return new Set();
+  }
+};
+
+const saveHiddenSet = (key, set) => {
+  try { localStorage.setItem(key, JSON.stringify(Array.from(set))); } catch (_) {}
+};
+
+const makeExcerpt = (str, n = 120) => {
+  const s = String(str || '').trim();
+  if (s.length <= n) return s;
+  return s.slice(0, n) + '…';
 };
 
 const UserAvatar = ({ avatarUrl, username, className }) => {
@@ -324,7 +346,7 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
 };
 
 const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioParentId, refreshBalance, highlightCommentId }) => {
-  const { user, profile, blockUser, unblockUser } = useAuth();
+  const { user, profile } = useAuth();
   const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
@@ -337,6 +359,54 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
   const navigate = useNavigate();
   const [replyTo, setReplyTo] = useState(null);
   const [replyToUser, setReplyToUser] = useState(null);
+
+  // Masquage local commentaires (par utilisateur)
+  const viewerId = user?.id ? String(user.id) : 'anon';
+  const hiddenCommentsKey = useMemo(() => `ok_hidden_comments_v1:${viewerId}`, [viewerId]);
+  const [hiddenCommentSet, setHiddenCommentSet] = useState(() => getHiddenSet(hiddenCommentsKey));
+  useEffect(() => { saveHiddenSet(hiddenCommentsKey, hiddenCommentSet); }, [hiddenCommentsKey, hiddenCommentSet]);
+  const hideCommentLocal = useCallback((cid) => {
+    setHiddenCommentSet((prev) => { const next = new Set(prev); next.add(`ecomment:${cid}`); return next; });
+    toast({ title: 'Commentaire masqué' });
+  }, []);
+  const unhideCommentLocal = useCallback((cid) => {
+    setHiddenCommentSet((prev) => { const next = new Set(prev); next.delete(`ecomment:${cid}`); return next; });
+  }, []);
+
+  // Signalement (commentaire)
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reporting, setReporting] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null); // { scope: 'comment', id, authorId, excerpt }
+  const openReportForComment = useCallback((c) => {
+    setReportTarget({ scope: 'comment', id: c?.id, authorId: c?.author?.id || c?.user_id || null, excerpt: c?.content || '' });
+    setReportOpen(true);
+  }, []);
+  const submitReport = useCallback(async () => {
+    try {
+      if (!user?.id) { toast({ variant: 'destructive', title: 'Connexion requise' }); return; }
+      setReporting(true);
+      const { error } = await supabase.from('support_requests').insert({
+        user_id: user.id,
+        type: 'report',
+        target_user_id: reportTarget?.authorId || null,
+        category: reportReason?.trim() || null,
+        message: `Report ${reportTarget?.scope} #${reportTarget?.id}: ${makeExcerpt(reportTarget?.excerpt || '', 120)} — ${reportDetails?.trim() || ''}`,
+        status: 'pending',
+      });
+      if (error) throw error;
+      toast({ title: 'Merci', description: 'Nous avons bien pris en compte votre signalement. Il sera traité sous 24h. Merci de contribuer à une communauté saine.' });
+      setReportOpen(false);
+      setReportReason('');
+      setReportDetails('');
+      setReportTarget(null);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible d’envoyer le signalement.' });
+    } finally {
+      setReporting(false);
+    }
+  }, [user?.id, reportTarget, reportReason, reportDetails]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -1006,28 +1076,38 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                     </div>
                     <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
                       <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>{comment.author?.username}</p>
-                      {comment.type === 'audio' ? <AudioPlayer src={comment.audio_url} initialDuration={comment.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(comment.content)}</p> }
-                      {comment.media_url && <CommentMedia url={comment.media_url} type={comment.media_type} />}
-                      <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                        <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
-                        {user && comment.author?.id && comment.author.id !== user.id && (
-                          <DonationDialog
-                            post={{ user_id: comment.author?.id, profiles: { username: comment.author?.username } }}
-                            user={user}
-                            profile={profile}
-                            refreshBalance={refreshBalance}
-                          >
-                            <button className="hover:text-[#F5C300]">Don</button>
-                          </DonationDialog>
-                        )}
-                        {user && comment.author?.id && String(comment.author.id) !== String(user.id) && (
-                          blockedSet.has(String(comment.author.id)) ? (
-                            <button className="hover:text-gray-600" onClick={() => unblockUser(comment.author.id)}>Ne plus bloquer</button>
-                          ) : (
-                            <button className="hover:text-red-600" onClick={() => blockUser(comment.author.id)}>Bloquer</button>
-                          )
-                        )}
-                      </div>
+                      {hiddenCommentSet.has(`ecomment:${comment.id}`) ? (
+                        <div className="flex items-center justify-between text-xs text-gray-500 italic">
+                          <span>Commentaire masqué</span>
+                          <button className="hover:underline" onClick={() => unhideCommentLocal(comment.id)}>Afficher</button>
+                        </div>
+                      ) : (
+                        <>
+                          {comment.type === 'audio' ? <AudioPlayer src={comment.audio_url} initialDuration={comment.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(comment.content)}</p> }
+                          {comment.media_url && <CommentMedia url={comment.media_url} type={comment.media_type} />}
+                          <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                            <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
+                            {user && comment.author?.id && comment.author.id !== user.id && (
+                              <DonationDialog
+                                post={{ user_id: comment.author?.id, profiles: { username: comment.author?.username } }}
+                                user={user}
+                                profile={profile}
+                                refreshBalance={refreshBalance}
+                              >
+                                <button className="hover:text-[#F5C300]">Don</button>
+                              </DonationDialog>
+                            )}
+                            <button className="flex items-center gap-1 hover:text-gray-600" onClick={() => hideCommentLocal(comment.id)}>
+                              <EyeOff className="h-4 w-4" />
+                              <span>Masquer</span>
+                            </button>
+                            <button className="flex items-center gap-1 hover:text-red-600" onClick={() => openReportForComment(comment)}>
+                              <Flag className="h-4 w-4" />
+                              <span>Signaler</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                   {(childrenMap[comment.id] || []).length > 0 && (
@@ -1039,28 +1119,38 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                           </div>
                           <div className="bg-gray-50 rounded-lg px-3 py-2 w-full">
                             <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>{child.author?.username}</p>
-                            {child.type === 'audio' ? <AudioPlayer src={child.audio_url} initialDuration={child.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(child.content)}</p> }
-                            {child.media_url && <CommentMedia url={child.media_url} type={child.media_type} />}
-                            <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                              <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
-                              {user && child.author?.id && child.author.id !== user.id && (
-                                <DonationDialog
-                                  post={{ user_id: child.author?.id, profiles: { username: child.author?.username } }}
-                                  user={user}
-                                  profile={profile}
-                                  refreshBalance={refreshBalance}
-                                >
-                                  <button className="hover:text-[#F5C300]">Don</button>
-                                </DonationDialog>
-                              )}
-                              {user && child.author?.id && String(child.author.id) !== String(user.id) && (
-                                blockedSet.has(String(child.author.id)) ? (
-                                  <button className="hover:text-gray-600" onClick={() => unblockUser(child.author.id)}>Ne plus bloquer</button>
-                                ) : (
-                                  <button className="hover:text-red-600" onClick={() => blockUser(child.author.id)}>Bloquer</button>
-                                )
-                              )}
-                            </div>
+                            {hiddenCommentSet.has(`ecomment:${child.id}`) ? (
+                              <div className="flex items-center justify-between text-xs text-gray-500 italic">
+                                <span>Commentaire masqué</span>
+                                <button className="hover:underline" onClick={() => unhideCommentLocal(child.id)}>Afficher</button>
+                              </div>
+                            ) : (
+                              <>
+                                {child.type === 'audio' ? <AudioPlayer src={child.audio_url} initialDuration={child.audio_duration} /> : <p className="text-sm text-gray-700">{parseMentions(child.content)}</p> }
+                                {child.media_url && <CommentMedia url={child.media_url} type={child.media_type} />}
+                                <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                                  <button onClick={() => { setReplyTo(comment.id); setReplyToUser(comment.author?.username || ''); }}>Répondre</button>
+                                  {user && child.author?.id && child.author.id !== user.id && (
+                                    <DonationDialog
+                                      post={{ user_id: child.author?.id, profiles: { username: child.author?.username } }}
+                                      user={user}
+                                      profile={profile}
+                                      refreshBalance={refreshBalance}
+                                    >
+                                      <button className="hover:text-[#F5C300]">Don</button>
+                                    </DonationDialog>
+                                  )}
+                                  <button className="flex items-center gap-1 hover:text-gray-600" onClick={() => hideCommentLocal(child.id)}>
+                                    <EyeOff className="h-4 w-4" />
+                                    <span>Masquer</span>
+                                  </button>
+                                  <button className="flex items-center gap-1 hover:text-red-600" onClick={() => openReportForComment(child)}>
+                                    <Flag className="h-4 w-4" />
+                                    <span>Signaler</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1142,6 +1232,22 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             </div>
         </form>
       </div>
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="bg-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Signaler ce commentaire</DialogTitle>
+            <DialogDescription>Explique brièvement la raison de ton signalement.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Raison (ex: harcèlement, spam…)" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
+            <Textarea placeholder="Détails (optionnel)" value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReportOpen(false)}>Annuler</Button>
+            <Button onClick={submitReport} disabled={reporting}>{reporting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Envoyer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
@@ -1149,7 +1255,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
 
 const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments, onToggleComments, refreshBalance, highlightCommentId }) => {
   const navigate = useNavigate();
-  const { onlineUserIds, blockUser, unblockUser } = useAuth();
+  const { onlineUserIds } = useAuth();
   const viewerBlockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
   const [isLiked, setIsLiked] = useState(false);
@@ -1168,6 +1274,49 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsCount, setCommentsCount] = useState(0);
   // moved isMyPost / isAdmin above to compute isDeletedAuthor consistently
+
+  // Masquage local des posts (feed texte/photo/vidéo)
+  const viewerId = user?.id ? String(user.id) : 'anon';
+  const hiddenPostsKey = useMemo(() => `ok_hidden_posts_v1:${viewerId}`,[viewerId]);
+  const [hiddenPostSet, setHiddenPostSet] = useState(() => getHiddenSet(hiddenPostsKey));
+  useEffect(() => { saveHiddenSet(hiddenPostsKey, hiddenPostSet); }, [hiddenPostsKey, hiddenPostSet]);
+  const hidePostLocal = useCallback((pid) => {
+    setHiddenPostSet((prev) => { const next = new Set(prev); next.add(`post:${pid}`); return next; });
+    toast({ title: 'Post masqué' });
+  }, []);
+  const unhidePostLocal = useCallback((pid) => {
+    setHiddenPostSet((prev) => { const next = new Set(prev); next.delete(`post:${pid}`); return next; });
+  }, []);
+
+  // Signalement post
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reporting, setReporting] = useState(false);
+  const openReportForPost = useCallback(() => setReportOpen(true), []);
+  const submitReport = useCallback(async () => {
+    try {
+      if (!user?.id) { toast({ variant: 'destructive', title: 'Connexion requise' }); return; }
+      setReporting(true);
+      const { error } = await supabase.from('support_requests').insert({
+        user_id: user.id,
+        type: 'report',
+        target_user_id: post?.user_id || null,
+        category: reportReason?.trim() || null,
+        message: `Report post #${post?.id}: ${makeExcerpt(post?.content || '', 120)} — ${reportDetails?.trim() || ''}`,
+        status: 'pending',
+      });
+      if (error) throw error;
+      toast({ title: 'Merci', description: 'Nous avons bien pris en compte votre signalement. Il sera traité sous 24h. Merci de contribuer à une communauté saine.' });
+      setReportOpen(false);
+      setReportReason('');
+      setReportDetails('');
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible d’envoyer le signalement.' });
+    } finally {
+      setReporting(false);
+    }
+  }, [user?.id, post?.id, post?.user_id, post?.content, reportReason, reportDetails]);
 
   useEffect(() => {
     setLikesCount(Number(post?.likes_count) || 0);
@@ -1276,6 +1425,19 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
       setWarnSending(false);
     }
   };
+
+  if (hiddenPostSet.has(`post:${post.id}`)) {
+    return (
+      <Card id={`feed-item-post-${post.id}`}>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between text-sm text-gray-500 italic">
+            <span>Post masqué</span>
+            <Button variant="ghost" size="sm" onClick={() => unhidePostLocal(post.id)}>Afficher</Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card id={`feed-item-post-${post.id}`}>
@@ -1386,13 +1548,14 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             <Share2 className="h-5 w-5" />
             <span>Partager</span>
           </button>
-          {user && user.id !== post.user_id && (
-            viewerBlockedSet.has(String(post.user_id)) ? (
-              <button className="text-xs hover:text-gray-700" onClick={() => unblockUser(post.user_id)}>Ne plus bloquer</button>
-            ) : (
-              <button className="text-xs hover:text-red-600" onClick={() => blockUser(post.user_id)}>Bloquer</button>
-            )
-          )}
+          <button className="flex items-center gap-1 text-xs hover:text-gray-700" onClick={() => hidePostLocal(post.id)}>
+            <EyeOff className="h-4 w-4" />
+            Masquer
+          </button>
+          <button className="flex items-center gap-1 text-xs hover:text-red-600" onClick={openReportForPost}>
+            <Flag className="h-4 w-4" />
+            Signaler
+          </button>
           {user && !isMyPost && (
             <DonationDialog post={post} user={user} profile={profile} refreshBalance={refreshBalance}>
               <button className="flex items-center gap-2 hover:text-[#F5C300] transition-colors ml-auto">
@@ -1415,13 +1578,29 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           )}
         </AnimatePresence>
       </CardContent>
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="bg-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Signaler cette publication</DialogTitle>
+            <DialogDescription>Explique brièvement la raison de ton signalement.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Raison (ex: harcèlement, spam…)" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
+            <Textarea placeholder="Détails (optionnel)" value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReportOpen(false)}>Annuler</Button>
+            <Button onClick={submitReport} disabled={reporting}>{reporting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Envoyer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
 
 const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, autoOpen, highlightCommentId }) => {
   const navigate = useNavigate();
-  const { onlineUserIds, blockUser, unblockUser } = useAuth();
+  const { onlineUserIds } = useAuth();
   const viewerBlockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
   const [isLiked, setIsLiked] = useState(false);
@@ -1441,6 +1620,49 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
   const isDeletedAuthor = post?.author?.is_deleted === true;
 
   const canWarn = isAdmin && user && !isMyPost && typeof onWarn === 'function';
+
+  // Masquage local (audio-posts)
+  const viewerId = user?.id ? String(user.id) : 'anon';
+  const hiddenPostsKey = useMemo(() => `ok_hidden_posts_v1:${viewerId}`,[viewerId]);
+  const [hiddenPostSet, setHiddenPostSet] = useState(() => getHiddenSet(hiddenPostsKey));
+  useEffect(() => { saveHiddenSet(hiddenPostsKey, hiddenPostSet); }, [hiddenPostsKey, hiddenPostSet]);
+  const hideAudioLocal = useCallback((pid) => {
+    setHiddenPostSet((prev) => { const next = new Set(prev); next.add(`audio:${pid}`); return next; });
+    toast({ title: 'Post masqué' });
+  }, []);
+  const unhideAudioLocal = useCallback((pid) => {
+    setHiddenPostSet((prev) => { const next = new Set(prev); next.delete(`audio:${pid}`); return next; });
+  }, []);
+
+  // Signalement (audio-post)
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reporting, setReporting] = useState(false);
+  const openReportForAudio = useCallback(() => setReportOpen(true), []);
+  const submitReport = useCallback(async () => {
+    try {
+      if (!user?.id) { toast({ variant: 'destructive', title: 'Connexion requise' }); return; }
+      setReporting(true);
+      const { error } = await supabase.from('support_requests').insert({
+        user_id: user.id,
+        type: 'report',
+        target_user_id: post?.user_id || null,
+        category: reportReason?.trim() || null,
+        message: `Report audio #${post?.id}: ${makeExcerpt(post?.content || '', 120)} — ${reportDetails?.trim() || ''}`,
+        status: 'pending',
+      });
+      if (error) throw error;
+      toast({ title: 'Merci', description: 'Nous avons bien pris en compte votre signalement. Il sera traité sous 24h. Merci de contribuer à une communauté saine.' });
+      setReportOpen(false);
+      setReportReason('');
+      setReportDetails('');
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible d’envoyer le signalement.' });
+    } finally {
+      setReporting(false);
+    }
+  }, [user?.id, post?.id, post?.user_id, post?.content, reportReason, reportDetails]);
 
   const submitWarn = async () => {
     try {
@@ -1580,6 +1802,19 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
     return () => { supabase.removeChannel(channel); };
   }, [post.id, refreshCommentsCount]);
 
+  if (hiddenPostSet.has(`audio:${post.id}`)) {
+    return (
+      <Card id={`feed-item-audio_post-${post.id}`}>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between text-sm text-gray-500 italic">
+            <span>Post masqué</span>
+            <Button variant="ghost" size="sm" onClick={() => unhideAudioLocal(post.id)}>Afficher</Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card id={`feed-item-audio_post-${post.id}`}>
       <CardContent className="pt-6">
@@ -1677,13 +1912,14 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                 <Share2 className="h-5 w-5" />
                 <span>Partager</span>
               </button>
-              {user && !isMyPost && (
-                viewerBlockedSet.has(String(post.user_id)) ? (
-                  <button className="text-xs hover:text-gray-700" onClick={() => unblockUser(post.user_id)}>Ne plus bloquer</button>
-                ) : (
-                  <button className="text-xs hover:text-red-600" onClick={() => blockUser(post.user_id)}>Bloquer</button>
-                )
-              )}
+              <button className="flex items-center gap-1 text-xs hover:text-gray-700" onClick={() => hideAudioLocal(post.id)}>
+                <EyeOff className="h-4 w-4" />
+                Masquer
+              </button>
+              <button className="flex items-center gap-1 text-xs hover:text-red-600" onClick={openReportForAudio}>
+                <Flag className="h-4 w-4" />
+                Signaler
+              </button>
               {user && !isMyPost && (
                 <DonationDialog
                   post={{ user_id: post.user_id, profiles: { username: post.author?.username } }}
@@ -1714,6 +1950,22 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
           </div>
         </div>
       </CardContent>
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="bg-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Signaler ce message vocal</DialogTitle>
+            <DialogDescription>Explique brièvement la raison de ton signalement.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Raison (ex: harcèlement, spam…)" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
+            <Textarea placeholder="Détails (optionnel)" value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReportOpen(false)}>Annuler</Button>
+            <Button onClick={submitReport} disabled={reporting}>{reporting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Envoyer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

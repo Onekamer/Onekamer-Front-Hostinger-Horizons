@@ -41,6 +41,8 @@ import ModifierProfil from '@/pages/compte/ModifierProfil';
 import Notifications from '@/pages/compte/Notifications';
 import Confidentialite from '@/pages/compte/Confidentialite';
 import Favoris from '@/pages/compte/Favoris';
+import BlockedAccounts from '@/pages/compte/BlockedAccounts';
+import ReportsHistory from '@/pages/compte/ReportsHistory';
 import CreateAnnonce from '@/pages/publier/CreateAnnonce';
 import CreateEvenement from '@/pages/publier/CreateEvenement';
 import ProposerPartenaire from '@/pages/publier/ProposerPartenaire';
@@ -242,6 +244,8 @@ const AppContent = () => {
           <Route path="/compte/notifications" element={<Notifications />} />
           <Route path="/compte/confidentialite" element={<Confidentialite />} />
           <Route path="/compte/favoris" element={<Favoris />} />
+          <Route path="/compte/comptes-bloques" element={<BlockedAccounts />} />
+          <Route path="/compte/mes-signalements" element={<ReportsHistory />} />
           <Route path="/publier" element={<Publier />} />
           <Route path="/publier/annonce" element={<CreateAnnonce />} />
           <Route path="/publier/evenement" element={<CreateEvenement />} />

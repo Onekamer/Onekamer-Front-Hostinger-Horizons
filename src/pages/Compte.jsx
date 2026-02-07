@@ -553,6 +553,8 @@ const Compte = () => {
             )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
+            <MenuItem onClick={() => navigate('/compte/comptes-bloques')} title="Comptes bloqués" />
+            <MenuItem onClick={() => navigate('/compte/mes-signalements')} title="Mes signalements" />
 
             {isNativeApp && (
               <div className="py-4">
