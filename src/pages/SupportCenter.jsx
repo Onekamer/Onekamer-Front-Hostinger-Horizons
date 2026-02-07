@@ -11,7 +11,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, UserX, MessageSquare as MessageSquareHeart, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useLocation } from 'react-router-dom';
 
 // Custom hook for debouncing
 const useDebounce = (value, delay) => {
@@ -30,7 +29,6 @@ const useDebounce = (value, delay) => {
 const SupportCenter = () => {
   const { user, session } = useAuth();
   const { toast } = useToast();
-  const location = useLocation();
   const [requestType, setRequestType] = useState(null);
   
   // State for user search
@@ -52,30 +50,6 @@ const SupportCenter = () => {
   const [selectedShop, setSelectedShop] = useState(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 250);
-
-  // Pré-remplissage via query params (ex: ?type=report&userId=<id>)
-  useEffect(() => {
-    try {
-      const sp = new URLSearchParams(location.search || '');
-      const t = sp.get('type');
-      const uid = sp.get('userId');
-      if (t === 'report') {
-        setRequestType('report');
-        if (uid) {
-          supabase
-            .from('profiles')
-            .select('id, username, full_name, avatar_url')
-            .eq('id', uid)
-            .maybeSingle()
-            .then(({ data }) => {
-              if (data && data.id) setSelectedUser(data);
-            })
-            .catch(() => {});
-        }
-      }
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
 
   const handleSearch = useCallback((event) => {
     event?.preventDefault();

@@ -81,7 +81,10 @@ const ChartePopup = ({ show, onAccept, onClose, readOnly = false, title, content
               </p>
               <h2 className="font-bold text-lg">10. Validation</h2>
               <p>
-                ✅ En cliquant sur « J’ai lu et j’accepte la charte », vous reconnaissez avoir compris et accepté les règles d’utilisation de OneKamer.co. Bienvenue dans la communauté ! Ensemble, faisons rayonner le Cameroun et sa diaspora 🌍🇨🇲
+                ✅ En cliquant sur « J’ai lu et j’accepte la charte », vous reconnaissez avoir compris et accepté les règles d’utilisation de OneKamer.co. Vous acceptez également
+                <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l’EULA iOS</a>, notre
+                <a href="/rgpd" className="underline"> RGPD</a> et nos
+                <a href="/cgu" className="underline"> CGU</a>. Bienvenue dans la communauté ! Ensemble, faisons rayonner le Cameroun et sa diaspora 🌍🇨🇲
               </p>
               <p className="text-xs text-gray-500">
                 Version 1.0 - mise à jour le 29 janvier 2026

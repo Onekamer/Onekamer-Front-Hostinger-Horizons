@@ -32,7 +32,6 @@ import { getInitials } from '@/lib/utils';
 import { uploadAudioFile, ensurePublicAudioUrl } from '@/utils/audioStorage';
 import { notifyDonationReceived, notifyPostLiked, notifyPostCommented, notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
-import { useCharteValidation } from '@/hooks/useCharteValidation';
 
 const normalizeAudioEntry = (entry) => {
   if (!entry || !entry.audio_url) return entry;
@@ -349,7 +348,6 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
 
 const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioParentId, refreshBalance, highlightCommentId }) => {
   const { user, profile } = useAuth();
-  const { showCharte } = useCharteValidation();
   const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
@@ -1199,7 +1197,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                         value={newComment}
                         onChange={handleCommentChange}
                         placeholder={replyToUser ? `Répondre à ${replyToUser}…` : "Écrire un commentaire..."}
-                        disabled={isPostingComment || !!audioBlob || showCharte}
+                        disabled={isPostingComment || !!audioBlob}
                       />
                       {showSuggestions && suggestions.length > 0 && (
                         <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border rounded-md shadow z-10">
@@ -1213,7 +1211,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                       )}
                     </div>
                 )}
-                <Button type="submit" size="icon" disabled={isPostingComment || showCharte || (!newComment.trim() && !mediaFile && !audioBlob)}>
+                <Button type="submit" size="icon" disabled={isPostingComment || (!newComment.trim() && !mediaFile && !audioBlob)}>
                     {isPostingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
             </div>
@@ -1235,13 +1233,13 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             
             <div className="flex">
                 {!isRecording && !audioBlob && (
-                  <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={isPostingComment || showCharte}>
+                  <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={isPostingComment}>
                       <ImageIcon className="h-4 w-4" />
                   </Button>
                 )}
-                <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob || showCharte}/>
+                <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob}/>
                 {!isRecording && !audioBlob && (
-                  <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isPostingComment || showCharte}>
+                  <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isPostingComment}>
                     <Mic className="h-4 w-4" />
                   </Button>
                 )}
