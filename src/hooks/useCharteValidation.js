@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/customSupabaseClient';
 
 export const useCharteValidation = () => {
   const { user, profile, loading, refreshProfile, session } = useAuth();
@@ -28,9 +29,14 @@ export const useCharteValidation = () => {
       setShowCharte(false);
       return;
     }
-    const accepted = Boolean(profile.has_accepted_charts ?? profile.has_accepted_charte);
-    const versionOk = currentVersion ? String(profile.chart_terms_version || '') === String(currentVersion) : accepted;
-    setShowCharte(!(accepted && versionOk));
+    const isIOS = typeof window !== 'undefined' && window?.Capacitor?.getPlatform?.() === 'ios';
+    // CGU acceptée si timestamp présent (fallback sur anciens booleans)
+    const acceptedCGU = Boolean(profile.charter_accepted_at || profile.has_accepted_charte || profile.has_accepted_charts);
+    // EULA requise uniquement sur iOS
+    const acceptedEULA = isIOS ? Boolean(profile.apple_eula_accepted_at) : true;
+    // Version: on garde la compat avec chart_terms_version si fournie par l'API
+    const versionOk = currentVersion ? String(profile.chart_terms_version || '') === String(currentVersion) : acceptedCGU;
+    setShowCharte(!(acceptedCGU && acceptedEULA && versionOk));
   }, [user, profile, loading, currentVersion]);
 
   const acceptCharte = useCallback(async () => {
@@ -42,6 +48,16 @@ export const useCharteValidation = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'accept_failed');
+      // iOS: si l'EULA n'est pas encore marquée comme acceptée, on la renseigne côté profil
+      const isIOS = typeof window !== 'undefined' && window?.Capacitor?.getPlatform?.() === 'ios';
+      if (isIOS && !profile?.apple_eula_accepted_at) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ apple_eula_accepted_at: new Date().toISOString() })
+            .eq('id', user.id);
+        } catch (_) {}
+      }
       toast({ title: 'Charte acceptée !', description: 'Bienvenue dans la communauté OneKamer.co !' });
       await refreshProfile();
       setShowCharte(false);
