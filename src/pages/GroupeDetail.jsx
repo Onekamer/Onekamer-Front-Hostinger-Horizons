@@ -91,7 +91,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     };
 
     const MessageItem = ({ msg, currentUserId, groupId, onActionComplete }) => {
-      const { user, onlineUserIds } = useAuth();
+      const { user, onlineUserIds, profile } = useAuth();
       const { toast } = useToast();
       const [isLiked, setIsLiked] = useState(false);
       const [likesCount, setLikesCount] = useState(msg.likes_count || 0);
@@ -164,6 +164,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       };
 
       const isMyMessage = msg.sender_id === currentUserId;
+      const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
+      if (msg.sender_id && blockedSet.has(String(msg.sender_id))) {
+        return null;
+      }
 
       const handleDelete = async () => {
         if (!user || !msg.message_id || user.id !== msg.sender_id) return;
@@ -236,7 +240,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const { groupId } = useParams();
       const navigate = useNavigate();
       const location = useLocation();
-      const { user, session, loading: authLoading } = useAuth();
+      const { user, session, loading: authLoading, profile } = useAuth();
       const { toast } = useToast();
       const [groupData, setGroupData] = useState([]);
       const [messages, setMessages] = useState([]);
@@ -316,7 +320,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                 }
             });
             const baseMessages = Array.from(uniqueMessages.values());
-            setMessages(baseMessages);
+            const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
+            const visibleMessages = baseMessages.filter((m) => !m.sender_id || !blockedSet.has(String(m.sender_id)));
+            setMessages(visibleMessages);
 
             // Normaliser les auteurs supprimés (post-traitement)
             try {
@@ -365,6 +371,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               filter: `groupe_id=eq.${groupId}`,
             },
             async (payload) => {
+              const isBlockedSender = Array.isArray(profile?.blocked_user_ids) && profile.blocked_user_ids.map(String).includes(String(payload.new.sender_id));
+              if (isBlockedSender) return;
               const { data: senderProfile } = await supabase
                 .from('profiles')
                 .select('username, avatar_url, is_deleted')
@@ -392,7 +400,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           .subscribe();
       
         return () => supabase.removeChannel(channel);
-      }, [groupId, user?.id]);
+      }, [groupId, user?.id, profile?.blocked_user_ids]);
 
       useEffect(() => {
         if (!scrolledToMsgRef.current) {

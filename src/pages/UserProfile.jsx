@@ -23,11 +23,16 @@ const Badge = ({ icon, label, colorClass }) => (
 const UserProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { onlineUserIds } = useAuth();
+  const { onlineUserIds, user: authUser, profile: myProfile, blockUser, unblockUser } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const isBlocked = React.useMemo(() => {
+    const list = Array.isArray(myProfile?.blocked_user_ids) ? myProfile.blocked_user_ids.map(String) : [];
+    return list.includes(String(userId));
+  }, [myProfile?.blocked_user_ids, userId]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -138,6 +143,15 @@ const UserProfile = () => {
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span>{statusText}</span>
                 </div>
+                {authUser?.id && String(authUser.id) !== String(userId) && (
+                  <div className="mt-3">
+                    {isBlocked ? (
+                      <Button variant="outline" onClick={() => unblockUser(userId)}>Ne plus bloquer</Button>
+                    ) : (
+                      <Button variant="outline" onClick={() => blockUser(userId)}>Bloquer</Button>
+                    )}
+                  </div>
+                )}
                 
                 <div className="flex flex-wrap justify-center gap-2 mt-4">
                   <Badge 

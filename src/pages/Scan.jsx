@@ -51,6 +51,7 @@ const Scan = () => {
   const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef(null);
   const scanTimerRef = useRef(null);
+  const jsqrTimerRef = useRef(null);
 
   useEffect(() => { if (session?.access_token) setJwtToken(session.access_token); }, [session]);
 
@@ -119,6 +120,50 @@ const Scan = () => {
     return () => { if (scanTimerRef.current) { clearInterval(scanTimerRef.current); scanTimerRef.current = null; } };
   }, [scanning, videoReady, canDetect]);
 
+  // JS fallback (iOS Safari/WKWebView): use jsQR via CDN to decode frames
+  useEffect(() => {
+    if (!scanning || !videoReady || canDetect) return;
+    let cancelled = false;
+
+    const ensureJsQR = () => new Promise((resolve, reject) => {
+      if (window.jsQR) return resolve(window.jsQR);
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+      s.async = true;
+      s.onload = () => resolve(window.jsQR);
+      s.onerror = () => reject(new Error('jsQR load failed'));
+      document.head.appendChild(s);
+    });
+
+    let canvas, ctx;
+    ensureJsQR()
+      .then((jsQR) => {
+        if (cancelled || !jsQR) return;
+        const v = videoRef.current; if (!v) return;
+        canvas = document.createElement('canvas');
+        ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (jsqrTimerRef.current) clearInterval(jsqrTimerRef.current);
+        jsqrTimerRef.current = setInterval(() => {
+          try {
+            if (!v.videoWidth || !v.videoHeight) return;
+            canvas.width = v.videoWidth;
+            canvas.height = v.videoHeight;
+            ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const result = window.jsQR(imageData.data, imageData.width, imageData.height);
+            const raw = result?.data || '';
+            if (raw) { setCode(raw); stopScan(); }
+          } catch {}
+        }, 450);
+      })
+      .catch(() => { if (!cancelled) setError('Détection QR indisponible. Utilisez la saisie manuelle.'); });
+
+    return () => {
+      cancelled = true;
+      if (jsqrTimerRef.current) { clearInterval(jsqrTimerRef.current); jsqrTimerRef.current = null; }
+    };
+  }, [scanning, videoReady, canDetect]);
+
   // No ZXing fallback; manual input remains available if not supported.
 
   return (
@@ -145,7 +190,7 @@ const Scan = () => {
                   </div>
                 )}
                 {!canDetect && (
-                  <div className="text-xs text-gray-600">Aperçu caméra sans détection automatique. Utilisez la saisie manuelle du code.</div>
+                  <div className="text-xs text-gray-600">Détection iOS via caméra activée (logicielle). Si rien n’est détecté, utilisez la saisie manuelle.</div>
                 )}
               </div>
             )}

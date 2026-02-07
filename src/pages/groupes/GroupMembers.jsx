@@ -5,10 +5,12 @@ import React from 'react';
     import { Button } from '@/components/ui/button';
     import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
     import { Crown, Shield, LogOut, UserX } from 'lucide-react';
+    import { useAuth } from '@/contexts/SupabaseAuthContext';
 
     const GroupMembers = ({ members, currentUserRole, currentUserId, groupId, onMemberUpdate }) => {
         const { toast } = useToast();
         const navigate = useNavigate();
+        const { profile: myProfile, blockUser, unblockUser } = useAuth();
 
         const handleKickMember = async (memberId) => {
             if (window.confirm("Êtes-vous sûr de vouloir retirer ce membre ?")) {
@@ -42,15 +44,15 @@ import React from 'react';
 
         return (
             <div className="space-y-4">
-                {members.map(({ user_id, profile, role, is_admin }) => (
+                {members.map(({ user_id, profile: memberProfile, role, is_admin }) => (
                     <div key={user_id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100">
                         <div className="flex items-center gap-3">
                             <Avatar>
-                                <AvatarImage src={profile?.avatar_url} />
-                                <AvatarFallback>{profile?.username?.[0] || '?'}</AvatarFallback>
+                                <AvatarImage src={memberProfile?.avatar_url} />
+                                <AvatarFallback>{memberProfile?.username?.[0] || '?'}</AvatarFallback>
                             </Avatar>
                             <div>
-                                <p className="font-semibold">{profile?.username}</p>
+                                <p className="font-semibold">{memberProfile?.username}</p>
                                 <div className="flex items-center gap-1 text-xs text-gray-500">
                                     {getMemberRoleIcon({role, is_admin})}
                                     <span>{role === 'fondateur' ? 'Fondateur' : is_admin ? 'Admin' : 'Membre'}</span>
@@ -58,12 +60,22 @@ import React from 'react';
                             </div>
                         </div>
 
-                        {currentUserRole === 'fondateur' && user_id !== currentUserId && (
-                             <Button size="icon" variant="ghost" onClick={() => handleKickMember(user_id)}><UserX className="h-4 w-4 text-red-500" /></Button>
-                        )}
-                        {currentUserRole === 'admin' && user_id !== currentUserId && role !== 'fondateur' && !is_admin &&(
-                             <Button size="icon" variant="ghost" onClick={() => handleKickMember(user_id)}><UserX className="h-4 w-4 text-red-500" /></Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {user_id !== currentUserId && (
+                                (Array.isArray(myProfile?.blocked_user_ids) && myProfile.blocked_user_ids.map(String).includes(String(user_id))) ? (
+                                    <Button size="sm" variant="ghost" className="text-xs" onClick={() => unblockUser(user_id)}>Ne plus bloquer</Button>
+                                ) : (
+                                    <Button size="sm" variant="ghost" className="text-xs text-red-600" onClick={() => blockUser(user_id)}>Bloquer</Button>
+                                )
+                            )}
+
+                            {currentUserRole === 'fondateur' && user_id !== currentUserId && (
+                                 <Button size="icon" variant="ghost" onClick={() => handleKickMember(user_id)}><UserX className="h-4 w-4 text-red-500" /></Button>
+                            )}
+                            {currentUserRole === 'admin' && user_id !== currentUserId && role !== 'fondateur' && !is_admin &&(
+                                 <Button size="icon" variant="ghost" onClick={() => handleKickMember(user_id)}><UserX className="h-4 w-4 text-red-500" /></Button>
+                            )}
+                        </div>
 
                     </div>
                 ))}

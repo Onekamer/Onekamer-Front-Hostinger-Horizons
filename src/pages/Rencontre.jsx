@@ -160,7 +160,7 @@ const ArrayDetailItem = ({ icon: Icon, label, values }) => {
 
 
 const Rencontre = () => {
-  const { user, loading: authLoading, onlineUserIds } = useAuth();
+  const { user, loading: authLoading, onlineUserIds, profile } = useAuth();
   const [searchParams] = useSearchParams();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -268,8 +268,13 @@ useEffect(() => {
     if (error) {
       toast({ title: "Erreur", description: "Impossible de charger les profils.", variant: "destructive" });
     } else {
+      const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
       const eligible = (data || []).filter((p) => !(p?.profiles?.is_deleted === true) && (p?.profile_public_rencontres !== false));
-      const normalizedProfiles = (eligible || []).map(profile => ({
+      const notBlocked = eligible.filter((p) => {
+        const uid = p?.user_id ? String(p.user_id) : null;
+        return !uid || !blockedSet.has(uid);
+      });
+      const normalizedProfiles = (notBlocked || []).map(profile => ({
         ...profile,
         photos: Array.isArray(profile.photos) ? profile.photos.filter(Boolean) : [],
       }));
@@ -325,6 +330,13 @@ useEffect(() => {
       if (data && !error) {
         if (data.profile_public_rencontres === false) {
           toast({ title: 'Profil indisponible', description: "Ce membre a rendu son profil Rencontre privé.", variant: 'destructive' });
+          setLoading(false);
+          return;
+        }
+        const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
+        const uidBlock = data?.user_id ? String(data.user_id) : null;
+        if (uidBlock && blockedSet.has(uidBlock)) {
+          toast({ title: 'Profil bloqué', description: "Vous avez bloqué ce membre.", variant: 'destructive' });
           setLoading(false);
           return;
         }

@@ -241,7 +241,7 @@ const CommentAvatar = ({ avatarPath, username }) => {
 };
 
 const CommentSection = ({ articleId }) => {
-  const { user, profile } = useAuth();
+  const { user, profile, blockUser, unblockUser } = useAuth();
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -266,10 +266,15 @@ const CommentSection = ({ articleId }) => {
         }
         return c;
       });
-      setComments(normalized);
+      const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
+      const filtered = normalized.filter((c) => {
+        const uid = c?.user?.id || c?.user_id || null;
+        return !uid || !blockedSet.has(String(uid));
+      });
+      setComments(filtered);
     }
     setLoadingComments(false);
-  }, [articleId]);
+  }, [articleId, profile?.blocked_user_ids]);
 
   useEffect(() => {
     fetchComments();
@@ -277,6 +282,8 @@ const CommentSection = ({ articleId }) => {
       .channel(`comments-fait-divers-${articleId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'faits_divers_comments', filter: `fait_divers_id=eq.${articleId}` },
         async (payload) => {
+          const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
+          if (payload?.new?.user_id && blockedSet.has(String(payload.new.user_id))) return;
           const { data: profileData, error: profileError } = await supabase
             .from('profiles').select('id, username, avatar_url, is_deleted').eq('id', payload.new.user_id).single();
           if (!profileError) {
@@ -287,7 +294,7 @@ const CommentSection = ({ articleId }) => {
         }
       ).subscribe();
     return () => supabase.removeChannel(channel);
-  }, [articleId, fetchComments]);
+  }, [articleId, fetchComments, profile?.blocked_user_ids]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -352,7 +359,16 @@ const CommentSection = ({ articleId }) => {
                   <CommentAvatar avatarPath={comment.user?.avatar_url} username={comment.user?.username} />
                 </div>
                 <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
-                  <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.user?.id) navigate(`/profil/${comment.user.id}`) }}>{comment.user?.username}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.user?.id) navigate(`/profil/${comment.user.id}`) }}>{comment.user?.username}</p>
+                    {user && comment.user?.id && String(comment.user.id) !== String(user.id) && (
+                      (Array.isArray(profile?.blocked_user_ids) && profile.blocked_user_ids.map(String).includes(String(comment.user.id))) ? (
+                        <button className="text-xs text-gray-600 hover:underline" onClick={() => unblockUser(comment.user.id)}>Ne plus bloquer</button>
+                      ) : (
+                        <button className="text-xs text-red-600 hover:underline" onClick={() => blockUser(comment.user.id)}>Bloquer</button>
+                      )
+                    )}
+                  </div>
                   <p className="text-sm text-gray-700">{comment.content}</p>
                 </div>
               </div>

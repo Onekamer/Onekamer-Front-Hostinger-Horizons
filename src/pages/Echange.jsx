@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -324,7 +324,8 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
 };
 
 const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioParentId, refreshBalance, highlightCommentId }) => {
-  const { user, profile } = useAuth();
+  const { user, profile, blockUser, unblockUser } = useAuth();
+  const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -439,7 +440,11 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           }
           return c;
         });
-        setComments(normalized2);
+        const filtered = normalized2.filter((c) => {
+          const uid = c?.user_id || c?.author?.id || null;
+          return !uid || !blockedSet.has(String(uid));
+        });
+        setComments(filtered);
       } else {
         const { data, error } = await supabase
           .from('comments')
@@ -468,13 +473,17 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           }
           return c;
         });
-        setComments(normalized2);
+        const filtered = normalized2.filter((c) => {
+          const uid = c?.user_id || c?.author?.id || null;
+          return !uid || !blockedSet.has(String(uid));
+        });
+        setComments(filtered);
       }
     } catch (e) {
       console.error('Erreur chargement commentaires :', e.message || e);
     }
     setLoadingComments(false);
-  }, [postId, audioParentId]);
+  }, [postId, audioParentId, profile?.blocked_user_ids]);
 
   useEffect(() => {
     fetchComments();
@@ -485,6 +494,8 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'comments', filter: `parent_comment_id=eq.${audioParentId}` },
           async (payload) => {
+            const uid = payload?.new?.user_id;
+            if (uid && blockedSet.has(String(uid))) return;
             const { data: profileData } = await supabase
               .from('profiles')
               .select('id, username, avatar_url, is_deleted')
@@ -505,6 +516,8 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'comments', filter: `content_id=eq.${postId}` },
           async (payload) => {
+            const uid = payload?.new?.user_id;
+            if (uid && blockedSet.has(String(uid))) return;
             const { data: profileData } = await supabase
               .from('profiles')
               .select('id, username, avatar_url, is_deleted')
@@ -519,7 +532,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
         .subscribe();
       return () => { supabase.removeChannel(channel); };
     }
-  }, [postId, audioParentId, fetchComments]);
+  }, [postId, audioParentId, fetchComments, blockedSet]);
   
   const handleRemoveMedia = () => {
     setMediaFile(null);
@@ -1007,6 +1020,13 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                             <button className="hover:text-[#F5C300]">Don</button>
                           </DonationDialog>
                         )}
+                        {user && comment.author?.id && String(comment.author.id) !== String(user.id) && (
+                          blockedSet.has(String(comment.author.id)) ? (
+                            <button className="hover:text-gray-600" onClick={() => unblockUser(comment.author.id)}>Ne plus bloquer</button>
+                          ) : (
+                            <button className="hover:text-red-600" onClick={() => blockUser(comment.author.id)}>Bloquer</button>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1032,6 +1052,13 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                                 >
                                   <button className="hover:text-[#F5C300]">Don</button>
                                 </DonationDialog>
+                              )}
+                              {user && child.author?.id && String(child.author.id) !== String(user.id) && (
+                                blockedSet.has(String(child.author.id)) ? (
+                                  <button className="hover:text-gray-600" onClick={() => unblockUser(child.author.id)}>Ne plus bloquer</button>
+                                ) : (
+                                  <button className="hover:text-red-600" onClick={() => blockUser(child.author.id)}>Bloquer</button>
+                                )
                               )}
                             </div>
                           </div>
@@ -1122,7 +1149,8 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
 
 const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments, onToggleComments, refreshBalance, highlightCommentId }) => {
   const navigate = useNavigate();
-  const { onlineUserIds } = useAuth();
+  const { onlineUserIds, blockUser, unblockUser } = useAuth();
+  const viewerBlockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(Number(post?.likes_count) || 0);
@@ -1358,6 +1386,13 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             <Share2 className="h-5 w-5" />
             <span>Partager</span>
           </button>
+          {user && user.id !== post.user_id && (
+            viewerBlockedSet.has(String(post.user_id)) ? (
+              <button className="text-xs hover:text-gray-700" onClick={() => unblockUser(post.user_id)}>Ne plus bloquer</button>
+            ) : (
+              <button className="text-xs hover:text-red-600" onClick={() => blockUser(post.user_id)}>Bloquer</button>
+            )
+          )}
           {user && !isMyPost && (
             <DonationDialog post={post} user={user} profile={profile} refreshBalance={refreshBalance}>
               <button className="flex items-center gap-2 hover:text-[#F5C300] transition-colors ml-auto">
@@ -1386,7 +1421,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
 
 const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, autoOpen, highlightCommentId }) => {
   const navigate = useNavigate();
-  const { onlineUserIds } = useAuth();
+  const { onlineUserIds, blockUser, unblockUser } = useAuth();
+  const viewerBlockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const isOnline = Boolean(post?.user_id && onlineUserIds instanceof Set && onlineUserIds.has(String(post.user_id)));
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(Number(post?.likes_count) || 0);
@@ -1642,6 +1678,13 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                 <span>Partager</span>
               </button>
               {user && !isMyPost && (
+                viewerBlockedSet.has(String(post.user_id)) ? (
+                  <button className="text-xs hover:text-gray-700" onClick={() => unblockUser(post.user_id)}>Ne plus bloquer</button>
+                ) : (
+                  <button className="text-xs hover:text-red-600" onClick={() => blockUser(post.user_id)}>Bloquer</button>
+                )
+              )}
+              {user && !isMyPost && (
                 <DonationDialog
                   post={{ user_id: post.user_id, profiles: { username: post.author?.username } }}
                   user={user}
@@ -1677,6 +1720,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
 
 const Echange = () => {
   const { user, profile, session, refreshBalance } = useAuth();
+  const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const [feedItems, setFeedItems] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [openComments, setOpenComments] = useState({});
@@ -1800,9 +1844,15 @@ const Echange = () => {
 
     combinedFeed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    setFeedItems(combinedFeed);
+    const blocked = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
+    const filtered = combinedFeed.filter((item) => {
+      const uid = item?.user_id || item?.profiles?.id || item?.author?.id || null;
+      return !uid || !blocked.has(String(uid));
+    });
+
+    setFeedItems(filtered);
     setLoadingPosts(false);
-  }, []);
+  }, [profile?.blocked_user_ids]);
   
   useEffect(() => {
     fetchFeed();

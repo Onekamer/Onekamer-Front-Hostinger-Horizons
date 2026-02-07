@@ -185,6 +185,48 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, fetchProfile, fetchAllPermissions]);
 
+  const blockUser = useCallback(async (targetUserId) => {
+    try {
+      if (!user || !targetUserId) return { error: 'missing_user' };
+      const mine = Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids.map(String) : [];
+      const next = Array.from(new Set([...mine, String(targetUserId)]));
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ blocked_user_ids: next })
+        .eq('id', user.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      setProfile(data);
+      toast({ title: 'Utilisateur bloqué', description: "Vous ne verrez plus ses contenus." });
+      return { error: null };
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de bloquer.' });
+      return { error: e };
+    }
+  }, [user, profile, toast]);
+
+  const unblockUser = useCallback(async (targetUserId) => {
+    try {
+      if (!user || !targetUserId) return { error: 'missing_user' };
+      const mine = Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids.map(String) : [];
+      const next = mine.filter((id) => String(id) !== String(targetUserId));
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ blocked_user_ids: next })
+        .eq('id', user.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      setProfile(data);
+      toast({ title: 'Utilisateur débloqué' });
+      return { error: null };
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de débloquer.' });
+      return { error: e };
+    }
+  }, [user, profile, toast]);
+
   useEffect(() => {
     if (!user) return;
     const balanceChannel = supabase.channel(`balance-updates-for-${user.id}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'okcoins_users_balance', filter: `user_id=eq.${user.id}`}, payload => { setBalance(payload.new); toast({ title: 'Solde mis à jour ! 💰', description: `Votre nouveau solde est de ${payload.new.coins_balance} pièces.` }); }).subscribe();
@@ -342,8 +384,8 @@ export const AuthProvider = ({ children }) => {
       }, [toast]);
       
       const value = useMemo(() => ({
-        user, session, profile, balance, loading, permissions, onlineUserIds, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission
-      }), [user, session, profile, balance, loading, permissions, onlineUserIds, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission]);
+        user, session, profile, balance, loading, permissions, onlineUserIds, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission, blockUser, unblockUser
+      }), [user, session, profile, balance, loading, permissions, onlineUserIds, signUp, signIn, signOut, updateUser, refreshProfile, refreshBalance, checkFeaturePermission, blockUser, unblockUser]);
 
       return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
     };
