@@ -47,14 +47,29 @@ const Forfaits = () => {
         const hasFn = typeof NativePurchases?.getProducts === 'function';
         if (!hasFn) { if (mounted) setIapVipChecked(true); return; }
         const res = await NativePurchases.getProducts({
-          productIdentifiers: ['onekamer_vip_monthly'],
+          productIdentifiers: ['onekamer_vip_monthly', 'co.onekamer.vip.monthly'],
           productType: PURCHASE_TYPE.SUBS,
         });
         const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
-        const vip = (list || []).find((p) => String(p?.productId || p?.productIdentifier) === 'onekamer_vip_monthly');
-        if (mounted) { setIapVipReady(!!vip); setIapVipChecked(true); }
-      } catch {
-        if (mounted) setIapVipChecked(true);
+        const wanted = new Set(['onekamer_vip_monthly', 'co.onekamer.vip.monthly']);
+        const vip = (list || []).find((p) => wanted.has(String(p?.productId || p?.productIdentifier)));
+        if (mounted) {
+          setIapVipReady(!!vip);
+          setIapVipChecked(true);
+          if (!vip) {
+            const returned = (list || []).map((p) => String(p?.productId || p?.productIdentifier)).filter(Boolean).join(', ') || 'aucun';
+            toast({ title: 'IAP iOS', description: `getProducts: aucun produit VIP trouvé. IDs demandés: onekamer_vip_monthly, co.onekamer.vip.monthly. Retournés: ${returned}` });
+            // eslint-disable-next-line no-console
+            console.log('[IAP] preload getProducts result:', list);
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setIapVipChecked(true);
+          toast({ title: 'IAP iOS', description: `getProducts a échoué: ${e?.message || 'erreur inconnue'}`, variant: 'destructive' });
+          // eslint-disable-next-line no-console
+          console.log('[IAP] preload getProducts error:', e);
+        }
       }
     };
     preload();
@@ -79,8 +94,22 @@ const Forfaits = () => {
     try {
       if (isIOS && plan.key === 'vip') {
         try {
+          const candidates = ['co.onekamer.vip.monthly', 'onekamer_vip_monthly'];
+          let productToBuy = candidates[0];
+          try {
+            const res = await NativePurchases.getProducts({
+              productIdentifiers: candidates,
+              productType: PURCHASE_TYPE.SUBS,
+            });
+            const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+            for (const id of candidates) {
+              const found = (list || []).find((p) => String(p?.productId || p?.productIdentifier) === id);
+              if (found) { productToBuy = id; break; }
+            }
+          } catch {}
+          toast({ title: 'IAP iOS', description: `Achat VIP via produit: ${productToBuy}` });
           const result = await NativePurchases.purchaseProduct({
-            productIdentifier: 'onekamer_vip_monthly',
+            productIdentifier: productToBuy,
             productType: PURCHASE_TYPE.SUBS,
             quantity: 1
           });
@@ -90,7 +119,8 @@ const Forfaits = () => {
             try {
               const got = await NativePurchases.getPurchases();
               const purchases = Array.isArray(got?.purchases) ? got.purchases : [];
-              const match = purchases.find((it) => String(it?.productId || it?.productIdentifier) === 'onekamer_vip_monthly' && it?.transactionId);
+              const wanted = new Set(candidates);
+              const match = purchases.find((it) => wanted.has(String(it?.productId || it?.productIdentifier)) && it?.transactionId);
               if (match?.transactionId) txId = String(match.transactionId);
             } catch {}
           }
