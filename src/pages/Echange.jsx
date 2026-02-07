@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Share2, Send, Loader2, Trash2, Image as ImageIcon, X, Coins, Mic, Square, Play, Pause, EyeOff, Flag } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Send, Loader2, Trash2, Image as ImageIcon, X, Coins, Mic, Square, Play, Pause, EyeOff, Flag, MoreHorizontal } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import CreatePost from '@/components/posts/CreatePost';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -1099,14 +1100,23 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                                 <button className="hover:text-[#F5C300]">Don</button>
                               </DonationDialog>
                             )}
-                            <button className="flex items-center gap-1 hover:text-gray-600" onClick={() => hideCommentLocal(comment.id)}>
-                              <EyeOff className="h-4 w-4" />
-                              <span>Masquer</span>
-                            </button>
-                            <button className="flex items-center gap-1 hover:text-red-600" onClick={() => openReportForComment(comment)}>
-                              <Flag className="h-4 w-4" />
-                              <span>Signaler</span>
-                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem onClick={() => hideCommentLocal(comment.id)}>
+                                  <EyeOff className="mr-2 h-4 w-4" />
+                                  <span>Masquer</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openReportForComment(comment)} className="text-red-600 focus:text-red-600">
+                                  <Flag className="mr-2 h-4 w-4" />
+                                  <span>Signaler</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </>
                       )}
@@ -1142,14 +1152,23 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                                       <button className="hover:text-[#F5C300]">Don</button>
                                     </DonationDialog>
                                   )}
-                                  <button className="flex items-center gap-1 hover:text-gray-600" onClick={() => hideCommentLocal(child.id)}>
-                                    <EyeOff className="h-4 w-4" />
-                                    <span>Masquer</span>
-                                  </button>
-                                  <button className="flex items-center gap-1 hover:text-red-600" onClick={() => openReportForComment(child)}>
-                                    <Flag className="h-4 w-4" />
-                                    <span>Signaler</span>
-                                  </button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-40">
+                                      <DropdownMenuItem onClick={() => hideCommentLocal(child.id)}>
+                                        <EyeOff className="mr-2 h-4 w-4" />
+                                        <span>Masquer</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => openReportForComment(child)} className="text-red-600 focus:text-red-600">
+                                        <Flag className="mr-2 h-4 w-4" />
+                                        <span>Signaler</span>
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </div>
                               </>
                             )}
@@ -1550,14 +1569,23 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             <Share2 className="h-5 w-5" />
             <span>Partager</span>
           </button>
-          <button className="flex items-center gap-1 text-xs hover:text-gray-700" onClick={() => hidePostLocal(post.id)}>
-            <EyeOff className="h-4 w-4" />
-            Masquer
-          </button>
-          <button className="flex items-center gap-1 text-xs hover:text-red-600" onClick={openReportForPost}>
-            <Flag className="h-4 w-4" />
-            Signaler
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => hidePostLocal(post.id)}>
+                <EyeOff className="mr-2 h-4 w-4" />
+                <span>Masquer</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={openReportForPost} className="text-red-600 focus:text-red-600">
+                <Flag className="mr-2 h-4 w-4" />
+                <span>Signaler</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {user && !isMyPost && (
             <DonationDialog post={post} user={user} profile={profile} refreshBalance={refreshBalance}>
               <button className="flex items-center gap-2 hover:text-[#F5C300] transition-colors ml-auto">
@@ -1914,14 +1942,23 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                 <Share2 className="h-5 w-5" />
                 <span>Partager</span>
               </button>
-              <button className="flex items-center gap-1 text-xs hover:text-gray-700" onClick={() => hideAudioLocal(post.id)}>
-                <EyeOff className="h-4 w-4" />
-                Masquer
-              </button>
-              <button className="flex items-center gap-1 text-xs hover:text-red-600" onClick={openReportForAudio}>
-                <Flag className="h-4 w-4" />
-                Signaler
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => hideAudioLocal(post.id)}>
+                    <EyeOff className="mr-2 h-4 w-4" />
+                    <span>Masquer</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={openReportForAudio} className="text-red-600 focus:text-red-600">
+                    <Flag className="mr-2 h-4 w-4" />
+                    <span>Signaler</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               {user && !isMyPost && (
                 <DonationDialog
                   post={{ user_id: post.user_id, profiles: { username: post.author?.username } }}
