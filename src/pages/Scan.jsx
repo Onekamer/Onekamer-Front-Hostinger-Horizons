@@ -40,7 +40,10 @@ const Scan = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [cameraSupported, setCameraSupported] = useState(() => {
+  const [canUseCamera] = useState(() => {
+    try { return !!(navigator?.mediaDevices?.getUserMedia); } catch { return false; }
+  });
+  const [canDetect] = useState(() => {
     try { return 'BarcodeDetector' in window; } catch { return false; }
   });
   const [scanning, setScanning] = useState(false);
@@ -73,7 +76,7 @@ const Scan = () => {
   const startScan = async () => {
     try {
       setError(null); setResult(null);
-      if (!('BarcodeDetector' in window)) { setCameraSupported(false); return; }
+      if (!canUseCamera) { setError('Caméra non disponible'); return; }
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
       setStream(s); setScanning(true);
     } catch (e) { setError(e?.message || 'Accès caméra refusé'); }
@@ -99,6 +102,7 @@ const Scan = () => {
     let detector;
     const tick = async () => {
       try {
+        if (!canDetect) return;
         if (!detector) detector = new BarcodeDetector({ formats: ['qr_code'] });
         const v = videoRef.current; if (!v) return;
         const codes = await detector.detect(v);
@@ -113,7 +117,7 @@ const Scan = () => {
       scanTimerRef.current = setInterval(tick, 400);
     }
     return () => { if (scanTimerRef.current) { clearInterval(scanTimerRef.current); scanTimerRef.current = null; } };
-  }, [scanning, videoReady]);
+  }, [scanning, videoReady, canDetect]);
 
   // No ZXing fallback; manual input remains available if not supported.
 
@@ -128,7 +132,7 @@ const Scan = () => {
               <Button variant={mode === 'secret' ? undefined : 'outline'} onClick={() => setMode('secret')}>Mode Secret</Button>
               <Button variant={mode === 'jwt' ? undefined : 'outline'} onClick={() => setMode('jwt')}>Mode JWT</Button>
             </div>
-            {cameraSupported && (
+            {canUseCamera && (
               <div className="space-y-2">
                 {!scanning ? (
                   <Button onClick={startScan} className="bg-[#2BA84A] text-white w-full">Activer la caméra</Button>
@@ -140,10 +144,13 @@ const Scan = () => {
                     <video ref={videoRef} playsInline muted className="w-full h-64 object-cover" />
                   </div>
                 )}
+                {!canDetect && (
+                  <div className="text-xs text-gray-600">Aperçu caméra sans détection automatique. Utilisez la saisie manuelle du code.</div>
+                )}
               </div>
             )}
-            {!cameraSupported && (
-              <div className="text-sm text-gray-600">Le scan caméra n'est pas supporté par ce navigateur. Utilisez la saisie manuelle.</div>
+            {!canUseCamera && (
+              <div className="text-sm text-gray-600">La caméra n'est pas disponible sur cet appareil. Utilisez la saisie manuelle.</div>
             )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Code QR (valeur)</label>
