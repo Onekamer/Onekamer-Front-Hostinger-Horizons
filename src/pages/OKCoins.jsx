@@ -141,12 +141,15 @@ const OKCoins = () => {
         const hasFn = typeof NativePurchases?.getProducts === 'function';
         if (!hasFn) { if (mounted) setIapOkcChecked(true); return; }
         const res = await NativePurchases.getProducts({
-          productIdentifiers: ['onekamer_okcoins_pack_10'],
+          productIdentifiers: ['onekamer_okcoins_pack_10', 'co.onekamer.okcoins.pack10'],
           productType: PURCHASE_TYPE.INAPP,
         });
         const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
-        const ok = (list || []).some((p) => String(p?.productId || p?.productIdentifier) === 'onekamer_okcoins_pack_10');
-        if (mounted) { setIapOkcReady(!!ok); setIapOkcChecked(true); }
+        const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+        const hasAny = Array.isArray(list) && list.length > 0;
+        const wanted = new Set(['onekamer_okcoins_pack_10', 'co.onekamer.okcoins.pack10']);
+        const foundWanted = (list || []).some((p) => wanted.has(getId(p)));
+        if (mounted) { setIapOkcReady(hasAny || foundWanted); setIapOkcChecked(true); }
       } catch {
         if (mounted) setIapOkcChecked(true);
       }
@@ -278,11 +281,36 @@ const OKCoins = () => {
           toast({ title: 'Indisponible sur cet appareil', description: "Le produit IAP n’a pas été résolu (compte Sandbox requis / produit non attaché).", variant: 'destructive' });
           return;
         }
+        const candidates = ['co.onekamer.okcoins.pack10', 'onekamer_okcoins_pack_10'];
+        let productToBuy = candidates[0];
+        try {
+          const res = await NativePurchases.getProducts({
+            productIdentifiers: candidates,
+            productType: PURCHASE_TYPE.INAPP,
+          });
+          const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+          const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+          for (const id of candidates) {
+            const found = (list || []).find((p) => getId(p) === id);
+            if (found) { productToBuy = id; break; }
+          }
+        } catch {}
         const result = await NativePurchases.purchaseProduct({
-          productIdentifier: 'onekamer_okcoins_pack_10',
+          productIdentifier: productToBuy,
           productType: PURCHASE_TYPE.INAPP,
           quantity: 1
         });
+        let txId = String(result?.transactionId || '').trim();
+        if (!txId) {
+          try {
+            const got = await NativePurchases.getPurchases();
+            const purchases = Array.isArray(got?.purchases) ? got.purchases : [];
+            const wanted = new Set(candidates);
+            const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+            const match = purchases.find((it) => wanted.has(getId(it)) && it?.transactionId);
+            if (match?.transactionId) txId = String(match.transactionId);
+          } catch {}
+        }
         const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
         const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
         const res = await fetch(`${API_PREFIX}/iap/verify`, {
@@ -295,7 +323,7 @@ const OKCoins = () => {
             platform: 'ios',
             provider: 'apple',
             userId: user.id,
-            transactionId: result.transactionId
+            transactionId: txId || result.transactionId
           })
         });
         const dataVerify = await res.json().catch(() => ({}));
