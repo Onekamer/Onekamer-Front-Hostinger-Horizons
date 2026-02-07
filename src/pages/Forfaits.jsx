@@ -59,8 +59,6 @@ const Forfaits = () => {
           setIapVipReady(hasAny || foundWanted);
           setIapVipChecked(true);
           if (!hasAny) {
-            const returned = (list || []).map(getId).filter(Boolean).join(', ') || 'aucun';
-            toast({ title: 'IAP iOS', description: `getProducts: aucun produit VIP trouvé. IDs demandés: onekamer_vip_monthly, co.onekamer.vip.monthly. Retournés: ${returned}` });
             // eslint-disable-next-line no-console
             console.log('[IAP] preload getProducts result:', list);
           }
@@ -68,7 +66,6 @@ const Forfaits = () => {
       } catch (e) {
         if (mounted) {
           setIapVipChecked(true);
-          toast({ title: 'IAP iOS', description: `getProducts a échoué: ${e?.message || 'erreur inconnue'}`, variant: 'destructive' });
           // eslint-disable-next-line no-console
           console.log('[IAP] preload getProducts error:', e);
         }
@@ -110,7 +107,6 @@ const Forfaits = () => {
               if (found) { productToBuy = id; break; }
             }
           } catch {}
-          toast({ title: 'IAP iOS', description: `Achat VIP via produit: ${productToBuy}` });
           const result = await NativePurchases.purchaseProduct({
             productIdentifier: productToBuy,
             productType: PURCHASE_TYPE.SUBS,
