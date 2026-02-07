@@ -51,13 +51,15 @@ const Forfaits = () => {
           productType: PURCHASE_TYPE.SUBS,
         });
         const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+        const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
         const wanted = new Set(['onekamer_vip_monthly', 'co.onekamer.vip.monthly']);
-        const vip = (list || []).find((p) => wanted.has(String(p?.productId || p?.productIdentifier)));
+        const hasAny = Array.isArray(list) && list.length > 0;
+        const foundWanted = (list || []).some((p) => wanted.has(getId(p)));
         if (mounted) {
-          setIapVipReady(!!vip);
+          setIapVipReady(hasAny || foundWanted);
           setIapVipChecked(true);
-          if (!vip) {
-            const returned = (list || []).map((p) => String(p?.productId || p?.productIdentifier)).filter(Boolean).join(', ') || 'aucun';
+          if (!hasAny) {
+            const returned = (list || []).map(getId).filter(Boolean).join(', ') || 'aucun';
             toast({ title: 'IAP iOS', description: `getProducts: aucun produit VIP trouvé. IDs demandés: onekamer_vip_monthly, co.onekamer.vip.monthly. Retournés: ${returned}` });
             // eslint-disable-next-line no-console
             console.log('[IAP] preload getProducts result:', list);
@@ -102,8 +104,9 @@ const Forfaits = () => {
               productType: PURCHASE_TYPE.SUBS,
             });
             const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+            const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
             for (const id of candidates) {
-              const found = (list || []).find((p) => String(p?.productId || p?.productIdentifier) === id);
+              const found = (list || []).find((p) => getId(p) === id);
               if (found) { productToBuy = id; break; }
             }
           } catch {}
@@ -120,7 +123,8 @@ const Forfaits = () => {
               const got = await NativePurchases.getPurchases();
               const purchases = Array.isArray(got?.purchases) ? got.purchases : [];
               const wanted = new Set(candidates);
-              const match = purchases.find((it) => wanted.has(String(it?.productId || it?.productIdentifier)) && it?.transactionId);
+              const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+              const match = purchases.find((it) => wanted.has(getId(it)) && it?.transactionId);
               if (match?.transactionId) txId = String(match.transactionId);
             } catch {}
           }
