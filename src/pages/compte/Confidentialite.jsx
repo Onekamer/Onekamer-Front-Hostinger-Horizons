@@ -22,6 +22,7 @@ const Confidentialite = () => {
   const [showVendorCharte, setShowVendorCharte] = useState(false);
   const [showBuyerCharte, setShowBuyerCharte] = useState(false);
   const [vendorCompliant, setVendorCompliant] = useState(null);
+  const isIOS = typeof window !== 'undefined' && window?.Capacitor?.getPlatform?.() === 'ios';
 
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
   const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -141,6 +142,40 @@ const Confidentialite = () => {
               </div>
             </CardContent>
           </Card>
+          {isIOS && (
+            <Card>
+              <CardHeader>
+                <CardTitle>EULA (iOS)</CardTitle>
+                <CardDescription>Contrat de licence utilisateur final d’Apple.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <a
+                    href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#2BA84A] font-semibold hover:underline flex items-center"
+                  >
+                    <FileSignature className="h-4 w-4 mr-2" />
+                    Ouvrir l’EULA Apple
+                  </a>
+                  <div className="flex items-center space-x-2 font-semibold">
+                    {profile?.apple_eula_accepted_at ? (
+                      <>
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <span>Oui</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-5 w-5 text-red-500" />
+                        <span>Non</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <Card>
             <CardHeader>
