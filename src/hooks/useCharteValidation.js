@@ -48,6 +48,15 @@ export const useCharteValidation = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'accept_failed');
+      // Renseigner les timestamps d'acceptation si absents
+      if (!profile?.charter_accepted_at) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ charter_accepted_at: new Date().toISOString() })
+            .eq('id', user.id);
+        } catch (_) {}
+      }
       // iOS: si l'EULA n'est pas encore marquée comme acceptée, on la renseigne côté profil
       const isIOS = typeof window !== 'undefined' && window?.Capacitor?.getPlatform?.() === 'ios';
       if (isIOS && !profile?.apple_eula_accepted_at) {
