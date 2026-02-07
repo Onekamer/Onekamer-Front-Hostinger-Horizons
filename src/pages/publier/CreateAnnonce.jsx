@@ -14,9 +14,11 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { notifyNewAnnonce } from '@/services/oneSignalNotifications';
 import imageCompression from 'browser-image-compression';
+import { useCharteValidation } from '@/hooks/useCharteValidation';
 
 const CreateAnnonce = () => {
   const navigate = useNavigate();
+  const { showCharte } = useCharteValidation();
   const [searchParams] = useSearchParams();
   const { user, profile, session } = useAuth();
   const annonceId = searchParams.get('annonceId');
@@ -337,13 +339,13 @@ const CreateAnnonce = () => {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="titre">Titre de l'annonce</Label>
-                  <Input id="titre" placeholder="Ex: iPhone 13 Pro en excellent état" required value={formData.titre} onChange={handleInputChange} />
+                  <Input id="titre" placeholder="Ex: iPhone 13 Pro en excellent état" required value={formData.titre} onChange={handleInputChange} disabled={showCharte} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="categorie_id">Catégorie</Label>
                   <div className="relative">
                     <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <select id="categorie_id" value={formData.categorie_id} onChange={handleInputChange} className="pl-10 flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required>
+                    <select id="categorie_id" value={formData.categorie_id} onChange={handleInputChange} className="pl-10 flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required disabled={showCharte}>
                       <option value="" disabled>Sélectionner une catégorie</option>
                       {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.nom}</option>)}
                     </select>
@@ -353,13 +355,13 @@ const CreateAnnonce = () => {
                   <div className="space-y-2">
                     <Label htmlFor="prix">Prix</Label>
                     <div className="relative">
-                      <Input id="prix" type="number" min="0" step="0.01" placeholder="Ex: 29.99" value={formData.prix} onChange={handleInputChange} />
+                      <Input id="prix" type="number" min="0" step="0.01" placeholder="Ex: 29.99" value={formData.prix} onChange={handleInputChange} disabled={showCharte} />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="devise_id">Devise</Label>
                     <div className="relative">
-                      <select id="devise_id" value={formData.devise_id} onChange={handleInputChange} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required>
+                      <select id="devise_id" value={formData.devise_id} onChange={handleInputChange} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required disabled={showCharte}>
                         <option value="" disabled>Choisir</option>
                         {devises.map(d => <option key={d.id} value={d.id}>{d.nom} ({d.symbole})</option>)}
                       </select>
@@ -371,7 +373,7 @@ const CreateAnnonce = () => {
                     <Label htmlFor="pays_id">Pays</Label>
                     <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <select id="pays_id" value={formData.pays_id} onChange={handleInputChange} className="pl-10 flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required>
+                      <select id="pays_id" value={formData.pays_id} onChange={handleInputChange} className="pl-10 flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required disabled={showCharte}>
                         <option value="" disabled>Sélectionner un pays</option>
                         {pays.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
                       </select>
@@ -381,7 +383,7 @@ const CreateAnnonce = () => {
                     <Label htmlFor="ville_id">Ville</Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <select id="ville_id" value={formData.ville_id} onChange={handleInputChange} className="pl-10 flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required disabled={!formData.pays_id || villes.length === 0}>
+                      <select id="ville_id" value={formData.ville_id} onChange={handleInputChange} className="pl-10 flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm" required disabled={showCharte || !formData.pays_id || villes.length === 0}>
                         <option value="" disabled>Sélectionner une ville</option>
                         {villes.map(v => <option key={v.id} value={v.id}>{v.nom}</option>)}
                       </select>
@@ -393,7 +395,7 @@ const CreateAnnonce = () => {
                     <Label htmlFor="telephone">Téléphone</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <Input id="telephone" type="tel" placeholder="+33612345678" pattern="^\+?[1-9]\d{1,14}$" className="pl-10" value={formData.telephone} onChange={handleInputChange} />
+                      <Input id="telephone" type="tel" placeholder="+33612345678" pattern="^\+?[1-9]\d{1,14}$" className="pl-10" value={formData.telephone} onChange={handleInputChange} disabled={showCharte} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Format international attendu.</p>
                   </div>
@@ -401,7 +403,7 @@ const CreateAnnonce = () => {
                     <Label htmlFor="email">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <Input id="email" type="email" placeholder="contact@email.com" className="pl-10" value={formData.email} onChange={handleInputChange} />
+                      <Input id="email" type="email" placeholder="contact@email.com" className="pl-10" value={formData.email} onChange={handleInputChange} disabled={showCharte} />
                     </div>
                   </div>
                 </div>
@@ -415,11 +417,11 @@ const CreateAnnonce = () => {
                         </div>
                       ) : (<ImageIcon className="h-12 w-12 text-gray-400 mb-2" />)}
                       <Label htmlFor="media-upload" className="text-[#2BA84A] font-semibold cursor-pointer">{mediaPreview ? "Changer le média" : "Choisir une image ou vidéo"}</Label>
-                      <Input id="media-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaChange} />
+                      <Input id="media-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaChange} disabled={showCharte} />
                   </CardContent></Card>
                 </div>
-                <div className="space-y-2"><Label htmlFor="description">Description</Label><Textarea id="description" placeholder="Décrivez votre article ou service en détail..." rows={5} required value={formData.description} onChange={handleInputChange} /></div>
-                <Button type="submit" className="w-full bg-[#E0222A] hover:bg-[#E0222A]/90" disabled={isUploading}>
+                <div className="space-y-2"><Label htmlFor="description">Description</Label><Textarea id="description" placeholder="Décrivez votre article ou service en détail..." rows={5} required value={formData.description} onChange={handleInputChange} disabled={showCharte} /></div>
+                <Button type="submit" className="w-full bg-[#E0222A] hover:bg-[#E0222A]/90" disabled={isUploading || showCharte}>
                   {isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Publication...</> : isEditMode ? "Modifier l'annonce" : "Publier l'annonce"}
                 </Button>
               </CardContent>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toast } from '@/components/ui/use-toast';
+import { useCharteValidation } from '@/hooks/useCharteValidation';
 import { Loader2, X, Mic, Square, Play, Pause, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -99,6 +100,7 @@ const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
 
 const CreatePost = () => {
   const { user, profile } = useAuth();
+  const { showCharte, acceptCharte } = useCharteValidation();
   const [postText, setPostText] = useState('');
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
@@ -660,12 +662,13 @@ const CreatePost = () => {
   );
 
   return (
+    <>
     <Card className="w-full">
       <CardContent className="pt-6">
         <div className="relative mb-3">
           <div
             ref={editableDivRef}
-            contentEditable={!loading && !recording}
+            contentEditable={!loading && !recording && !showCharte}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             onBlur={highlightExistingMentions}
@@ -722,7 +725,7 @@ const CreatePost = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => mediaInputRef.current?.click()}
-                    disabled={loading}
+                    disabled={loading || showCharte}
                     aria-label="Ajouter média"
                 >
                     <ImageIcon className="h-4 w-4" />
@@ -735,7 +738,7 @@ const CreatePost = () => {
                     accept="image/*,video/*"
                     className="hidden"
                     onChange={handleFileChange}
-                    disabled={recording || !!audioBlob}
+                    disabled={recording || !!audioBlob || showCharte}
                 />
                 {!recording && !audioBlob && (
                   <Button
@@ -743,7 +746,7 @@ const CreatePost = () => {
                     variant="ghost"
                     size="sm"
                     onClick={startRecording}
-                    disabled={loading}
+                    disabled={loading || showCharte}
                     aria-label="Enregistrer audio"
                   >
                     <Mic className="h-4 w-4" />
@@ -762,7 +765,7 @@ const CreatePost = () => {
 
             <Button
               onClick={handlePublish}
-              disabled={loading || (!editableDivRef.current?.innerText.trim() && !mediaFile && !audioBlob && !recorderPromiseRef.current) || recording}
+              disabled={loading || showCharte || (!editableDivRef.current?.innerText.trim() && !mediaFile && !audioBlob && !recorderPromiseRef.current) || recording}
               className="bg-gradient-to-r from-[#2BA84A] to-[#F5C300] text-white font-bold"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -772,6 +775,7 @@ const CreatePost = () => {
 
       </CardContent>
     </Card>
+    </>
   );
 };
 

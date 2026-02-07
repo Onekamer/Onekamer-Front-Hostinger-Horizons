@@ -66,7 +66,6 @@ const BlockedAccounts = () => {
                 <div key={p.id} className="flex items-center justify-between py-3">
                   <div className="min-w-0">
                     <div className="font-medium truncate">{p.username || 'Membre'}</div>
-                    <div className="text-xs text-gray-500 truncate">{p.id}</div>
                   </div>
                   <Button variant="outline" onClick={() => handleUnblock(p.id)}>Débloquer</Button>
                 </div>
