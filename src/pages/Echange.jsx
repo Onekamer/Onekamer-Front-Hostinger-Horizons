@@ -361,6 +361,13 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
   const [replyTo, setReplyTo] = useState(null);
   const [replyToUser, setReplyToUser] = useState(null);
 
+  const isAudioRecordingSupported = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const hasGUM = !!(navigator?.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+    const hasMR = typeof window.MediaRecorder !== 'undefined';
+    return hasGUM && hasMR;
+  }, []);
+
   // Masquage local commentaires (par utilisateur)
   const viewerId = user?.id ? String(user.id) : 'anon';
   const hiddenCommentsKey = useMemo(() => `ok_hidden_comments_v1:${viewerId}`, [viewerId]);
@@ -1238,7 +1245,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                   </Button>
                 )}
                 <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob}/>
-                {!isRecording && !audioBlob && (
+                {!isRecording && !audioBlob && isAudioRecordingSupported && (
                   <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isPostingComment}>
                     <Mic className="h-4 w-4" />
                   </Button>

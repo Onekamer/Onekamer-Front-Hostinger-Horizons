@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -116,6 +116,13 @@ const CreatePost = () => {
   const mimeRef = useRef({ ext: "webm", type: "audio/webm" });
   const recorderPromiseRef = useRef(null);
   
+  const isAudioRecordingSupported = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const hasGUM = !!(navigator?.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+    const hasMR = typeof window.MediaRecorder !== 'undefined';
+    return hasGUM && hasMR;
+  }, []);
+
 
   const [mentionQuery, setMentionQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -738,7 +745,7 @@ const CreatePost = () => {
                     onChange={handleFileChange}
                     disabled={recording || !!audioBlob}
                 />
-                {!recording && !audioBlob && (
+                {!recording && !audioBlob && isAudioRecordingSupported && (
                   <Button
                     type="button"
                     variant="ghost"
