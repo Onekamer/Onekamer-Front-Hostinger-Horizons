@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -36,6 +36,13 @@ const ConversationDetail = () => {
   const recordingIntervalRef = useRef(null);
   const mimeRef = useRef(null);
   const recorderPromiseRef = useRef(null);
+
+  const isAudioRecordingSupported = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const hasGUM = !!(navigator?.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+    const hasMR = typeof window.MediaRecorder !== 'undefined';
+    return hasGUM && hasMR;
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -409,7 +416,7 @@ const ConversationDetail = () => {
               </Button>
             )}
             <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={Boolean(matchMeta?.ended_at) || isRecording || !!audioBlob} />
-            {!isRecording && !audioBlob && (
+            {!isRecording && !audioBlob && isAudioRecordingSupported && (
               <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={Boolean(matchMeta?.ended_at)} aria-label="Enregistrer audio">
                 <Mic className="h-4 w-4" />
               </Button>

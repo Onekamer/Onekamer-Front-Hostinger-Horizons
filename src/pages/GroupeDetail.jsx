@@ -273,6 +273,13 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const editableDivRef = useRef(null);
       const RAW_API = import.meta.env.VITE_API_URL || '';
       const API_API = RAW_API.endsWith('/api') ? RAW_API : `${RAW_API.replace(/\/+$/, '')}/api`;
+      
+      const isAudioRecordingSupported = useMemo(() => {
+        if (typeof window === 'undefined') return false;
+        const hasGUM = !!(navigator?.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+        const hasMR = typeof window.MediaRecorder !== 'undefined';
+        return hasGUM && hasMR;
+      }, []);
     
       const fetchGroupData = useCallback(async () => {
         if (!user || !session) {
@@ -1090,7 +1097,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                           </Button>
                         )}
                         <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isRecording || !!audioBlob} />
-                        {!isRecording && !audioBlob && (
+                        {!isRecording && !audioBlob && isAudioRecordingSupported && (
                           <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={!!mediaFile} aria-label="Enregistrer audio">
                             <Mic className="h-4 w-4" />
                           </Button>
