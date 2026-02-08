@@ -108,6 +108,28 @@ const DeleteAccountSection = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <div className="mt-3 text-xs text-gray-600">
+          La suppression de votre compte n’annule pas un abonnement souscrit via l’App Store. Pour gérer/annuler votre abonnement, utilisez
+          {' '}
+          <a
+            href="https://apps.apple.com/account/subscriptions"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#2BA84A] underline"
+            onClick={(e) => {
+              try {
+                if (typeof window !== 'undefined' && window?.Capacitor?.getPlatform?.() === 'ios') {
+                  e.preventDefault();
+                  window.location.href = 'itms-apps://apps.apple.com/account/subscriptions';
+                }
+              } catch (_) {}
+            }}
+          >
+            Gérer mes abonnements Apple
+          </a>
+          .
+        </div>
       </CardContent>
     </Card>
   );
