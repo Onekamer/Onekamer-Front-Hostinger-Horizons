@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +39,13 @@ const MessagesPrives = () => {
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
   const mimeRef = useRef(null);
+
+  const isAudioRecordingSupported = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const hasGUM = !!(navigator?.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+    const hasMR = typeof window.MediaRecorder !== 'undefined';
+    return hasGUM && hasMR;
+  }, []);
 
   const fetchMyRencontreId = useCallback(async () => {
     if (!user) return;
@@ -569,13 +576,13 @@ const MessagesPrives = () => {
                       </div>
                     ) : null}
                     <div className="flex gap-2 items-center">
-                      {!isRecording && !audioBlob && (
+                      {!isRecording && !audioBlob && isAudioRecordingSupported && (
                         <Button size="sm" type="button" variant="ghost" onClick={() => mediaInputRef.current?.click()} disabled={isBlocked} aria-label="Ajouter média">
                           <ImageIcon className="h-4 w-4" />
                         </Button>
                       )}
                       <input type="file" ref={mediaInputRef} accept="image/*,video/*" className="hidden" onChange={handleFileChange} disabled={isBlocked || isRecording || !!audioBlob} />
-                      {!isRecording && !audioBlob && (
+                      {!isRecording && !audioBlob && isAudioRecordingSupported && (
                         <Button size="sm" type="button" variant="ghost" onClick={startRecording} disabled={isBlocked} aria-label="Enregistrer audio">
                           <Mic className="h-4 w-4" />
                         </Button>
