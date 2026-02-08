@@ -38,9 +38,18 @@ const DeleteAccountSection = () => {
         console.error('Erreur log suppression compte:', error);
       }
 
+      // Désactivation immédiate du compte côté application
+      const { error: upErr } = await supabase
+        .from('profiles')
+        .update({ is_deleted: true, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      if (upErr) {
+        console.error('Erreur désactivation compte:', upErr);
+      }
+
       toast({
-        title: "🗑️ Suppression demandée",
-        description: "Votre compte sera supprimé manuellement par notre équipe dans les prochaines 24 heures.",
+        title: "🗑️ Compte supprimé",
+        description: "Votre compte vient d’être désactivé immédiatement. Vous pouvez créer un nouveau compte à tout moment.",
       });
 
       setReason('');
