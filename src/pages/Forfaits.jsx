@@ -326,6 +326,8 @@ const Forfaits = () => {
                 </Button>
                 {isIOS && plan.key === 'vip' && (
                   <div className="mt-2 text-[11px] text-gray-500">
+                    Abonnement auto-renouvelable, sans engagement, résiliable à tout moment.
+                    <br />
                     En appuyant sur "Devenir membre VIP", vous acceptez
                     <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
                     nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
