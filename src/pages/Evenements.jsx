@@ -25,16 +25,29 @@ import React, { useState, useEffect, useCallback } from 'react';
     const OuvrirGoogleMaps = ({ latitude, longitude, location }) => {
       const { toast } = useToast();
       const handleOpenMaps = () => {
+        const ua = navigator.userAgent || '';
+        const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
         if (latitude && longitude) {
-          const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-          window.open(url, "_blank");
+          if (isiOS) {
+            const label = location ? encodeURIComponent(location) : 'Destination';
+            const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
+            window.location.href = url;
+          } else {
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+            window.open(url, "_blank");
+          }
           return;
         }
 
         if (location) {
           const encoded = encodeURIComponent(location);
-          const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-          window.open(url, "_blank");
+          if (isiOS) {
+            const url = `maps://?q=${encoded}`;
+            window.location.href = url;
+          } else {
+            const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+            window.open(url, "_blank");
+          }
           return;
         }
 
@@ -313,17 +326,30 @@ import React, { useState, useEffect, useCallback } from 'react';
           e.stopPropagation();
 
           const { latitude, longitude, location } = event;
+          const ua = navigator.userAgent || '';
+          const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
 
           if (latitude && longitude) {
-            const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-            window.open(url, "_blank");
+            if (isiOS) {
+              const label = location ? encodeURIComponent(location) : 'Destination';
+              const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
+              window.location.href = url;
+            } else {
+              const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+              window.open(url, "_blank");
+            }
             return;
           }
 
           if (location) {
             const encoded = encodeURIComponent(location);
-            const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-            window.open(url, "_blank");
+            if (isiOS) {
+              const url = `maps://?q=${encoded}`;
+              window.location.href = url;
+            } else {
+              const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+              window.open(url, "_blank");
+            }
             return;
           }
 

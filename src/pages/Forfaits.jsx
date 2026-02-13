@@ -312,14 +312,12 @@ const Forfaits = () => {
                   disabled={
                     loadingPlan === plan.key ||
                     isCurrentPlan ||
-                    (isIOS && plan.key === 'standard') ||
-                    (isIOS && plan.key === 'vip' && iapVipChecked && !iapVipReady)
+                    (isIOS && plan.key === 'standard')
                   }
                 >
                   {loadingPlan === plan.key ? <Loader2 className="h-4 w-4 animate-spin" /> :
                    isCurrentPlan ? 'Votre plan actuel' :
                    (isIOS && plan.key === 'standard') ? 'Bientôt disponible' :
-                   (isIOS && plan.key === 'vip' && iapVipChecked && !iapVipReady) ? 'Indisponible (Sandbox requis)' :
                    plan.key === 'free' ? 'Gratuit' :
                    plan.key === 'standard' ? 'Souscrire au forfait Standard' :
                    'Devenir membre VIP'}

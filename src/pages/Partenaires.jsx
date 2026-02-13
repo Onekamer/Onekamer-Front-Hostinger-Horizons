@@ -44,15 +44,30 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCou
     const { latitude, longitude, address } = partenaire;
 
     if (latitude && longitude) {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-      window.open(url, "_blank");
+      const ua = navigator.userAgent || '';
+      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+      if (isiOS) {
+        const label = address ? encodeURIComponent(address) : 'Destination';
+        const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
+        window.location.href = url;
+      } else {
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+        window.open(url, "_blank");
+      }
       return;
     }
 
     if (address) {
       const encoded = encodeURIComponent(address);
-      const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-      window.open(url, "_blank");
+      const ua = navigator.userAgent || '';
+      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+      if (isiOS) {
+        const url = `maps://?q=${encoded}`;
+        window.location.href = url;
+      } else {
+        const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+        window.open(url, "_blank");
+      }
       return;
     }
 
@@ -370,15 +385,30 @@ const Partenaires = () => {
     const { latitude, longitude, address } = partenaire;
 
     if (latitude && longitude) {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-      window.open(url, "_blank");
+      const ua = navigator.userAgent || '';
+      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+      if (isiOS) {
+        const label = address ? encodeURIComponent(address) : 'Destination';
+        const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
+        window.location.href = url;
+      } else {
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+        window.open(url, "_blank");
+      }
       return;
     }
 
     if (address) {
       const encoded = encodeURIComponent(address);
-      const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-      window.open(url, "_blank");
+      const ua = navigator.userAgent || '';
+      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+      if (isiOS) {
+        const url = `maps://?q=${encoded}`;
+        window.location.href = url;
+      } else {
+        const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+        window.open(url, "_blank");
+      }
       return;
     }
 

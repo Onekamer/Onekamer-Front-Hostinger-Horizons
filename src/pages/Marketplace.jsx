@@ -138,6 +138,11 @@ const Marketplace = () => {
   const buildMapsUrl = (address) => {
     const addr = String(address || '').trim();
     if (!addr) return null;
+    const ua = navigator.userAgent || '';
+    const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+    if (isiOS) {
+      return `maps://?q=${encodeURIComponent(addr)}`;
+    }
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
   };
 
@@ -290,7 +295,17 @@ const Marketplace = () => {
                         {mapUrl ? (
                           <Button
                             type="button"
-                            onClick={() => window.open(mapUrl, '_blank', 'noopener,noreferrer')}
+                            onClick={() => {
+                              try {
+                                if (String(mapUrl).startsWith('maps://')) {
+                                  window.location.href = mapUrl;
+                                } else {
+                                  window.open(mapUrl, '_blank', 'noopener,noreferrer');
+                                }
+                              } catch {
+                                window.open(mapUrl, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
                             className="shrink-0 bg-[#2BA84A] hover:bg-[#24903f] text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
                           >
                             <MapPin className="h-4 w-4" />
