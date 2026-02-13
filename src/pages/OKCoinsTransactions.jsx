@@ -60,7 +60,7 @@ const OKCoinsTransactions = () => {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && typeof data?.balance === 'number') setCurrentBalance(data.balance);
+      if (res.ok && data?.balance != null) setCurrentBalance(Number(data.balance));
     } catch {}
   }, [session?.access_token, API_PREFIX]);
 
@@ -126,15 +126,14 @@ const OKCoinsTransactions = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Transactions</CardTitle>
-          </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="ledger">Historique</TabsTrigger>
-                <TabsTrigger value="withdrawals">Retraits</TabsTrigger>
-              </TabsList>
+              <div className="flex justify-center">
+                <TabsList>
+                  <TabsTrigger value="ledger">Historique</TabsTrigger>
+                  <TabsTrigger value="withdrawals">Retraits</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="ledger" className="mt-4">
                 <div className="flex justify-end mb-2">
