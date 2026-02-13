@@ -77,21 +77,37 @@ const OKCoinsTransactions = () => {
   }, [session?.access_token, loadBalance]);
 
   const computedBalancesAfter = useMemo(() => {
-    if (!Array.isArray(ledgerItems) || ledgerItems.length === 0) return [];
-    let running = currentBalance != null ? Number(currentBalance) : null;
-    const out = [];
-    for (let i = 0; i < ledgerItems.length; i++) {
-      const it = ledgerItems[i];
-      const knownAfter = it?.balance_after != null ? Number(it.balance_after) : null;
-      const after = knownAfter != null ? knownAfter : running;
-      out.push(after);
-      if (after != null) {
-        const delta = Number(it?.delta || 0);
-        running = after - delta;
-      } else {
-        running = null;
+    const n = Array.isArray(ledgerItems) ? ledgerItems.length : 0;
+    if (n === 0) return [];
+    const out = new Array(n).fill(null);
+
+    // 1) Ancrages: utiliser balance_after fourni par le backend quand disponible
+    for (let i = 0; i < n; i++) {
+      const ba = ledgerItems[i]?.balance_after;
+      if (ba != null) out[i] = Number(ba);
+    }
+
+    // 2) Si aucun ancrage trouvé, on tente avec le solde courant (position 0)
+    if (!out.some((v) => v != null) && currentBalance != null) {
+      out[0] = Number(currentBalance);
+    }
+
+    // 3) Propagation vers l'avant (plus récent -> plus ancien)
+    for (let i = 0; i < n - 1; i++) {
+      if (out[i] != null && out[i + 1] == null) {
+        const deltaNext = Number(ledgerItems[i + 1]?.delta || 0);
+        out[i + 1] = out[i] - deltaNext;
       }
     }
+
+    // 4) Propagation vers l'arrière (plus ancien -> plus récent)
+    for (let i = n - 1; i >= 1; i--) {
+      if (out[i] != null && out[i - 1] == null) {
+        const deltaPrev = Number(ledgerItems[i - 1]?.delta || 0);
+        out[i - 1] = out[i] + deltaPrev;
+      }
+    }
+
     return out;
   }, [ledgerItems, currentBalance]);
 
