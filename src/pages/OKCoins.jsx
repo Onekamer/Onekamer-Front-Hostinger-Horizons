@@ -283,6 +283,7 @@ const OKCoins = () => {
         });
         const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
         const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+        const txId = String(result?.transactionId || '').trim();
         const res = await fetch(`${API_PREFIX}/iap/verify`, {
           method: 'POST',
           headers: {
@@ -293,12 +294,16 @@ const OKCoins = () => {
             platform: 'ios',
             provider: 'apple',
             userId: user.id,
-            transactionId: result.transactionId
+            transactionId: txId
           })
         });
         const dataVerify = await res.json().catch(() => ({}));
-        if (!res.ok || !dataVerify?.ok) throw new Error(dataVerify?.error || 'Échec vérification');
+        if (!res.ok || !dataVerify?.ok) {
+          const simHint = !txId ? "Achat simulé StoreKit: aucune transaction réelle à vérifier. Teste sur iPhone (sandbox) pour un flow complet." : null;
+          throw new Error(simHint || dataVerify?.error || 'Échec vérification');
+        }
         await refreshBalance();
+        await loadLedger();
         toast({ title: 'Achat réussi', description: 'Vos OK Coins ont été crédités.' });
       } catch (error) {
         toast({ title: 'Erreur de paiement', description: error.message || 'Achat in-app échoué', variant: 'destructive' });
