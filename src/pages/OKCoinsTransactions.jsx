@@ -95,6 +95,10 @@ const OKCoinsTransactions = () => {
     return out;
   }, [ledgerItems, currentBalance]);
 
+  const handleRefreshLedger = useCallback(async () => {
+    await Promise.allSettled([loadLedger(), loadBalance()]);
+  }, [loadLedger, loadBalance]);
+
   useEffect(() => {
     const url = new URL(window.location.href);
     url.searchParams.set('tab', activeTab);
@@ -134,7 +138,7 @@ const OKCoinsTransactions = () => {
 
               <TabsContent value="ledger" className="mt-4">
                 <div className="flex justify-end mb-2">
-                  <Button size="sm" variant="outline" onClick={loadLedger}>Actualiser</Button>
+                  <Button size="sm" variant="outline" onClick={handleRefreshLedger}>Actualiser</Button>
                 </div>
                 {ledgerLoading ? (
                   <div className="text-center text-gray-500">Chargement...</div>
