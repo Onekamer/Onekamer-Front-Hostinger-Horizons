@@ -23,6 +23,7 @@ const OKCoinsTransactions = () => {
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [withdrawals, setWithdrawals] = useState([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+  const [currentBalance, setCurrentBalance] = useState(null);
 
   const loadLedger = useCallback(async () => {
     if (!session?.access_token) return;
@@ -52,11 +53,47 @@ const OKCoinsTransactions = () => {
     finally { setWithdrawalsLoading(false); }
   }, [session?.access_token, API_PREFIX]);
 
+  const loadBalance = useCallback(async () => {
+    if (!session?.access_token) return;
+    try {
+      const res = await fetch(`${API_PREFIX}/okcoins/balance`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && typeof data?.balance === 'number') setCurrentBalance(data.balance);
+    } catch {}
+  }, [session?.access_token, API_PREFIX]);
+
   useEffect(() => {
     if (!session?.access_token) return;
     loadLedger();
     loadWithdrawals();
+    loadBalance();
   }, [session?.access_token, loadLedger, loadWithdrawals]);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    loadBalance();
+  }, [session?.access_token, loadBalance]);
+
+  const computedBalancesAfter = useMemo(() => {
+    if (!Array.isArray(ledgerItems) || ledgerItems.length === 0) return [];
+    let running = currentBalance != null ? Number(currentBalance) : null;
+    const out = [];
+    for (let i = 0; i < ledgerItems.length; i++) {
+      const it = ledgerItems[i];
+      const knownAfter = it?.balance_after != null ? Number(it.balance_after) : null;
+      const after = knownAfter != null ? knownAfter : running;
+      out.push(after);
+      if (after != null) {
+        const delta = Number(it?.delta || 0);
+        running = after - delta;
+      } else {
+        running = null;
+      }
+    }
+    return out;
+  }, [ledgerItems, currentBalance]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -106,7 +143,7 @@ const OKCoinsTransactions = () => {
                     {ledgerItems.length === 0 ? (
                       <div className="text-center text-gray-500">Aucun mouvement.</div>
                     ) : (
-                      ledgerItems.map((item) => {
+                      ledgerItems.map((item, idx) => {
                         const kind = String(item?.kind || '');
                         const anon = Boolean(item?.anonymous);
                         const other = item?.other_username || (kind === 'donation_in' && anon ? 'un membre' : null);
@@ -116,6 +153,7 @@ const OKCoinsTransactions = () => {
                         else if (kind === 'withdrawal_processed') label = 'Retrait traité';
                         else if (kind === 'purchase_in') label = 'Achat OK Coins';
                         else if (kind === 'recharge_in') label = 'Crédit OK Coins';
+                        const displayBalance = item?.balance_after != null ? item.balance_after : computedBalancesAfter[idx];
 
                         return (
                           <div key={item.id} className="flex items-center justify-between border-b pb-2">
@@ -125,8 +163,8 @@ const OKCoinsTransactions = () => {
                             </div>
                             <div className="text-right">
                               <div className={`font-semibold ${item.delta >= 0 ? 'text-[#2BA84A]' : 'text-[#E0222A]'}`}>{item.delta >= 0 ? '+' : ''}{item.delta}</div>
-                              {item.balance_after != null && (
-                                <div className="text-xs text-[#6B6B6B]">Solde: {item.balance_after}</div>
+                              {displayBalance != null && (
+                                <div className="text-xs text-[#6B6B6B]">Solde: {displayBalance}</div>
                               )}
                             </div>
                           </div>
