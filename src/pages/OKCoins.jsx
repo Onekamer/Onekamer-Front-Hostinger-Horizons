@@ -141,11 +141,11 @@ const OKCoins = () => {
         const hasFn = typeof NativePurchases?.getProducts === 'function';
         if (!hasFn) { if (mounted) setIapOkcChecked(true); return; }
         const res = await NativePurchases.getProducts({
-          productIdentifiers: ['onekamer_okcoins_pack_10'],
+          productIdentifiers: ['co.onekamer.okcoins.pack10'],
           productType: PURCHASE_TYPE.INAPP,
         });
         const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
-        const ok = (list || []).some((p) => String(p?.productId || p?.productIdentifier) === 'onekamer_okcoins_pack_10');
+        const ok = (list || []).some((p) => String(p?.productId || p?.productIdentifier) === 'co.onekamer.okcoins.pack10');
         if (mounted) { setIapOkcReady(!!ok); setIapOkcChecked(true); }
       } catch {
         if (mounted) setIapOkcChecked(true);
@@ -271,7 +271,7 @@ const OKCoins = () => {
   const handleBuyPack = async (pack) => {
     if (!user) return toast({ title: "Veuillez vous connecter", variant: "destructive" });
 
-    if (isIOS && Number(pack?.coins) === 1000) {
+    if (isIOS && Number(pack?.coins) === 10) {
       setBuyingPackId(pack.id);
       try {
         if (iapOkcChecked && !iapOkcReady) {
@@ -279,7 +279,7 @@ const OKCoins = () => {
           return;
         }
         const result = await NativePurchases.purchaseProduct({
-          productIdentifier: 'onekamer_okcoins_pack_10',
+          productIdentifier: 'co.onekamer.okcoins.pack10',
           productType: PURCHASE_TYPE.INAPP,
           quantity: 1
         });
@@ -513,7 +513,7 @@ const OKCoins = () => {
                         <div className={`text-3xl mb-2 ${coinColorClass}`}>
                            🪙
                         </div>
-                        <div className="font-bold text-lg">{isIOS && Number(pack?.coins) === 1000 ? '11,99€' : `${pack.price_eur}€`}</div>
+                        <div className="font-bold text-lg">{isIOS && Number(pack?.coins) === 10 ? '11,99€' : `${pack.price_eur}€`}</div>
                         <div className="text-sm text-[#6B6B6B] mb-2">{pack.coins.toLocaleString()} pièces</div>
                         <div className="text-xs text-[#2BA84A] font-semibold">+{pack.points} points</div>
                       </div>
@@ -523,15 +523,15 @@ const OKCoins = () => {
                         onClick={() => handleBuyPack(pack)}
                         disabled={
                           buyingPackId === pack.id ||
-                          (isIOS && Number(pack?.coins) !== 1000) ||
-                          (isIOS && Number(pack?.coins) === 1000 && iapOkcChecked && !iapOkcReady)
+                          (isIOS && Number(pack?.coins) !== 10) ||
+                          (isIOS && Number(pack?.coins) === 10 && iapOkcChecked && !iapOkcReady)
                         }
                       >
                         {buyingPackId === pack.id
                           ? <Loader2 className="h-4 w-4 animate-spin"/>
-                          : (isIOS && Number(pack?.coins) !== 1000)
+                          : (isIOS && Number(pack?.coins) !== 10)
                             ? 'Bientôt disponible'
-                            : (isIOS && Number(pack?.coins) === 1000 && iapOkcChecked && !iapOkcReady)
+                            : (isIOS && Number(pack?.coins) === 10 && iapOkcChecked && !iapOkcReady)
                               ? 'Indisponible (Sandbox requis)'
                               : 'Acheter'}
                       </Button>
