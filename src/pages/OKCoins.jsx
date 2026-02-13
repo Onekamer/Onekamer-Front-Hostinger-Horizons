@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -47,12 +47,8 @@ const OKCoins = () => {
   const [receiverSuggestions, setReceiverSuggestions] = useState([]);
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
   const debounceTimeout = useRef(null);
-
-  const minCoins = useMemo(() => {
-    const vals = (packs || []).map((p) => Number(p?.coins)).filter((v) => Number.isFinite(v));
-    return vals.length ? Math.min(...vals) : null;
-  }, [packs]);
-  const isIosPack = useCallback((pack) => isIOS && minCoins != null && Number(pack?.coins) === minCoins, [isIOS, minCoins]);
+  const IOS_OKC_COINS = 1000;
+  const isIosPack = useCallback((pack) => isIOS && Number(pack?.coins) === IOS_OKC_COINS, [isIOS]);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
   const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
@@ -280,10 +276,6 @@ const OKCoins = () => {
     if (isIosPack(pack)) {
       setBuyingPackId(pack.id);
       try {
-        if (iapOkcChecked && !iapOkcReady) {
-          toast({ title: 'Indisponible sur cet appareil', description: "Le produit IAP n’a pas été résolu (compte Sandbox requis / produit non attaché).", variant: 'destructive' });
-          return;
-        }
         const result = await NativePurchases.purchaseProduct({
           productIdentifier: 'co.onekamer.okcoins.pack10',
           productType: PURCHASE_TYPE.INAPP,
@@ -529,17 +521,14 @@ const OKCoins = () => {
                         onClick={() => handleBuyPack(pack)}
                         disabled={
                           buyingPackId === pack.id ||
-                          (isIOS && !isIosPack(pack)) ||
-                          (isIosPack(pack) && iapOkcChecked && !iapOkcReady)
+                          (isIOS && !isIosPack(pack))
                         }
                       >
                         {buyingPackId === pack.id
                           ? <Loader2 className="h-4 w-4 animate-spin"/>
                           : (isIOS && !isIosPack(pack))
                             ? 'Bientôt disponible'
-                            : (isIosPack(pack) && iapOkcChecked && !iapOkcReady)
-                              ? 'Indisponible (Sandbox requis)'
-                              : 'Acheter'}
+                            : 'Acheter'}
                       </Button>
                     </CardContent>
                   </Card>
