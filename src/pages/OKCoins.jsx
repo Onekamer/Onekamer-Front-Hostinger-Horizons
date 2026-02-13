@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -47,6 +47,12 @@ const OKCoins = () => {
   const [receiverSuggestions, setReceiverSuggestions] = useState([]);
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
   const debounceTimeout = useRef(null);
+
+  const minCoins = useMemo(() => {
+    const vals = (packs || []).map((p) => Number(p?.coins)).filter((v) => Number.isFinite(v));
+    return vals.length ? Math.min(...vals) : null;
+  }, [packs]);
+  const isIosPack = useCallback((pack) => isIOS && minCoins != null && Number(pack?.coins) === minCoins, [isIOS, minCoins]);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
   const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
@@ -271,7 +277,7 @@ const OKCoins = () => {
   const handleBuyPack = async (pack) => {
     if (!user) return toast({ title: "Veuillez vous connecter", variant: "destructive" });
 
-    if (isIOS && Number(pack?.coins) === 10) {
+    if (isIosPack(pack)) {
       setBuyingPackId(pack.id);
       try {
         if (iapOkcChecked && !iapOkcReady) {
@@ -513,7 +519,7 @@ const OKCoins = () => {
                         <div className={`text-3xl mb-2 ${coinColorClass}`}>
                            🪙
                         </div>
-                        <div className="font-bold text-lg">{isIOS && Number(pack?.coins) === 10 ? '11,99€' : `${pack.price_eur}€`}</div>
+                        <div className="font-bold text-lg">{isIosPack(pack) ? '11,99€' : `${pack.price_eur}€`}</div>
                         <div className="text-sm text-[#6B6B6B] mb-2">{pack.coins.toLocaleString()} pièces</div>
                         <div className="text-xs text-[#2BA84A] font-semibold">+{pack.points} points</div>
                       </div>
@@ -523,15 +529,15 @@ const OKCoins = () => {
                         onClick={() => handleBuyPack(pack)}
                         disabled={
                           buyingPackId === pack.id ||
-                          (isIOS && Number(pack?.coins) !== 10) ||
-                          (isIOS && Number(pack?.coins) === 10 && iapOkcChecked && !iapOkcReady)
+                          (isIOS && !isIosPack(pack)) ||
+                          (isIosPack(pack) && iapOkcChecked && !iapOkcReady)
                         }
                       >
                         {buyingPackId === pack.id
                           ? <Loader2 className="h-4 w-4 animate-spin"/>
-                          : (isIOS && Number(pack?.coins) !== 10)
+                          : (isIOS && !isIosPack(pack))
                             ? 'Bientôt disponible'
-                            : (isIOS && Number(pack?.coins) === 10 && iapOkcChecked && !iapOkcReady)
+                            : (isIosPack(pack) && iapOkcChecked && !iapOkcReady)
                               ? 'Indisponible (Sandbox requis)'
                               : 'Acheter'}
                       </Button>
