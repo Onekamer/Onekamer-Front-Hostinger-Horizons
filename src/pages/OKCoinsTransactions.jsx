@@ -114,6 +114,8 @@ const OKCoinsTransactions = () => {
                         if (kind === 'donation_in') label = `Don reçu${other ? ` de ${other}` : ''}`;
                         else if (kind === 'donation_out') label = `Don envoyé${other ? ` à ${other}` : ''}`;
                         else if (kind === 'withdrawal_processed') label = 'Retrait traité';
+                        else if (kind === 'purchase_in') label = 'Achat OK Coins';
+                        else if (kind === 'recharge_in') label = 'Crédit OK Coins';
 
                         return (
                           <div key={item.id} className="flex items-center justify-between border-b pb-2">
