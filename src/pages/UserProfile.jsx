@@ -96,7 +96,7 @@ const UserProfile = () => {
             .limit(50),
           supabase
             .from('comments')
-            .select('id, content, created_at, content_type, content_id')
+            .select('id, content, created_at, content_type, content_id, parent_comment_id')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(50),
@@ -213,8 +213,8 @@ const UserProfile = () => {
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
                   <span>
-                    {postsCount} post{postsCount > 1 ? 's' : ''} · {commentsCount} commentaire{commentsCount > 1 ? 's' : ''}
-                    {memberSinceLabel ? ` · Membre depuis ${memberSinceLabel}` : ''}
+                    {memberSinceLabel ? `Membre depuis ${memberSinceLabel}` : ''}
+                    {` ${memberSinceLabel ? '· ' : ''}`}{postsCount} post{postsCount > 1 ? 's' : ''} · {commentsCount} commentaire{commentsCount > 1 ? 's' : ''}
                   </span>
                 </div>
                 {authUser?.id && String(authUser.id) !== String(userId) && (
@@ -290,7 +290,12 @@ const UserProfile = () => {
                         <div className="text-center text-gray-500">Aucun post.</div>
                       ) : (
                         posts.map((p) => (
-                          <div key={p.id} className="border-b pb-2">
+                          <div
+                            key={p.id}
+                            className="border-b pb-2 cursor-pointer"
+                            role="button"
+                            onClick={() => navigate(`/echange?postId=${encodeURIComponent(p.id)}`)}
+                          >
                             <div className="text-sm text-gray-500">{new Date(p.created_at).toLocaleString('fr-FR')}</div>
                             <div className="text-gray-800 whitespace-pre-wrap">{p.content || '(sans contenu)'}</div>
                           </div>
@@ -309,7 +314,21 @@ const UserProfile = () => {
                         <div className="text-center text-gray-500">Aucun commentaire.</div>
                       ) : (
                         comments.map((c) => (
-                          <div key={c.id} className="border-b pb-2">
+                          <div
+                            key={c.id}
+                            className="border-b pb-2 cursor-pointer"
+                            role="button"
+                            onClick={() => {
+                              const ct = String(c?.content_type || '');
+                              if (ct === 'post' && c?.content_id) {
+                                navigate(`/echange?postId=${encodeURIComponent(c.content_id)}&commentId=${encodeURIComponent(c.id)}`);
+                              } else if (ct === 'echange' && c?.parent_comment_id) {
+                                navigate(`/echange?audioId=${encodeURIComponent(c.parent_comment_id)}&commentId=${encodeURIComponent(c.id)}`);
+                              } else {
+                                navigate('/echange');
+                              }
+                            }}
+                          >
                             <div className="text-sm text-gray-500">{new Date(c.created_at).toLocaleString('fr-FR')}</div>
                             <div className="text-gray-800 whitespace-pre-wrap">{c.content || '(sans contenu)'}</div>
                           </div>

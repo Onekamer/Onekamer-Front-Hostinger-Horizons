@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const OKCoinsTransactions = () => {
-  const { session, user } = useAuth();
+  const { session, user, balance, refreshBalance } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -87,8 +87,11 @@ const OKCoinsTransactions = () => {
       if (ba != null) out[i] = Number(ba);
     }
 
-    // 2) Ancrage principal: si solde courant connu (Niveau), on force le premier élément à ce solde
-    if (currentBalance != null) {
+    // 2) Ancrage principal: aligner le 1er solde sur la valeur UI (Niveau)
+    const uiBalance = (balance && typeof balance.coins_balance !== 'undefined') ? Number(balance.coins_balance) : null;
+    if (uiBalance != null && Number.isFinite(uiBalance)) {
+      out[0] = uiBalance;
+    } else if (currentBalance != null) {
       out[0] = Number(currentBalance);
     }
 
@@ -112,8 +115,10 @@ const OKCoinsTransactions = () => {
   }, [ledgerItems, currentBalance]);
 
   const handleRefreshLedger = useCallback(async () => {
-    await Promise.allSettled([loadLedger(), loadBalance()]);
-  }, [loadLedger, loadBalance]);
+    const tasks = [loadLedger(), loadBalance()];
+    try { if (typeof refreshBalance === 'function') tasks.push(refreshBalance()); } catch {}
+    await Promise.allSettled(tasks);
+  }, [loadLedger, loadBalance, refreshBalance]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
