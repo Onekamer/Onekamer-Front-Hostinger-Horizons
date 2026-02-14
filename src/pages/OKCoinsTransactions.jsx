@@ -87,8 +87,8 @@ const OKCoinsTransactions = () => {
       if (ba != null) out[i] = Number(ba);
     }
 
-    // 2) Si aucun ancrage trouvé, on tente avec le solde courant (position 0)
-    if (!out.some((v) => v != null) && currentBalance != null) {
+    // 2) Ancrage principal: si solde courant connu (Niveau), on force le premier élément à ce solde
+    if (currentBalance != null) {
       out[0] = Number(currentBalance);
     }
 
