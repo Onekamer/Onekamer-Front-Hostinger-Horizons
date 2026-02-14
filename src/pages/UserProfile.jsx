@@ -4,13 +4,14 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus, Shield, Award, MessageSquare as MessageSquareQuote, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import MediaDisplay from '@/components/MediaDisplay';
 import { supabase } from '@/lib/customSupabaseClient';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, differenceInDays, differenceInMonths, differenceInYears } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 const Badge = ({ icon, label, colorClass }) => (
@@ -28,6 +29,13 @@ const UserProfile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [postsCount, setPostsCount] = useState(0);
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [posts, setPosts] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [activeTab, setActiveTab] = useState('posts');
 
   const isBlocked = React.useMemo(() => {
     const list = Array.isArray(myProfile?.blocked_user_ids) ? myProfile.blocked_user_ids.map(String) : [];
@@ -60,6 +68,51 @@ const UserProfile = () => {
       setLoading(false);
     };
     loadProfile();
+  }, [userId]);
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      if (!userId) return;
+      try {
+        const [{ count: pCount }, { count: cCount }] = await Promise.all([
+          supabase.from('posts').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+          supabase.from('comments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        ]);
+        setPostsCount(typeof pCount === 'number' ? pCount : 0);
+        setCommentsCount(typeof cCount === 'number' ? cCount : 0);
+      } catch (_) {}
+    };
+    const loadLists = async () => {
+      if (!userId) return;
+      setLoadingPosts(true);
+      setLoadingComments(true);
+      try {
+        const [{ data: userPosts }, { data: userComments }] = await Promise.all([
+          supabase
+            .from('posts')
+            .select('id, content, created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50),
+          supabase
+            .from('comments')
+            .select('id, content, created_at, content_type, content_id')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50),
+        ]);
+        setPosts(Array.isArray(userPosts) ? userPosts : []);
+        setComments(Array.isArray(userComments) ? userComments : []);
+        if (!postsCount && Array.isArray(userPosts)) setPostsCount(userPosts.length);
+        if (!commentsCount && Array.isArray(userComments)) setCommentsCount(userComments.length);
+      } catch (_) {}
+      finally {
+        setLoadingPosts(false);
+        setLoadingComments(false);
+      }
+    };
+    loadCounts();
+    loadLists();
   }, [userId]);
 
   if (loading) {
@@ -103,6 +156,21 @@ const UserProfile = () => {
     return 'Hors ligne';
   })();
 
+  const memberSinceLabel = (() => {
+    const created = profile?.created_at ? new Date(profile.created_at) : null;
+    if (!created || Number.isNaN(created.getTime())) return null;
+    try {
+      const days = differenceInDays(new Date(), created);
+      if (days < 30) return `${days} jour${days > 1 ? 's' : ''}`;
+      const months = differenceInMonths(new Date(), created);
+      if (months < 12) return `${months} mois`;
+      const years = Math.max(1, differenceInYears(new Date(), created));
+      return `${years} an${years > 1 ? 's' : ''}`;
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <>
       <Helmet>
@@ -142,6 +210,12 @@ const UserProfile = () => {
                 <div className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span>{statusText}</span>
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  <span>
+                    {postsCount} post{postsCount > 1 ? 's' : ''} · {commentsCount} commentaire{commentsCount > 1 ? 's' : ''}
+                    {memberSinceLabel ? ` · Membre depuis ${memberSinceLabel}` : ''}
+                  </span>
                 </div>
                 {authUser?.id && String(authUser.id) !== String(userId) && (
                   <div className="mt-3 flex items-center gap-2">
@@ -193,6 +267,58 @@ const UserProfile = () => {
 
                 <p className="text-gray-600 mt-6 max-w-md">{profile.bio || 'Aucune biographie.'}</p>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="mt-6">
+            <CardContent className="pt-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <div className="flex justify-center">
+                  <TabsList>
+                    <TabsTrigger value="posts">Posts</TabsTrigger>
+                    <TabsTrigger value="comments">Commentaires</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="posts" className="mt-4">
+                  {loadingPosts ? (
+                    <div className="text-center text-gray-500">Chargement...</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {posts.length === 0 ? (
+                        <div className="text-center text-gray-500">Aucun post.</div>
+                      ) : (
+                        posts.map((p) => (
+                          <div key={p.id} className="border-b pb-2">
+                            <div className="text-sm text-gray-500">{new Date(p.created_at).toLocaleString('fr-FR')}</div>
+                            <div className="text-gray-800 whitespace-pre-wrap">{p.content || '(sans contenu)'}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="comments" className="mt-4">
+                  {loadingComments ? (
+                    <div className="text-center text-gray-500">Chargement...</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {comments.length === 0 ? (
+                        <div className="text-center text-gray-500">Aucun commentaire.</div>
+                      ) : (
+                        comments.map((c) => (
+                          <div key={c.id} className="border-b pb-2">
+                            <div className="text-sm text-gray-500">{new Date(c.created_at).toLocaleString('fr-FR')}</div>
+                            <div className="text-gray-800 whitespace-pre-wrap">{c.content || '(sans contenu)'}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </motion.div>
