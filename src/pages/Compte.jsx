@@ -98,6 +98,27 @@ const Compte = () => {
   const [dashError, setDashError] = React.useState(null);
   const navigate = useNavigate();
 
+  // OK Coins: niveaux dynamiques (alignés avec la page OK Coins)
+  const [levels, setLevels] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.from('okcoins_levels').select('*').order('id');
+        if (!error) setLevels(Array.isArray(data) ? data : []);
+      } catch {}
+    })();
+  }, []);
+  const currentLevel = useMemo(() => {
+    try {
+      const pts = Number(balance?.points_total ?? 0);
+      if (!Array.isArray(levels) || levels.length === 0) return null;
+      const match = levels.find((l) => pts >= Number(l.min_points) && pts <= Number(l.max_points));
+      return match || levels[0] || null;
+    } catch {
+      return null;
+    }
+  }, [levels, balance?.points_total]);
+
   const isNativeApp = useMemo(() => {
     try {
       const p = typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() : 'web';
@@ -402,7 +423,7 @@ const Compte = () => {
           </CardHeader>
           <CardContent className="flex items-center gap-4">
             <div className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3"/> {`Niveau ${profile?.level ?? 1} - ${(profile?.levelName || profile?.level_name || 'Bronze')}`}
+              <ShieldCheck className="w-3 h-3"/> {`Niveau ${currentLevel?.id ?? (profile?.level ?? 1)} - ${(currentLevel?.level_name || profile?.levelName || profile?.level_name || 'Bronze')}`}
             </div>
             <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
               <ShieldCheck className="w-3 h-3"/> {displayPlan}

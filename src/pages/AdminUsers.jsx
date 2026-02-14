@@ -7,6 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
@@ -73,6 +81,100 @@ const AdminUsers = () => {
 
   const canPrev = offset > 0;
   const canNext = total == null ? items.length === limit : offset + limit < total;
+
+  // Badges communauté (admin)
+  const [badges, setBadges] = useState([]);
+  const [badgeDialogOpen, setBadgeDialogOpen] = useState(false);
+  const [badgeTarget, setBadgeTarget] = useState(null);
+  const [badgeSelected, setBadgeSelected] = useState(new Set());
+  const [badgeLoading, setBadgeLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('badges')
+          .select('id, name, code, icon, icon_url, description, is_special, created_at')
+          .order('created_at', { ascending: true });
+        if (!error && Array.isArray(data)) {
+          // Exclure le badge automatique "Nouveau membre"
+          setBadges(data.filter((b) => String(b.code || '').toLowerCase() !== 'new_member'));
+        } else {
+          setBadges([]);
+        }
+      } catch {
+        setBadges([]);
+      }
+    })();
+  }, []);
+
+  const openBadgeDialog = async (row) => {
+    setBadgeTarget(row);
+    setBadgeDialogOpen(true);
+    setBadgeLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_badges')
+        .select('badge_id')
+        .eq('user_id', row.id);
+      if (!error && Array.isArray(data)) {
+        const ids = new Set(data.map((r) => r.badge_id).filter(Boolean));
+        setBadgeSelected(ids);
+      } else {
+        setBadgeSelected(new Set());
+      }
+    } catch {
+      setBadgeSelected(new Set());
+    } finally {
+      setBadgeLoading(false);
+    }
+  };
+
+  const toggleBadge = (badgeId) => {
+    setBadgeSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(badgeId)) next.delete(badgeId);
+      else next.add(badgeId);
+      return next;
+    });
+  };
+
+  const saveBadges = async () => {
+    if (!badgeTarget?.id) { setBadgeDialogOpen(false); return; }
+    setBadgeLoading(true);
+    try {
+      const { data: currentRows } = await supabase
+        .from('user_badges')
+        .select('badge_id')
+        .eq('user_id', badgeTarget.id);
+      const current = new Set((currentRows || []).map((r) => r.badge_id).filter(Boolean));
+      const want = new Set(badgeSelected);
+
+      const toAdd = Array.from(want).filter((id) => !current.has(id));
+      const toRemove = Array.from(current).filter((id) => !want.has(id));
+
+      if (toAdd.length) {
+        const rows = toAdd.map((id) => ({ user_id: badgeTarget.id, badge_id: id, awarded_by: user?.id || null }));
+        const { error: e1 } = await supabase.from('user_badges').insert(rows);
+        if (e1) throw e1;
+      }
+      if (toRemove.length) {
+        const { error: e2 } = await supabase
+          .from('user_badges')
+          .delete()
+          .eq('user_id', badgeTarget.id)
+          .in('badge_id', toRemove);
+        if (e2) throw e2;
+      }
+
+      toast({ title: 'Badges mis à jour' });
+      setBadgeDialogOpen(false);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de mettre à jour les badges.' });
+    } finally {
+      setBadgeLoading(false);
+    }
+  };
 
   const getFreshAccessToken = async () => {
     const { data, error } = await supabase.auth.getSession();
@@ -377,7 +479,15 @@ const AdminUsers = () => {
                       </div>
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => openBadgeDialog(row)}
+                      >
+                        Badges
+                      </Button>
                       <Button
                         type="button"
                         className="w-full sm:w-auto"
@@ -417,6 +527,33 @@ const AdminUsers = () => {
             )}
           </CardContent>
         </Card>
+        <Dialog open={badgeDialogOpen} onOpenChange={setBadgeDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Badges — {badgeTarget?.username || badgeTarget?.email || badgeTarget?.id || ''}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 max-h-72 overflow-auto">
+              {badgeLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-[#2BA84A]" /></div>
+              ) : badges.length === 0 ? (
+                <div className="text-sm text-gray-500">Aucun badge configuré.</div>
+              ) : (
+                badges.map((b) => (
+                  <label key={b.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={badgeSelected.has(b.id)} onCheckedChange={() => toggleBadge(b.id)} />
+                    {b.icon ? <span className="text-base">{b.icon}</span> : (b.icon_url ? <img src={b.icon_url} alt={b.name} className="h-4 w-4" /> : null)}
+                    <span className="font-medium">{b.name || b.code}</span>
+                    {b.description && <span className="text-gray-500">— {b.description}</span>}
+                  </label>
+                ))
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setBadgeDialogOpen(false)}>Annuler</Button>
+              <Button type="button" onClick={saveBadges} disabled={badgeLoading}>{badgeLoading ? 'Enregistrement…' : 'Enregistrer'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );

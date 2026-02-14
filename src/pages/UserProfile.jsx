@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -24,7 +24,7 @@ const Badge = ({ icon, label, colorClass }) => (
 const UserProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { onlineUserIds, user: authUser, profile: myProfile, blockUser, unblockUser } = useAuth();
+  const { onlineUserIds, user: authUser, profile: myProfile, balance, blockUser, unblockUser } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +36,9 @@ const UserProfile = () => {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
+  const [levels, setLevels] = useState([]);
+  const [targetBalance, setTargetBalance] = useState(null);
+  const [communityBadges, setCommunityBadges] = useState([]);
 
   const isBlocked = React.useMemo(() => {
     const list = Array.isArray(myProfile?.blocked_user_ids) ? myProfile.blocked_user_ids.map(String) : [];
@@ -68,6 +71,77 @@ const UserProfile = () => {
       setLoading(false);
     };
     loadProfile();
+  }, [userId]);
+
+  // Charger les niveaux OK Coins (pour calculer le niveau dynamiquement)
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.from('okcoins_levels').select('*').order('id');
+        if (!error) setLevels(Array.isArray(data) ? data : []);
+      } catch {}
+    })();
+  }, []);
+
+  // Déterminer le solde/points de l'utilisateur affiché
+  useEffect(() => {
+    if (!userId) return;
+    // Si on regarde notre propre profil, utiliser le balance du contexte (exactement comme la page OK Coins)
+    if (authUser?.id && String(authUser.id) === String(userId)) {
+      setTargetBalance(balance || null);
+      return;
+    }
+    // Sinon, tentative de lecture du solde public de l'utilisateur (si RLS l'autorise)
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('okcoins_users_balance')
+          .select('user_id, points_total, coins_balance')
+          .eq('user_id', userId)
+          .single();
+        if (!error) setTargetBalance(data || null);
+      } catch {
+        // Silencieux si non autorisé
+      }
+    })();
+  }, [userId, authUser?.id, balance]);
+
+  const currentLevelForProfile = useMemo(() => {
+    try {
+      const pts = Number(targetBalance?.points_total ?? 0);
+      if (!Array.isArray(levels) || levels.length === 0) return null;
+      const match = levels.find((l) => pts >= Number(l.min_points) && pts <= Number(l.max_points));
+      return match || levels[0] || null;
+    } catch {
+      return null;
+    }
+  }, [levels, targetBalance?.points_total]);
+
+  // Badges communauté attribués (user_badges -> badges)
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const { data: ub, error: e1 } = await supabase
+          .from('user_badges')
+          .select('badge_id, awarded_at')
+          .eq('user_id', userId);
+        if (e1 || !Array.isArray(ub) || ub.length === 0) { setCommunityBadges([]); return; }
+        const ids = ub.map((x) => x.badge_id).filter(Boolean);
+        const { data: bs, error: e2 } = await supabase
+          .from('badges')
+          .select('id, name, code, icon, icon_url, description, is_special, created_at')
+          .in('id', ids);
+        if (e2 || !Array.isArray(bs)) { setCommunityBadges([]); return; }
+        const byId = new Map(bs.map(b => [b.id, b]));
+        const merged = ub
+          .map(u => ({ ...(byId.get(u.badge_id) || {}), awarded_at: u.awarded_at }))
+          .filter(b => b && b.id);
+        setCommunityBadges(merged);
+      } catch {
+        setCommunityBadges([]);
+      }
+    })();
   }, [userId]);
 
   useEffect(() => {
@@ -252,7 +326,7 @@ const UserProfile = () => {
                 <div className="flex flex-wrap justify-center gap-2 mt-4">
                   <Badge 
                     icon={<Gem className="h-4 w-4" />} 
-                    label={`Niveau ${profile.level || 1} - ${profile.levelName || 'Bronze'}`}
+                    label={`Niveau ${currentLevelForProfile?.id ?? (profile.level || 1)} - ${currentLevelForProfile?.level_name || profile.levelName || 'Bronze'}`}
                     colorClass="bg-purple-100 text-purple-800"
                   />
                   <Badge 
@@ -267,6 +341,14 @@ const UserProfile = () => {
                       colorClass="bg-gray-100 text-gray-800"
                     />
                   )}
+                  {communityBadges.map((b) => (
+                    <Badge
+                      key={b.id}
+                      icon={b.icon ? <span className="text-base">{b.icon}</span> : (b.icon_url ? <img src={b.icon_url} alt={b.name} className="h-4 w-4" /> : <Star className="h-4 w-4" />)}
+                      label={b.name || b.code}
+                      colorClass="bg-gray-100 text-gray-800"
+                    />
+                  ))}
                   {profile.isTopDonor && (
                     <Badge 
                       icon={<Award className="h-4 w-4" />} 
