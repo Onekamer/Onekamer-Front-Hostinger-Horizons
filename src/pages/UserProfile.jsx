@@ -171,6 +171,25 @@ const UserProfile = () => {
     }
   })();
 
+  const isNewMember = (() => {
+    const created = profile?.created_at ? new Date(profile.created_at) : null;
+    if (!created || Number.isNaN(created.getTime())) return false;
+    try {
+      const days = differenceInDays(new Date(), created);
+      return days < 14;
+    } catch {
+      return false;
+    }
+  })();
+
+  const planLabel = (() => {
+    const p = String(profile?.plan || '').toLowerCase();
+    if (p === 'vip') return 'VIP';
+    if (p === 'standard') return 'Standard';
+    if (p === 'free') return 'Free';
+    return profile?.plan || 'Free';
+  })();
+
   return (
     <>
       <Helmet>
@@ -238,9 +257,16 @@ const UserProfile = () => {
                   />
                   <Badge 
                     icon={<Crown className="h-4 w-4" />} 
-                    label={profile.plan || 'Free'}
+                    label={planLabel}
                     colorClass={planColors[profile.plan] || 'bg-gray-200 text-gray-800'}
                   />
+                  {isNewMember && (
+                    <Badge
+                      icon={<span className="text-base">👋🏾</span>}
+                      label="Nouveau membre"
+                      colorClass="bg-gray-100 text-gray-800"
+                    />
+                  )}
                   {profile.isTopDonor && (
                     <Badge 
                       icon={<Award className="h-4 w-4" />} 

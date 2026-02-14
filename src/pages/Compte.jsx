@@ -14,6 +14,7 @@ import MediaDisplay from '@/components/MediaDisplay';
 import { Switch } from '@/components/ui/switch';
 import { Capacitor } from '@capacitor/core';
 import { NativePurchases } from '@capgo/native-purchases';
+import { differenceInDays } from 'date-fns';
 
 const Compte = () => {
   const { user, profile, signOut, balance, loading, session, refreshProfile } = useAuth();
@@ -69,6 +70,17 @@ const Compte = () => {
     profile?.is_admin === 'true' ||
     String(profile?.role || '').toLowerCase() === 'admin'
   );
+
+  const isNewMember = React.useMemo(() => {
+    try {
+      const created = profile?.created_at ? new Date(profile.created_at) : null;
+      if (!created || Number.isNaN(created.getTime())) return false;
+      const days = differenceInDays(new Date(), created);
+      return days < 14;
+    } catch {
+      return false;
+    }
+  }, [profile?.created_at]);
 
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -390,11 +402,16 @@ const Compte = () => {
           </CardHeader>
           <CardContent className="flex items-center gap-4">
             <div className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3"/> Niveau 1 - Bronze
+              <ShieldCheck className="w-3 h-3"/> {`Niveau ${profile?.level ?? 1} - ${(profile?.levelName || profile?.level_name || 'Bronze')}`}
             </div>
             <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
               <ShieldCheck className="w-3 h-3"/> {displayPlan}
             </div>
+            {isNewMember && (
+              <div className="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-base">👋🏾</span> Nouveau membre
+              </div>
+            )}
           </CardContent>
         </Card>
 
