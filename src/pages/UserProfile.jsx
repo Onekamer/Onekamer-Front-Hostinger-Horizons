@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -40,10 +39,10 @@ const UserProfile = () => {
   const [targetBalance, setTargetBalance] = useState(null);
   const [communityBadges, setCommunityBadges] = useState([]);
 
-  const isBlocked = React.useMemo(() => {
+  const isBlocked = (() => {
     const list = Array.isArray(myProfile?.blocked_user_ids) ? myProfile.blocked_user_ids.map(String) : [];
     return list.includes(String(userId));
-  }, [myProfile?.blocked_user_ids, userId]);
+  })();
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -106,7 +105,7 @@ const UserProfile = () => {
     })();
   }, [userId, authUser?.id, balance]);
 
-  const currentLevelForProfile = useMemo(() => {
+  const currentLevelForProfile = (() => {
     try {
       const pts = Number(targetBalance?.points_total ?? 0);
       if (!Array.isArray(levels) || levels.length === 0) return null;
@@ -115,7 +114,7 @@ const UserProfile = () => {
     } catch {
       return null;
     }
-  }, [levels, targetBalance?.points_total]);
+  })();
 
   // Badges communauté attribués (user_badges -> badges)
   useEffect(() => {
@@ -264,13 +263,18 @@ const UserProfile = () => {
     return profile?.plan || 'Free';
   })();
 
-  const levelBadgeLabel = useMemo(() => {
-    const id = currentLevelForProfile?.id ?? (profile?.level ?? 1);
-    const nameRaw = currentLevelForProfile?.level_name || profile?.levelName || '';
-    const name = String(nameRaw || '').trim();
-    if (name && /^niveau/i.test(name)) return name;
-    return name ? `Niveau ${id} - ${name}` : `Niveau ${id}`;
-  }, [currentLevelForProfile?.id, currentLevelForProfile?.level_name, profile?.level, profile?.levelName]);
+  const levelBadgeLabel = (() => {
+    try {
+      const id = currentLevelForProfile?.id ?? (profile?.level ?? 1);
+      const nameRaw = currentLevelForProfile?.level_name || profile?.levelName || '';
+      const name = String(nameRaw || '').trim();
+      if (name && /^niveau/i.test(name)) return name;
+      return name ? `Niveau ${id} - ${name}` : `Niveau ${id}`;
+    } catch {
+      const id = currentLevelForProfile?.id ?? 1;
+      return `Niveau ${id}`;
+    }
+  })();
 
   return (
     <>
@@ -278,14 +282,14 @@ const UserProfile = () => {
         <title>Profil de {profile.username || 'Utilisateur'} - OneKamer.co</title>
       </Helmet>
       <div className="max-w-2xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+        <div>
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour
           </Button>
-        </motion.div>
+        </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <div>
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center">
@@ -385,8 +389,8 @@ const UserProfile = () => {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        </div>
+        <div>
           <Card className="mt-6">
             <CardContent className="pt-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -456,7 +460,7 @@ const UserProfile = () => {
               </Tabs>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
       {lightboxOpen && profile.avatar_url && (
         <div
