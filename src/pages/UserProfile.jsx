@@ -265,12 +265,12 @@ const UserProfile = () => {
   })();
 
   const levelBadgeLabel = useMemo(() => {
-    const id = currentLevelForProfile?.id ?? (profile.level || 1);
-    const nameRaw = currentLevelForProfile?.level_name || profile.levelName || '';
+    const id = currentLevelForProfile?.id ?? (profile?.level ?? 1);
+    const nameRaw = currentLevelForProfile?.level_name || profile?.levelName || '';
     const name = String(nameRaw || '').trim();
     if (name && /^niveau/i.test(name)) return name;
     return name ? `Niveau ${id} - ${name}` : `Niveau ${id}`;
-  }, [currentLevelForProfile?.id, currentLevelForProfile?.level_name, profile.level, profile.levelName]);
+  }, [currentLevelForProfile?.id, currentLevelForProfile?.level_name, profile?.level, profile?.levelName]);
 
   return (
     <>
