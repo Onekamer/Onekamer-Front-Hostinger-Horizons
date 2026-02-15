@@ -84,8 +84,8 @@ const Groupes = () => {
       navigate('/groupes/creer');
     } else {
       toast({
-        title: "Accès restreint",
-        description: "La création de groupe est réservée aux membres Standard et VIP.",
+        title: "Accès VIP requis",
+        description: "La création de groupes est réservée aux membres VIP.",
         variant: "destructive",
       });
       navigate("/forfaits");
