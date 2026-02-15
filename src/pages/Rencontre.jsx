@@ -67,15 +67,6 @@ const FiltersDialog = ({ filters, setFilters, onApply }) => {
     setFilters(localFilters);
     onApply();
   };
-
-  const handleOpenDetail = () => {
-    if (!canInteract) {
-      toast({ title: 'Accès réservé', description: 'La vue détaillée du profil est réservée aux membres VIP.', variant: 'destructive' });
-      return;
-    }
-    setView('detail');
-  };
-
   return (
     <DialogContent>
       <DialogHeader>
@@ -592,6 +583,14 @@ useEffect(() => {
   const currentIsOnline = Boolean(
     currentAllowsOnline && currentUserId && (onlineUserIds instanceof Set) && onlineUserIds.has(currentUserId)
   );
+
+  const handleOpenDetail = () => {
+    if (!canInteract) {
+      toast({ title: 'Accès réservé', description: 'La vue détaillée du profil est réservée aux membres VIP.', variant: 'destructive' });
+      return;
+    }
+    setView('detail');
+  };
   const mainPhoto = (() => {
     if (!currentProfile) return null;
     const firstPhoto = (Array.isArray(currentProfile.photos) && currentProfile.photos.length > 0) ? currentProfile.photos[0] : null;

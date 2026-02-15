@@ -86,9 +86,10 @@ const Publier = () => {
     if (canAccess) {
       navigate(option.path);
     } else {
+      const isGroupCreate = option.access.section === 'groupes' && option.access.action === 'create';
       toast({
-        title: "Accès restreint",
-        description: "Cette fonctionnalité est réservée aux membres disposant d’un forfait supérieur.",
+        title: isGroupCreate ? "Accès VIP requis" : "Accès restreint",
+        description: isGroupCreate ? "La création de groupes est réservée aux membres VIP." : "Cette fonctionnalité est réservée aux membres disposant d’un forfait supérieur.",
         variant: "destructive",
       });
       navigate("/forfaits");
