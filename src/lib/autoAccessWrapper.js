@@ -16,6 +16,7 @@ export const applyAutoAccessProtection = async (user, navigate, currentPath) => 
     { path: "/publier/evenement", section: "evenements", action: "create" },
     { path: "/publier/annonce", section: "annonces", action: "create" },
     { path: "/publier/partenaire", section: "partenaires", action: "create" },
+    { path: "/groupes/creer", section: "groupes", action: "create" },
   ];
 
   for (const rule of pathRules) {
