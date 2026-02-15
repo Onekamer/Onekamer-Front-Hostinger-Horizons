@@ -397,22 +397,19 @@ useEffect(() => {
     return;
   }
 
-  // Vérifie si le plan autorise les interactions (VIP/Admin)
-  if (!canInteract) {
-    toast({
-      title: "Accès réservé",
-      description: "Cette action est réservée aux membres VIP.",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  if (!myProfile) {
-    toast({ title: 'Profil requis', description: "Créez d'abord votre profil Rencontre pour interagir.", variant: 'destructive' });
-    return;
-  }
-
   if (action === 'like') {
+    if (!canInteract) {
+      toast({
+        title: "Accès réservé",
+        description: "Cette action est réservée aux membres VIP.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!myProfile) {
+      toast({ title: 'Profil requis', description: "Créez d'abord votre profil Rencontre pour interagir.", variant: 'destructive' });
+      return;
+    }
     // Résolution UUID du liked_id depuis card ou ?rid
     const getLikedId = async () => {
       if (typeof likedProfileId === 'string' && likedProfileId.length > 0) return likedProfileId;

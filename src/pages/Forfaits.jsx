@@ -201,11 +201,11 @@ const Forfaits = () => {
       price: '0€',
       priceId: null,
       features: [
-        '📰 Accès aux Annonces (lecture)',
-        '🎟️ Accès aux Événements (lecture)',
-        '💬 Accès aux Échanges (lecture + commentaires)',
+        '📰 Accès aux Annonces',
+        '🎟️ Accès aux Événements',
+        '💬 Accès aux Échanges',
         '🗞️ Accès aux Faits divers',
-        '👥 Accès aux Groupes (lecture)',
+        '👥 Accès aux Groupes',
         '📱 Accès au QR Code pour les événements',
         "🛒 Accès Marketplace : création d'une boutique + achat",
       ],
@@ -220,8 +220,6 @@ const Forfaits = () => {
       features: [
         '✅ Tout du plan Gratuit',
         '🏢 Accès aux Partenaires & Recommandations',
-        '🏷️ Badge Standard sur le profil',
-        '📱 Accès au QR Code pour les événements',
       ],
     },
     {
@@ -232,12 +230,10 @@ const Forfaits = () => {
       priceId: 'price_1S6V5XGDT7i4b3lHcqu6yoZh', // Remplacez par le vrai Price ID de Stripe pour 5€
       features: [
         '✅ Tout du plan Standard',
-        '❤️ Accès complet à la section Rencontre',
+        '❤️ Accès complet à la section Rencontres',
         '✍️ Création d’annonces',
         '🎉 Création d’événements',
         '👨‍👩‍👧‍👦 Création de groupes',
-        '📱 Accès au QR Code pour les événements',
-        '💎 Badge VIP sur le profil',
       ],
     }
   ];
@@ -326,9 +322,41 @@ const Forfaits = () => {
                   <div className="mt-2 text-[11px] text-gray-500">
                     Abonnement auto-renouvelable, sans engagement, résiliable à tout moment.
                     <br />
-                    En appuyant sur "Devenir membre VIP", vous acceptez
+                    En appuyant sur le bouton, vous acceptez
                     <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
                     nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
+                {isIOS && plan.key === 'standard' && (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Abonnement auto-renouvelable, sans engagement, résiliable à tout moment.
+                    <br />
+                    En appuyant sur le bouton, vous acceptez
+                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
+                    nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
+                {isIOS && plan.key === 'free' && (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    En utilisant OneKamer, vous acceptez
+                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
+                    nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
+                {!isIOS && (plan.key === 'vip' || plan.key === 'standard') && (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Abonnement mensuel sans engagement, résiliable à tout moment.
+                    <br />
+                    En poursuivant, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
+                {!isIOS && plan.key === 'free' && (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    En utilisant OneKamer, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
                     <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
                   </div>
                 )}
