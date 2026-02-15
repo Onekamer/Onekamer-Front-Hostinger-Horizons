@@ -187,7 +187,7 @@ const Rencontre = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxPath, setLightboxPath] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [canInteract, setCanInteract] = useState(false);
+  const [canInteract, setCanInteract] = useState(null);
   const [canView, setCanView] = useState(null); // 
   const processedMatchesRef = useRef(new Set());
 
@@ -317,6 +317,7 @@ useEffect(() => {
   useEffect(() => {
     const rid = searchParams.get('rid');
     const openDirectProfile = async () => {
+      if (canInteract === null) return; // attendre la résolution des droits
       if (!rid) return;
       setLoading(true);
       // 1) tenter par id direct
@@ -336,7 +337,6 @@ useEffect(() => {
         error = res2.error;
       }
       if (data && !error) {
-        // Si l'utilisateur n'a pas le droit d'interagir (VIP/Admin), on bloque la vue détaillée
         if (!canInteract) {
           toast({ title: 'Accès réservé', description: "La vue détaillée du profil est réservée aux membres VIP.", variant: 'destructive' });
           setLoading(false);
@@ -380,7 +380,7 @@ useEffect(() => {
       setLoading(false);
     };
     openDirectProfile();
-  }, [searchParams]);
+  }, [searchParams, canInteract]);
   
   useEffect(() => {
     fetchMyProfile();
