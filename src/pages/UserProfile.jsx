@@ -129,14 +129,14 @@ const UserProfile = () => {
         if (e1 || !Array.isArray(ub) || ub.length === 0) { setCommunityBadges([]); return; }
         const ids = ub.map((x) => x.badge_id).filter(Boolean);
         const { data: bs, error: e2 } = await supabase
-          .from('badges')
+          .from('badges_communaute')
           .select('id, name, code, icon, icon_url, description, is_special, created_at')
           .in('id', ids);
         if (e2 || !Array.isArray(bs)) { setCommunityBadges([]); return; }
         const byId = new Map(bs.map(b => [b.id, b]));
         const merged = ub
           .map(u => ({ ...(byId.get(u.badge_id) || {}), awarded_at: u.awarded_at }))
-          .filter(b => b && b.id);
+          .filter(b => b && b.id && String(b.code || '').toLowerCase() !== 'new_member');
         setCommunityBadges(merged);
       } catch {
         setCommunityBadges([]);
@@ -264,6 +264,14 @@ const UserProfile = () => {
     return profile?.plan || 'Free';
   })();
 
+  const levelBadgeLabel = useMemo(() => {
+    const id = currentLevelForProfile?.id ?? (profile.level || 1);
+    const nameRaw = currentLevelForProfile?.level_name || profile.levelName || '';
+    const name = String(nameRaw || '').trim();
+    if (name && /^niveau/i.test(name)) return name;
+    return name ? `Niveau ${id} - ${name}` : `Niveau ${id}`;
+  }, [currentLevelForProfile?.id, currentLevelForProfile?.level_name, profile.level, profile.levelName]);
+
   return (
     <>
       <Helmet>
@@ -326,7 +334,7 @@ const UserProfile = () => {
                 <div className="flex flex-wrap justify-center gap-2 mt-4">
                   <Badge 
                     icon={<Gem className="h-4 w-4" />} 
-                    label={`Niveau ${currentLevelForProfile?.id ?? (profile.level || 1)} - ${currentLevelForProfile?.level_name || profile.levelName || 'Bronze'}`}
+                    label={levelBadgeLabel}
                     colorClass="bg-purple-100 text-purple-800"
                   />
                   <Badge 

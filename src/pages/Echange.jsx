@@ -346,6 +346,73 @@ const CommentAvatar = ({ avatarPath, username, userId }) => {
   );
 };
 
+// Cache simple en mémoire pour limiter les requêtes par utilisateur
+const userBadgeCache = new Map();
+
+const UserBadgeIcons = ({ userId, max = 3, className = '' }) => {
+  const [icons, setIcons] = useState([]);
+
+  useEffect(() => {
+    if (!userId) { setIcons([]); return; }
+    let mounted = true;
+    (async () => {
+      try {
+        if (userBadgeCache.has(userId)) {
+          if (mounted) setIcons(userBadgeCache.get(userId));
+          return;
+        }
+        const { data: ub, error: e1 } = await supabase
+          .from('user_badges')
+          .select('badge_id')
+          .eq('user_id', userId);
+        if (e1) { if (mounted) setIcons([]); return; }
+        const ids = (ub || []).map((r) => r.badge_id).filter(Boolean);
+        if (ids.length === 0) { if (mounted) setIcons([]); userBadgeCache.set(userId, []); return; }
+        const { data: bs, error: e2 } = await supabase
+          .from('badges_communaute')
+          .select('id, name, code, icon, icon_url, description')
+          .in('id', ids);
+        if (e2 || !Array.isArray(bs)) { if (mounted) setIcons([]); return; }
+        const list = bs.filter((b) => String(b.code || '').toLowerCase() !== 'new_member');
+        userBadgeCache.set(userId, list);
+        if (mounted) setIcons(list);
+      } catch {
+        if (mounted) setIcons([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [userId]);
+
+  const showInfo = (b) => {
+    toast({ title: b?.name || b?.code || 'Badge', description: b?.description || undefined });
+  };
+
+  if (!icons.length) return null;
+  return (
+    <div className={`flex items-center gap-1 ${className}`}>
+      {icons.slice(0, max).map((b) => (
+        <button
+          key={b.id}
+          type="button"
+          className="rounded p-0.5 hover:bg-gray-100 active:bg-gray-200"
+          onMouseEnter={() => showInfo(b)}
+          onTouchStart={() => showInfo(b)}
+          aria-label={b.name || b.code}
+        >
+          {b.icon ? (
+            <span className="text-[14px] leading-none">{b.icon}</span>
+          ) : b.icon_url ? (
+            <img src={b.icon_url} alt={b.name} className="h-4 w-4" />
+          ) : null}
+        </button>
+      ))}
+      {icons.length > max && (
+        <span className="text-[10px] text-gray-500">+{icons.length - max}</span>
+      )}
+    </div>
+  );
+};
+
 const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioParentId, refreshBalance, highlightCommentId }) => {
   const { user, profile } = useAuth();
   const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
@@ -759,7 +826,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
         console.log("⏹️ Arrêt automatique après 120s.");
         recorder.stop();
       }
-    }, 60000);
+    }, 120000);
   } catch (error) {
     console.error("❌ Erreur d'accès micro :", error);
     toast({
@@ -1083,7 +1150,10 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                       <CommentAvatar avatarPath={comment.author?.avatar_url} username={comment.author?.username} userId={comment.author?.id} />
                     </div>
                     <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
-                      <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>{comment.author?.username}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>{comment.author?.username}</p>
+                        {comment.author?.id && <UserBadgeIcons userId={comment.author.id} className="ml-1" />}
+                      </div>
                       {hiddenCommentSet.has(`ecomment:${comment.id}`) ? (
                         <div className="flex items-center justify-between text-xs text-gray-500 italic">
                           <span>Commentaire masqué</span>
@@ -1135,7 +1205,10 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                             <CommentAvatar avatarPath={child.author?.avatar_url} username={child.author?.username} userId={child.author?.id} />
                           </div>
                           <div className="bg-gray-50 rounded-lg px-3 py-2 w-full">
-                            <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>{child.author?.username}</p>
+                            <div className="flex items-center gap-1">
+                              <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>{child.author?.username}</p>
+                              {child.author?.id && <UserBadgeIcons userId={child.author.id} className="ml-1" />}
+                            </div>
                             {hiddenCommentSet.has(`ecomment:${child.id}`) ? (
                               <div className="flex items-center justify-between text-xs text-gray-500 italic">
                                 <span>Commentaire masqué</span>
@@ -1481,8 +1554,11 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           <div className="flex-1">
             <div className="flex justify-between items-start">
               <div>
-                <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
-                  {isDeletedAuthor ? 'Compte supprimé' : (post.profiles?.username || 'Anonyme')}
+                <div className="flex items-center gap-1">
+                  <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
+                    {isDeletedAuthor ? 'Compte supprimé' : (post.profiles?.username || 'Anonyme')}
+                  </div>
+                  {!isDeletedAuthor && post.user_id && <UserBadgeIcons userId={post.user_id} />}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
               </div>
@@ -1866,8 +1942,11 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
           <div className="flex-1">
             <div className="flex justify-between items-start">
               <div>
-                <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
-                  {isDeletedAuthor ? 'Compte supprimé' : (post.author?.username || 'Anonyme')}
+                <div className="flex items-center gap-1">
+                  <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
+                    {isDeletedAuthor ? 'Compte supprimé' : (post.author?.username || 'Anonyme')}
+                  </div>
+                  {!isDeletedAuthor && post.user_id && <UserBadgeIcons userId={post.user_id} />}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
               </div>

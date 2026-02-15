@@ -7,14 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
@@ -93,7 +87,7 @@ const AdminUsers = () => {
     (async () => {
       try {
         const { data, error } = await supabase
-          .from('badges')
+          .from('badges_communaute')
           .select('id, name, code, icon, icon_url, description, is_special, created_at')
           .order('created_at', { ascending: true });
         if (!error && Array.isArray(data)) {
@@ -480,14 +474,44 @@ const AdminUsers = () => {
                     </div>
 
                     <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => openBadgeDialog(row)}
+                      <DropdownMenu
+                        open={badgeDialogOpen && badgeTarget?.id === row.id}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) openBadgeDialog(row); else setBadgeDialogOpen(false);
+                        }}
                       >
-                        Badges
-                      </Button>
+                        <DropdownMenuTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full sm:w-auto">
+                            {badgeTarget?.id === row.id ? `Badges (${badgeSelected.size})` : 'Badges'}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-72">
+                          <div className="px-2 py-1.5 text-xs text-gray-600">Badges communauté</div>
+                          <DropdownMenuSeparator />
+                          {badgeLoading ? (
+                            <div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-[#2BA84A]" /></div>
+                          ) : badges.length === 0 ? (
+                            <div className="px-2 py-1.5 text-sm text-gray-500">Aucun badge configuré.</div>
+                          ) : (
+                            badges.map((b) => (
+                              <DropdownMenuItem key={b.id} onSelect={(e) => { e.preventDefault(); toggleBadge(b.id); }} className="gap-2">
+                                <Checkbox checked={badgeSelected.has(b.id)} readOnly />
+                                {b.icon ? (
+                                  <span className="text-base">{b.icon}</span>
+                                ) : b.icon_url ? (
+                                  <img src={b.icon_url} alt={b.name} className="h-4 w-4" />
+                                ) : null}
+                                <span className="font-medium">{b.name || b.code}</span>
+                              </DropdownMenuItem>
+                            ))
+                          )}
+                          <DropdownMenuSeparator />
+                          <div className="flex justify-end gap-2 px-2 py-2">
+                            <Button type="button" variant="ghost" onClick={() => setBadgeDialogOpen(false)}>Annuler</Button>
+                            <Button type="button" onClick={saveBadges} disabled={badgeLoading}>{badgeLoading ? 'Enregistrement…' : 'Enregistrer'}</Button>
+                          </div>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button
                         type="button"
                         className="w-full sm:w-auto"
@@ -527,33 +551,6 @@ const AdminUsers = () => {
             )}
           </CardContent>
         </Card>
-        <Dialog open={badgeDialogOpen} onOpenChange={setBadgeDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Badges — {badgeTarget?.username || badgeTarget?.email || badgeTarget?.id || ''}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2 max-h-72 overflow-auto">
-              {badgeLoading ? (
-                <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-[#2BA84A]" /></div>
-              ) : badges.length === 0 ? (
-                <div className="text-sm text-gray-500">Aucun badge configuré.</div>
-              ) : (
-                badges.map((b) => (
-                  <label key={b.id} className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={badgeSelected.has(b.id)} onCheckedChange={() => toggleBadge(b.id)} />
-                    {b.icon ? <span className="text-base">{b.icon}</span> : (b.icon_url ? <img src={b.icon_url} alt={b.name} className="h-4 w-4" /> : null)}
-                    <span className="font-medium">{b.name || b.code}</span>
-                    {b.description && <span className="text-gray-500">— {b.description}</span>}
-                  </label>
-                ))
-              )}
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setBadgeDialogOpen(false)}>Annuler</Button>
-              <Button type="button" onClick={saveBadges} disabled={badgeLoading}>{badgeLoading ? 'Enregistrement…' : 'Enregistrer'}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </>
   );
