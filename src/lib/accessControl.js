@@ -32,7 +32,7 @@ export async function canUserAccess(user, section, action = "read") {
     console.log(`🔍 [canUserAccess] Utilisateur ${user.id} | Plan = ${plan} | Section = ${section} | Action = ${action}`);
 
     if (section === 'rencontre') {
-      if (['read', 'create'].includes(action)) {
+      if (['read', 'create', 'view'].includes(action)) {
         accessCache.set(cacheKey, { v: true, t: Date.now() });
         return true;
       }
@@ -93,11 +93,9 @@ export async function canUserAccess(user, section, action = "read") {
         } else if (section === 'partenaires' && action === 'create') {
           forcedDeny = !(isAdmin || effective === 'vip');
         } else if (section === 'groupes' && action === 'create') {
-          forcedDeny = !(isAdmin || effective === 'standard' || effective === 'vip');
+          forcedDeny = !(isAdmin || effective === 'vip');
         } else if (section === 'partenaires' && action === 'read') {
           forcedDeny = !(isAdmin || effective === 'standard' || effective === 'vip');
-        } else if (section === 'rencontre' && action === 'view') {
-          forcedDeny = !(isAdmin || effective === 'vip');
         } else if (section === 'rencontre' && action === 'interact') {
           forcedDeny = !(isAdmin || effective === 'vip');
         }

@@ -68,6 +68,14 @@ const FiltersDialog = ({ filters, setFilters, onApply }) => {
     onApply();
   };
 
+  const handleOpenDetail = () => {
+    if (!canInteract) {
+      toast({ title: 'Accès réservé', description: 'La vue détaillée du profil est réservée aux membres VIP.', variant: 'destructive' });
+      return;
+    }
+    setView('detail');
+  };
+
   return (
     <DialogContent>
       <DialogHeader>
@@ -328,6 +336,13 @@ useEffect(() => {
         error = res2.error;
       }
       if (data && !error) {
+        // Si l'utilisateur n'a pas le droit d'interagir (VIP/Admin), on bloque la vue détaillée
+        if (!canInteract) {
+          toast({ title: 'Accès réservé', description: "La vue détaillée du profil est réservée aux membres VIP.", variant: 'destructive' });
+          setLoading(false);
+          setView('card');
+          return;
+        }
         if (data.profile_public_rencontres === false) {
           toast({ title: 'Profil indisponible', description: "Ce membre a rendu son profil Rencontre privé.", variant: 'destructive' });
           setLoading(false);
@@ -684,7 +699,7 @@ if (!myProfile && !searchParams.get('rid')) {
                     <div className="flex justify-around items-center pt-4">
                       <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleAction(currentProfile.id, 'pass')} className="w-16 h-16 rounded-full flex items-center justify-center bg-white shadow-md"><X className="h-8 w-8 text-gray-500" /></motion.button>
                       <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleAction(currentProfile.id, 'like')} className="w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg"><Heart className="h-10 w-10 text-white" fill="white" /></motion.button>
-                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => setView('detail')} className="w-16 h-16 rounded-full flex items-center justify-center bg-white shadow-md"><Eye className="h-8 w-8 text-gray-500" /></motion.button>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={handleOpenDetail} className="w-16 h-16 rounded-full flex items-center justify-center bg-white shadow-md"><Eye className="h-8 w-8 text-gray-500" /></motion.button>
                     </div>
                   </CardContent>
                 </Card>
