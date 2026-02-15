@@ -249,7 +249,6 @@ const AdminUsers = () => {
       setSubmittingId(row.id);
 
       const payload = {
-        plan: row.planDraft,
         role: row.roleDraft,
       };
 
@@ -282,7 +281,6 @@ const AdminUsers = () => {
           return {
             ...it,
             ...updated,
-            planDraft: normalizePlan(updated.plan),
             roleDraft: normalizeRole(updated.role),
           };
         })
@@ -429,28 +427,7 @@ const AdminUsers = () => {
                       <div className="text-xs text-gray-500">ID: {row.id}</div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <div className="text-xs text-gray-600">Plan</div>
-                        <Select
-                          value={row.planDraft}
-                          onValueChange={(v) => {
-                            setItems((prev) => prev.map((it) => (it.id === row.id ? { ...it, planDraft: v } : it)));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Plan" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PLAN_OPTIONS.map((p) => (
-                              <SelectItem key={p.value} value={p.value}>
-                                {p.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
+                    <div className="grid grid-cols-1 gap-3">
                       <div className="space-y-1">
                         <div className="text-xs text-gray-600">Rôle</div>
                         <Select

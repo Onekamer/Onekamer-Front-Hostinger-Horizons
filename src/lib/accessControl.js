@@ -16,10 +16,10 @@ export async function canUserAccess(user, section, action = "read") {
   }
 
   try {
-    // 1️⃣ Récupération du plan depuis la table profiles
+    // 1️⃣ Récupération du plan et attributs admin depuis la table profiles
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('plan')
+      .select('plan, role, is_admin')
       .eq('id', user.id)
       .single();
 
@@ -38,18 +38,9 @@ export async function canUserAccess(user, section, action = "read") {
         accessCache.set(cacheKey, { v: true, t: Date.now() });
         return true;
       }
-
-      if (action === 'interact') {
-        const allowed = ['vip', 'admin'].includes(plan);
-        console.log(allowed 
-          ? "✅ Accès autorisé → VIP/Admin peuvent interagir."
-          : "⛔ Accès refusé → Interactions réservées aux VIP/Admin.");
-        accessCache.set(cacheKey, { v: allowed, t: Date.now() });
-        return allowed;
-      }
     }
 
-    // 3️⃣ Autres sections : vérification via Supabase
+    // 3️⃣ Vérification via Supabase (autorité) avec fallback app
     console.log(`🧠 Vérification via Supabase RPC check_user_access(${section}, ${action})...`);
     const { data, error } = await supabase.rpc("check_user_access", {
       p_user_id: user.id,
@@ -57,16 +48,56 @@ export async function canUserAccess(user, section, action = "read") {
       p_action: action
     });
 
-    if (error) {
-      console.error("❌ Erreur RPC check_user_access:", error.message);
-      accessCache.set(cacheKey, { v: false, t: Date.now() });
-      return false;
+    if (!error) {
+      console.log(`✅ Résultat Supabase :`, data);
+      const allowed = data === true;
+      accessCache.set(cacheKey, { v: allowed, t: Date.now() });
+      return allowed;
     }
 
-    console.log(`✅ Résultat Supabase :`, data);
-    const allowed = data === true;
-    accessCache.set(cacheKey, { v: allowed, t: Date.now() });
-    return allowed;
+    console.error("❌ Erreur RPC check_user_access:", error.message);
+
+    // 3bis️⃣ Fallback app (uniquement pour rencontre:interact)
+    if (section === 'rencontre' && action === 'interact') {
+      try {
+        const isAdmin = (
+          profile?.is_admin === true ||
+          profile?.is_admin === 1 ||
+          profile?.is_admin === 'true' ||
+          String(profile?.role || '').toLowerCase() === 'admin'
+        );
+
+        // Récupérer la session pour appeler l'API Node
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token;
+        const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
+
+        let vipActive = false;
+        try {
+          const headers = token ? { Authorization: `Bearer ${token}` } : {};
+          const r = await fetch(`${API_PREFIX}/iap/subscription?userId=${encodeURIComponent(user.id)}`, { headers });
+          if (r.ok) {
+            const j = await r.json().catch(() => ({}));
+            const sub = j?.subscription || null;
+            if (sub?.plan_name && sub?.end_date) {
+              const active = new Date(sub.end_date).getTime() > Date.now();
+              vipActive = active && String(sub.plan_name).toLowerCase() === 'vip';
+            }
+          }
+        } catch {}
+
+        const allowed = Boolean(isAdmin || vipActive);
+        accessCache.set(cacheKey, { v: allowed, t: Date.now() });
+        return allowed;
+      } catch (e) {
+        console.error('⚠️ Fallback rencontre:interact échoué:', e?.message || e);
+        accessCache.set(cacheKey, { v: false, t: Date.now() });
+        return false;
+      }
+    }
+
+    accessCache.set(cacheKey, { v: false, t: Date.now() });
+    return false;
   } catch (error) {
     console.error("💥 Erreur inattendue dans canUserAccess :", error.message);
     accessCache.set(cacheKey, { v: false, t: Date.now() });

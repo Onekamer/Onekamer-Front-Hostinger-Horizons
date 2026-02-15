@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 import { Helmet } from 'react-helmet';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus, Shield, Award, MessageSquare, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
@@ -23,7 +23,7 @@ const Badge = ({ icon, label, colorClass }) => (
 const UserProfile = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { onlineUserIds, user: authUser, profile: myProfile, balance, blockUser, unblockUser } = useAuth();
+  const { onlineUserIds, user: authUser, profile: myProfile, balance, blockUser, unblockUser, session } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,10 +38,51 @@ const UserProfile = () => {
   const [levels, setLevels] = useState([]);
   const [targetBalance, setTargetBalance] = useState(null);
   const [communityBadges, setCommunityBadges] = useState([]);
+  const [subInfo, setSubInfo] = useState(null);
+
+  const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
 
   const isBlocked = (() => {
     const list = Array.isArray(myProfile?.blocked_user_ids) ? myProfile.blocked_user_ids.map(String) : [];
     return list.includes(String(userId));
+  })();
+
+  // Abonnement/plan effectif (vérité base)
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const headers = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(`${API_PREFIX}/iap/subscription?userId=${encodeURIComponent(userId)}`, { headers });
+        if (res.status === 404) { setSubInfo(null); return; }
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json?.subscription) setSubInfo(json.subscription);
+        else setSubInfo(null);
+      } catch {
+        setSubInfo(null);
+      }
+    })();
+  }, [API_PREFIX, session?.access_token, userId]);
+
+  const effectivePlan = (() => {
+    try {
+      if (subInfo?.end_date) {
+        const active = new Date(subInfo.end_date).getTime() > Date.now();
+        return active ? (subInfo.plan_name || profile?.plan || 'free') : 'free';
+      }
+      return profile?.plan || 'free';
+    } catch {
+      return profile?.plan || 'free';
+    }
+  })();
+
+  const displayPlan = (() => {
+    const p = String(effectivePlan || '').toLowerCase();
+    if (p === 'vip') return 'VIP';
+    if (p === 'standard') return 'Standard';
+    if (p === 'free') return 'Free';
+    return effectivePlan || 'Free';
   })();
 
   useEffect(() => {
@@ -255,13 +296,7 @@ const UserProfile = () => {
     }
   })();
 
-  const planLabel = (() => {
-    const p = String(profile?.plan || '').toLowerCase();
-    if (p === 'vip') return 'VIP';
-    if (p === 'standard') return 'Standard';
-    if (p === 'free') return 'Free';
-    return profile?.plan || 'Free';
-  })();
+  const planLabel = displayPlan;
 
   const levelBadgeLabel = (() => {
     try {
@@ -344,7 +379,7 @@ const UserProfile = () => {
                   <Badge 
                     icon={<Crown className="h-4 w-4" />} 
                     label={planLabel}
-                    colorClass={planColors[profile.plan] || 'bg-gray-200 text-gray-800'}
+                    colorClass={planColors[planLabel] || 'bg-gray-200 text-gray-800'}
                   />
                   {isNewMember && (
                     <Badge
@@ -387,6 +422,23 @@ const UserProfile = () => {
 
                 <p className="text-gray-600 mt-6 max-w-md">{profile.bio || 'Aucune biographie.'}</p>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+          <Card className="mt-6 text-center">
+            <CardHeader>
+              <CardTitle className="text-lg">Forfait</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-[#2BA84A]">{displayPlan}</p>
+              {subInfo && subInfo.plan_name && subInfo.end_date && (effectivePlan !== 'free') && (new Date(subInfo.end_date).getTime() > Date.now()) && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {subInfo.auto_renew === false
+                    ? `L’abonnement sera résilié le ${new Date(subInfo.end_date).toLocaleString()}`
+                    : `Se renouvelle le ${new Date(subInfo.end_date).toLocaleString()}`}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
