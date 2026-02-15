@@ -6,7 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Shield, Award, MessageSquare as MessageSquareQuote, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
+import { ArrowLeft, Plus, Shield, Award, MessageSquare, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -366,12 +366,12 @@ const UserProfile = () => {
                   )}
                   {profile.isTopCommenter && (
                     <Badge 
-                      icon={<MessageSquareQuote className="h-4 w-4" />} 
+                      icon={<MessageSquare className="h-4 w-4" />} 
                       label="Top Commentateur"
                       colorClass="bg-indigo-100 text-indigo-800"
                     />
                   )}
-                  {profile.roles?.map(role => (
+                  {Array.isArray(profile?.roles) && profile.roles.map(role => (
                      <Badge 
                       key={role}
                       icon={role === 'Modérateur' ? <Shield className="h-4 w-4" /> : <Star className="h-4 w-4" />} 
