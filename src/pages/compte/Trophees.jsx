@@ -16,6 +16,7 @@ export default function Trophees() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [awardTried, setAwardTried] = useState(false);
 
   const getStepsForKey = (key) => {
     const k = String(key || '').toLowerCase();
@@ -86,6 +87,39 @@ export default function Trophees() {
     load();
     return () => { mounted = false; };
   }, [API_PREFIX, token]);
+
+  // Tentative d'auto-award: on essaie d'attribuer les trophées non débloqués dès l'ouverture
+  useEffect(() => {
+    if (!token) return;
+    if (loading) return;
+    if (awardTried) return;
+    const locked = (items || []).filter((it) => !it.unlocked);
+    if (locked.length === 0) { setAwardTried(true); return; }
+    let aborted = false;
+    const run = async () => {
+      try {
+        await Promise.all(locked.map(async (it) => {
+          try {
+            const res = await fetch(`${API_PREFIX}/trophies/award`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ trophy_key: it.key }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!aborted) {
+              if (res.ok || data?.already_awarded) {
+                setItems((prev) => prev.map((x) => x.key === it.key ? { ...x, unlocked: true, unlocked_at: x.unlocked_at || new Date().toISOString() } : x));
+              }
+            }
+          } catch {}
+        }));
+      } finally {
+        if (!aborted) setAwardTried(true);
+      }
+    };
+    run();
+    return () => { aborted = true; };
+  }, [API_PREFIX, token, items, loading, awardTried]);
 
   const unlockedCount = (items || []).filter((it) => it.unlocked).length;
 
