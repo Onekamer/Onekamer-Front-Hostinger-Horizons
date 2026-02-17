@@ -477,7 +477,7 @@ const Compte = () => {
 
         <Card className="cursor-pointer" onClick={() => navigate('/compte/trophees')}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500"/> Mes trophées</CardTitle>
+            <CardTitle className="flex items-center gap-2">Mes trophées</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-gray-700">{trophiesLoading ? 'Chargement...' : `${trophiesUnlocked}/${trophiesTotal}`} débloqués</div>
