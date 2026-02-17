@@ -28,6 +28,8 @@ const Compte = () => {
   const [rencontreVisible, setRencontreVisible] = useState(true);
   const [rencontreSaving, setRencontreSaving] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
+  const [okcBadges, setOkcBadges] = useState([]);
+  const [userBadgeIds, setUserBadgeIds] = useState(() => new Set());
 
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
   const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -44,8 +46,17 @@ const Compte = () => {
     } catch {}
   }, [API_PREFIX, session?.access_token, user?.id]);
 
+  const isVipLifetime = useMemo(() => {
+    try {
+      return (subInfo?.is_permanent === true) || /vip à vie/i.test(String(subInfo?.plan_name || ''));
+    } catch {
+      return false;
+    }
+  }, [subInfo?.is_permanent, subInfo?.plan_name]);
+
   const effectivePlan = useMemo(() => {
     try {
+      if (isVipLifetime) return 'vip';
       if (subInfo?.end_date) {
         const active = new Date(subInfo.end_date).getTime() > Date.now();
         return active ? (subInfo.plan_name || profile.plan || 'free') : 'free';
@@ -54,7 +65,7 @@ const Compte = () => {
     } catch {
       return profile.plan || 'free';
     }
-  }, [subInfo?.plan_name, subInfo?.end_date, profile.plan]);
+  }, [isVipLifetime, subInfo?.plan_name, subInfo?.end_date, profile.plan]);
 
   const displayPlan = useMemo(() => {
     const p = String(effectivePlan || '').toLowerCase();
@@ -165,6 +176,36 @@ const Compte = () => {
   useEffect(() => {
     fetchSubscription();
   }, [fetchSubscription]);
+
+  // Charger les badges OK Coins débloqués (sans changer la logique de points)
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!user?.id) return;
+        const { data: bs } = await supabase
+          .from('badges_ok_coins')
+          .select('id, name, icon_url, points_required')
+          .order('points_required', { ascending: true });
+        setOkcBadges(Array.isArray(bs) ? bs : []);
+
+        const { data: ub } = await supabase
+          .from('users_badge')
+          .select('badge_id')
+          .eq('user_id', user.id);
+        const ids = new Set((ub || []).map((r) => r.badge_id));
+        setUserBadgeIds(ids);
+      } catch {}
+    })();
+  }, [user?.id]);
+
+  const unlockedOkcBadges = useMemo(() => {
+    try {
+      const ids = userBadgeIds instanceof Set ? userBadgeIds : new Set();
+      return (Array.isArray(okcBadges) ? okcBadges : []).filter((b) => ids.has(b.id));
+    } catch {
+      return [];
+    }
+  }, [okcBadges, userBadgeIds]);
 
   useEffect(() => {
     const run = async () => {
@@ -459,14 +500,15 @@ const Compte = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-[#2BA84A]">{displayPlan}</p>
-              {subInfo && subInfo.plan_name && subInfo.end_date && effectivePlan !== 'free' && (new Date(subInfo.end_date).getTime() > Date.now()) && (
+              {subInfo && subInfo.plan_name && subInfo.end_date && effectivePlan !== 'free' && (new Date(subInfo.end_date).getTime() > Date.now()) && !isVipLifetime && (
                 <div className="text-xs text-gray-500 mt-1">
                   {subInfo.auto_renew === false
                     ? `L’abonnement sera résilié le ${new Date(subInfo.end_date).toLocaleString()}`
                     : `Se renouvelle le ${new Date(subInfo.end_date).toLocaleString()}`}
                 </div>
               )}
-            </CardContent>
+            
+          </CardContent>
           </Card>
           <Card className="text-center cursor-pointer" onClick={() => navigate('/ok-coins')}>
             <CardHeader>
@@ -506,6 +548,16 @@ const Compte = () => {
                 <span className="text-base">👋🏾</span> Nouveau membre
               </div>
             )}
+            {unlockedOkcBadges.map((b) => {
+              const match = String(b?.name || '').match(/Niveau\s*(\d+)/i);
+              const levelNum = match && match[1] ? match[1] : null;
+              const label = levelNum ? `Niveau ${levelNum}` : (b?.name || 'Niveau');
+              return (
+                <div key={b.id} className="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="text-base leading-none">{b?.icon_url || '🏅'}</span> {label}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
