@@ -200,7 +200,12 @@ const Compte = () => {
       if (!session?.access_token) return;
       setTrophiesLoading(true);
       try {
-        const res = await fetch(`${API_PREFIX}/trophies/my`, {
+        // Fallback pour s'assurer que l'appel trophées cible bien le serveur Node en PROD
+        const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
+        const apiBaseForTrophies = import.meta.env.DEV ? '' : serverUrl;
+        const TROPHIES_API_PREFIX = API_PREFIX && API_PREFIX.length > 0 ? API_PREFIX : `${apiBaseForTrophies}/api`;
+
+        const res = await fetch(`${TROPHIES_API_PREFIX}/trophies/my`, {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         const data = await res.json().catch(() => ({}));
