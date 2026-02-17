@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2 } from 'lucide-react';
+import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2, Trophy } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -88,6 +88,9 @@ const Compte = () => {
   const [inviteStats, setInviteStats] = useState(null);
   const [inviteRecent, setInviteRecent] = useState([]);
   const [invitePeriod, setInvitePeriod] = useState('30d');
+  const [trophiesLoading, setTrophiesLoading] = useState(false);
+  const [trophiesTotal, setTrophiesTotal] = useState(3);
+  const [trophiesUnlocked, setTrophiesUnlocked] = useState(0);
 
   const [dashSearch, setDashSearch] = React.useState('');
   const [dashSuggestions, setDashSuggestions] = React.useState([]);
@@ -189,6 +192,33 @@ const Compte = () => {
 
     run();
   }, [API_PREFIX, session?.access_token, invitePeriod]);
+
+  // Charger le résumé des trophées (X/3)
+  useEffect(() => {
+    let mounted = true;
+    const loadTrophies = async () => {
+      if (!session?.access_token) return;
+      setTrophiesLoading(true);
+      try {
+        const res = await fetch(`${API_PREFIX}/trophies/my`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!mounted) return;
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setTrophiesTotal(items.length || 3);
+        setTrophiesUnlocked(items.filter((it) => it.unlocked).length);
+      } catch {
+        if (!mounted) return;
+        setTrophiesTotal(3);
+        setTrophiesUnlocked(0);
+      } finally {
+        if (mounted) setTrophiesLoading(false);
+      }
+    };
+    loadTrophies();
+    return () => { mounted = false; };
+  }, [session?.access_token, API_PREFIX]);
 
   React.useEffect(() => {
     let aborted = false;
@@ -417,25 +447,6 @@ const Compte = () => {
           <p className="text-center text-gray-600 max-w-md">{profile.bio || "Aucune biographie pour le moment."}</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Mes Badges</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-4">
-            <div className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3"/> {`Niveau ${currentLevel?.id ?? (profile?.level ?? 1)} - ${(currentLevel?.level_name || profile?.levelName || profile?.level_name || 'Bronze')}`}
-            </div>
-            <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3"/> {displayPlan}
-            </div>
-            {isNewMember && (
-              <div className="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <span className="text-base">👋🏾</span> Nouveau membre
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <div className="grid grid-cols-2 gap-4">
           <Card className="text-center">
             <CardHeader>
@@ -463,6 +474,35 @@ const Compte = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="cursor-pointer" onClick={() => navigate('/compte/trophees')}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500"/> Mes trophées</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-gray-700">{trophiesLoading ? 'Chargement...' : `${trophiesUnlocked}/${trophiesTotal}`} débloqués</div>
+            <div className="text-xs text-gray-500 mt-1">Touchez pour voir le détail</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Mes Badges</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-4">
+            <div className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3"/> {`Niveau ${currentLevel?.id ?? (profile?.level ?? 1)} - ${(currentLevel?.level_name || profile?.levelName || profile?.level_name || 'Bronze')}`}
+            </div>
+            <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3"/> {displayPlan}
+            </div>
+            {isNewMember && (
+              <div className="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-base">👋🏾</span> Nouveau membre
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
