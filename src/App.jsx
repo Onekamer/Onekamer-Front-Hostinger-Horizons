@@ -78,6 +78,7 @@ import MarketplaceMyProducts from '@/pages/MarketplaceMyProducts';
 import MarketplaceAdmin from '@/pages/MarketplaceAdmin';
 import MarketplaceOrders from '@/pages/MarketplaceOrders';
 import MarketplaceOrderDetail from '@/pages/MarketplaceOrderDetail';
+import MarketplaceInvoices from '@/pages/MarketplaceInvoices';
 import { iosPush } from "@/lib/push/iosPush";
 
 const AppLayout = () => {
@@ -212,6 +213,7 @@ const AppContent = () => {
           <Route path="/compte/marketplace-admin" element={<MarketplaceAdmin />} />
           <Route path="/market/orders" element={<MarketplaceOrders />} />
           <Route path="/market/orders/:orderId" element={<MarketplaceOrderDetail />} />
+          <Route path="/market/invoices" element={<MarketplaceInvoices />} />
           <Route path="/echange" element={<Echange />} />
           <Route path="/evenements" element={<Evenements />} />
           <Route path="/rencontre" element={<Rencontre />} />
