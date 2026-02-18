@@ -235,6 +235,16 @@ const MarketplaceMyShop = () => {
     whatsapp: '',
     address: '',
     hours: '',
+    // Facturation (création boutique)
+    vat_validation_status: '',
+    vat_number: '',
+    billing_address_line1: '',
+    billing_address_line2: '',
+    billing_city: '',
+    billing_postcode: '',
+    billing_region: '',
+    billing_country_code: '',
+    billing_email: '',
   });
 
   const statusLabel = useMemo(() => {
@@ -747,13 +757,40 @@ const MarketplaceMyShop = () => {
     setSaving(true);
     try {
       if (!partner?.id) {
+        // Validation front: ISO-2 et Statut TVA requis à la création
+        const iso2 = String(form.billing_country_code || '').trim().toUpperCase();
+        const vatStatus = String(form.vat_validation_status || '').trim().toLowerCase();
+        const allowedVat = new Set(['valid', 'invalid', 'unchecked']);
+        if (!iso2) {
+          toast({ title: 'Champs requis', description: 'Pays (code ISO-2) est obligatoire pour la facturation.', variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+        if (!allowedVat.has(vatStatus)) {
+          toast({ title: 'Champs requis', description: 'Statut TVA est obligatoire (valide/invalide/non vérifié).', variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+
+        const createPayload = {
+          ...payload,
+          vat_validation_status: vatStatus,
+          vat_number: String(form.vat_number || '').trim() || undefined,
+          billing_address_line1: String(form.billing_address_line1 || '').trim() || undefined,
+          billing_address_line2: String(form.billing_address_line2 || '').trim() || undefined,
+          billing_city: String(form.billing_city || '').trim() || undefined,
+          billing_postcode: String(form.billing_postcode || '').trim() || undefined,
+          billing_region: String(form.billing_region || '').trim() || undefined,
+          billing_country_code: iso2,
+          billing_email: String(form.billing_email || '').trim().toLowerCase() || undefined,
+        };
         const res = await fetch(`${apiBaseUrl}/api/market/partners`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(createPayload),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error || 'Erreur création boutique');
@@ -1364,6 +1401,67 @@ const MarketplaceMyShop = () => {
                   placeholder="Ex:\nLundi: 10h-20h\nMardi: 10h-20h\nMercredi: fermé"
                 />
               </div>
+
+              {!partner?.id ? (
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="text-sm font-semibold text-gray-800">Informations de facturation (TVA)</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="vat_validation_status">Statut TVA</Label>
+                        <select
+                          id="vat_validation_status"
+                          value={form.vat_validation_status}
+                          onChange={onChange('vat_validation_status')}
+                          required
+                          className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="">—</option>
+                          <option value="valid">Valide</option>
+                          <option value="invalid">Invalide</option>
+                          <option value="unchecked">Non vérifié</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor="vat_number">Numéro de TVA (optionnel)</Label>
+                        <Input id="vat_number" value={form.vat_number} onChange={onChange('vat_number')} placeholder="FR12345678901" />
+                      </div>
+                      <div>
+                        <Label htmlFor="billing_country_code">Pays (code ISO-2)</Label>
+                        <Input id="billing_country_code" value={form.billing_country_code} onChange={onChange('billing_country_code')} placeholder="FR" required />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="billing_address_line1">Adresse (ligne 1)</Label>
+                        <Input id="billing_address_line1" value={form.billing_address_line1} onChange={onChange('billing_address_line1')} />
+                      </div>
+                      <div>
+                        <Label htmlFor="billing_address_line2">Adresse (ligne 2)</Label>
+                        <Input id="billing_address_line2" value={form.billing_address_line2} onChange={onChange('billing_address_line2')} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label htmlFor="billing_postcode">Code postal</Label>
+                          <Input id="billing_postcode" value={form.billing_postcode} onChange={onChange('billing_postcode')} />
+                        </div>
+                        <div>
+                          <Label htmlFor="billing_city">Ville</Label>
+                          <Input id="billing_city" value={form.billing_city} onChange={onChange('billing_city')} />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="billing_region">Région</Label>
+                        <Input id="billing_region" value={form.billing_region} onChange={onChange('billing_region')} />
+                      </div>
+                      <div>
+                        <Label htmlFor="billing_email">Email de facturation</Label>
+                        <Input id="billing_email" type="email" value={form.billing_email} onChange={onChange('billing_email')} placeholder="facturation@exemple.com" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <Button type="submit" disabled={saving || uploading} className="w-full">
                 {partner?.id ? (saving ? 'Enregistrement…' : 'Enregistrer') : saving ? 'Création…' : 'Créer ma boutique'}
