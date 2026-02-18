@@ -817,6 +817,14 @@ const MarketplaceMyShop = () => {
             </Button>
             <Button
               type="button"
+              variant="outline"
+              onClick={() => navigate('/market/invoices')}
+              className="flex-1"
+            >
+              Mes factures
+            </Button>
+            <Button
+              type="button"
               variant={activeTab === 'orders' ? 'default' : 'outline'}
               onClick={() => setActiveTab('orders')}
               className="flex-1"

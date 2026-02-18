@@ -132,7 +132,10 @@ const MarketplaceInvoices = () => {
       <Helmet><title>Mes factures - OneKamer.co</title></Helmet>
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-[#2BA84A]">Mes factures</h1>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate(-1)} aria-label="Retour">←</Button>
+            <h1 className="text-2xl font-bold text-[#2BA84A]">Mes factures</h1>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => navigate('/marketplace/ma-boutique')}>Ma boutique</Button>
             <Button variant="outline" onClick={() => navigate('/marketplace')}>Retour marketplace</Button>
@@ -185,10 +188,6 @@ const MarketplaceInvoices = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div>
-                    <Label htmlFor="vat_number">Numéro de TVA</Label>
-                    <Input id="vat_number" name="vat_number" value={form.vat_number} onChange={onChange} placeholder="FR12345678901" />
-                  </div>
-                  <div>
                     <Label htmlFor="vat_validation_status">Statut TVA</Label>
                     <select id="vat_validation_status" name="vat_validation_status" value={form.vat_validation_status || ''} onChange={onChange} className="w-full border rounded px-3 py-2 text-sm">
                       <option value="">—</option>
@@ -196,6 +195,10 @@ const MarketplaceInvoices = () => {
                       <option value="invalid">Invalide</option>
                       <option value="unchecked">Non vérifié</option>
                     </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="vat_number">Numéro de TVA</Label>
+                    <Input id="vat_number" name="vat_number" value={form.vat_number} onChange={onChange} placeholder="FR12345678901" />
                   </div>
                   <div>
                     <Label htmlFor="billing_country_code">Pays (code ISO à 2 lettres)</Label>
