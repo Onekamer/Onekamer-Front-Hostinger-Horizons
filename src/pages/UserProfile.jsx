@@ -356,13 +356,15 @@ const UserProfile = () => {
                       {(profile.username || 'U').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  {profile?.is_official ? (
-                    <div className="absolute -top-1 -right-1 bg-[#F5C300] text-white rounded-full h-5 w-5 flex items-center justify-center shadow">
-                      <Check className="h-3 w-3" />
-                    </div>
-                  ) : null}
                 </div>
-                <h1 className="text-3xl font-bold text-gray-800">{profile.username || 'Utilisateur'}</h1>
+                <h1 className="text-3xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                  <span>{profile.username || "Utilisateur"}</span>
+                  {profile?.is_official ? (
+                    <span className="inline-flex items-center justify-center rounded-full bg-[#F5C300] text-white h-5 w-5">
+                      <Check className="h-3 w-3" />
+                    </span>
+                  ) : null}
+                </h1>
                 <div className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <span>{statusText}</span>

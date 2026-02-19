@@ -498,14 +498,16 @@ const Compte = () => {
             ) : (
               <AvatarFallback className="text-3xl bg-gray-200">{profile.username?.charAt(0).toUpperCase()}</AvatarFallback>
             )}
-            {profile?.is_official ? (
-              <div className="absolute -top-1 -right-1 bg-[#F5C300] text-white rounded-full h-5 w-5 flex items-center justify-center shadow">
-                <Check className="h-3 w-3" />
-              </div>
-            ) : null}
           </Avatar>
           <div className="text-center">
-            <h1 className="text-2xl font-bold">{profile.username}</h1>
+            <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
+              <span>{profile.username}</span>
+              {profile?.is_official ? (
+                <span className="inline-flex items-center justify-center rounded-full bg-[#F5C300] text-white h-5 w-5">
+                  <Check className="h-3 w-3" />
+                </span>
+              ) : null}
+            </h1>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
           <p className="text-center text-gray-600 max-w-md">{profile.bio || "Aucune biographie pour le moment."}</p>
