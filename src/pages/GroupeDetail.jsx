@@ -21,6 +21,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { uploadAudioFile } from '@/utils/audioStorage';
     import { notifyGroupMessage, notifyGroupMention } from '@/services/oneSignalNotifications';
     import { extractUniqueMentions } from '@/utils/mentions';
+    import OfficialBadge from '@/components/OfficialBadge';
 
     const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
       const audioRef = useRef(null);
@@ -201,7 +202,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                         )}
                       </div>
                       <div className="flex-1">
-                          <p className="font-bold">{msg.sender_username || 'Utilisateur inconnu'}</p>
+                          <div className="flex items-center gap-1">
+                            <p className="font-bold">{msg.sender_username || 'Utilisateur inconnu'}</p>
+                            {msg.sender_is_official ? (<OfficialBadge />) : null}
+                          </div>
                           <p className="text-xs text-gray-500">
                             {formatDistanceToNow(new Date(msg.message_date), { addSuffix: true, locale: fr })}
                           </p>
@@ -337,7 +341,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               if (ids.length > 0) {
                 const { data: profs } = await supabase
                   .from('profiles')
-                  .select('id, is_deleted')
+                  .select('id, is_deleted, is_official')
                   .in('id', ids);
                 const byId = (profs || []).reduce((acc, p) => { acc[String(p.id)] = p; return acc; }, {});
                 setMessages((prev) => (prev || []).map((m) => {
@@ -345,7 +349,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                   if (p && p.is_deleted === true) {
                     return { ...m, sender_username: 'Compte supprimé', sender_avatar: null };
                   }
-                  return m;
+                  return p ? { ...m, sender_is_official: p.is_official } : m;
                 }));
               }
             } catch (_) {}
@@ -382,7 +386,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               if (isBlockedSender) return;
               const { data: senderProfile } = await supabase
                 .from('profiles')
-                .select('username, avatar_url, is_deleted')
+                .select('username, avatar_url, is_deleted, is_official')
                 .eq('id', payload.new.sender_id)
                 .single();
 
@@ -397,6 +401,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                 likes_count: 0,
                 sender_username,
                 sender_avatar,
+                sender_is_official: senderProfile?.is_official,
                 is_system_message: payload.new.is_system_message
               };
       

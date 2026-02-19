@@ -5,13 +5,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Shield, Award, MessageSquare, Gem, Star, Crown, Loader2, Flag, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Shield, Award, MessageSquare, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import MediaDisplay from '@/components/MediaDisplay';
 import { supabase } from '@/lib/customSupabaseClient';
 import { formatDistanceToNow, differenceInDays, differenceInMonths, differenceInYears } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import OfficialBadge from '@/components/OfficialBadge';
 
 const Badge = ({ icon, label, colorClass }) => (
   <div className={`flex items-center gap-2 py-1 px-3 rounded-full text-sm font-semibold ${colorClass}`}>
@@ -359,11 +360,7 @@ const UserProfile = () => {
                 </div>
                 <h1 className="text-3xl font-bold text-gray-800 flex items-center justify-center gap-2">
                   <span>{profile.username || "Utilisateur"}</span>
-                  {profile?.is_official ? (
-                    <span className="inline-flex items-center justify-center rounded-full bg-[#F5C300] text-white h-5 w-5">
-                      <Check className="h-3 w-3" />
-                    </span>
-                  ) : null}
+                  {profile?.is_official ? (<OfficialBadge />) : null}
                 </h1>
                 <div className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />

@@ -27,6 +27,7 @@ import FavoriteButton from '@/components/FavoriteButton';
 import { canUserAccess } from '@/lib/accessControl';
 import { notifyNewFaitDivers, notifyMentionInComment } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
+import OfficialBadge from '@/components/OfficialBadge';
 
 // Helpers masquage local et extrait pour commentaires Faits Divers
 const getHiddenSet = (key) => {
@@ -141,7 +142,7 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
           favoris_count: 0,
         },
       ])
-      .select('*, author:profiles(id, username, avatar_url), category:faits_divers_categories(id, nom)')
+      .select('*, author:profiles(id, username, avatar_url, is_official), category:faits_divers_categories(id, nom)')
       .single();
 
     if (error) {
@@ -322,7 +323,7 @@ const CommentSection = ({ articleId }) => {
     setLoadingComments(true);
     const { data, error } = await supabase
       .from('faits_divers_comments')
-      .select('*, user:profiles(id, username, avatar_url, is_deleted)')
+      .select('*, user:profiles(id, username, avatar_url, is_deleted, is_official)')
       .eq('fait_divers_id', articleId)
       .order('created_at', { ascending: true });
     if (error) {
@@ -354,7 +355,7 @@ const CommentSection = ({ articleId }) => {
           const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
           if (payload?.new?.user_id && blockedSet.has(String(payload.new.user_id))) return;
           const { data: profileData, error: profileError } = await supabase
-            .from('profiles').select('id, username, avatar_url, is_deleted').eq('id', payload.new.user_id).single();
+            .from('profiles').select('id, username, avatar_url, is_deleted, is_official').eq('id', payload.new.user_id).single();
           if (!profileError) {
             const userRaw = profileData || { username: 'Anonyme', avatar_url: null };
             const user = userRaw?.is_deleted ? { ...userRaw, id: null, username: 'Compte supprimé', avatar_url: null } : userRaw;
@@ -429,7 +430,10 @@ const CommentSection = ({ articleId }) => {
                 </div>
                 <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.user?.id) navigate(`/profil/${comment.user.id}`) }}>{comment.user?.username}</p>
+                    <p className="text-sm font-semibold cursor-pointer flex items-center gap-1" onClick={() => { if (comment.user?.id) navigate(`/profil/${comment.user.id}`) }}>
+                      <span>{comment.user?.username}</span>
+                      {comment.user?.is_official ? (<OfficialBadge />) : null}
+                    </p>
                   </div>
                   {hiddenSet.has(`fdcomment:${comment.id}`) ? (
                     <div className="flex items-center justify-between text-xs text-gray-500 italic">
@@ -631,7 +635,7 @@ const FaitsDivers = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('view_faits_divers_accessible')
-        .select('*, author:profiles(id, username, avatar_url), category:faits_divers_categories(id, nom)')
+        .select('*, author:profiles(id, username, avatar_url, is_official), category:faits_divers_categories(id, nom)')
         .order('created_at', { ascending: false });
 
       if (error) {

@@ -12,6 +12,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import OfficialBadge from '@/components/OfficialBadge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import CreatePost from '@/components/posts/CreatePost';
@@ -546,7 +547,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             audio_duration,
             type,
             parent_comment_id,
-            author:profiles ( id, username, avatar_url, is_deleted )
+            author:profiles ( id, username, avatar_url, is_deleted, is_official )
           `)
           .eq('content_type', 'echange')
           .eq('parent_comment_id', audioParentId)
@@ -569,7 +570,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
               audio_duration,
               type,
               parent_comment_id,
-              author:profiles ( id, username, avatar_url, is_deleted )
+              author:profiles ( id, username, avatar_url, is_deleted, is_official )
             `)
             .eq('content_type', 'echange')
             .in('parent_comment_id', rootIds)
@@ -604,7 +605,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             audio_duration,
             type,
             parent_comment_id,
-            author:profiles ( id, username, avatar_url, is_deleted )
+            author:profiles ( id, username, avatar_url, is_deleted, is_official )
           `)
           .eq('content_id', postId)
           .eq('content_type', 'post')
@@ -643,7 +644,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             if (uid && blockedSet.has(String(uid))) return;
             const { data: profileData } = await supabase
               .from('profiles')
-              .select('id, username, avatar_url, is_deleted')
+              .select('id, username, avatar_url, is_deleted, is_official')
               .eq('id', payload.new.user_id)
               .single();
             const authorRaw = profileData || { username: 'Anonyme', avatar_url: null };
@@ -665,7 +666,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             if (uid && blockedSet.has(String(uid))) return;
             const { data: profileData } = await supabase
               .from('profiles')
-              .select('id, username, avatar_url, is_deleted')
+              .select('id, username, avatar_url, is_deleted, is_official')
               .eq('id', payload.new.user_id)
               .single();
             const authorRaw = profileData || { username: 'Anonyme', avatar_url: null };
@@ -1152,6 +1153,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                     <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
                       <div className="flex items-center gap-1">
                         <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>{comment.author?.username}</p>
+                        {comment.author?.is_official ? (<OfficialBadge />) : null}
                         {comment.author?.id && <UserBadgeIcons userId={comment.author.id} className="ml-1" />}
                       </div>
                       {hiddenCommentSet.has(`ecomment:${comment.id}`) ? (
@@ -1207,6 +1209,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                           <div className="bg-gray-50 rounded-lg px-3 py-2 w-full">
                             <div className="flex items-center gap-1">
                               <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>{child.author?.username}</p>
+                              {child.author?.is_official ? (<OfficialBadge />) : null}
                               {child.author?.id && <UserBadgeIcons userId={child.author.id} className="ml-1" />}
                             </div>
                             {hiddenCommentSet.has(`ecomment:${child.id}`) ? (
@@ -1558,6 +1561,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                   <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
                     {isDeletedAuthor ? 'Compte supprimé' : (post.profiles?.username || 'Anonyme')}
                   </div>
+                  {!isDeletedAuthor && post.profiles?.is_official ? (<OfficialBadge />) : null}
                   {!isDeletedAuthor && post.user_id && <UserBadgeIcons userId={post.user_id} />}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
@@ -1946,6 +1950,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                   <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
                     {isDeletedAuthor ? 'Compte supprimé' : (post.author?.username || 'Anonyme')}
                   </div>
+                  {!isDeletedAuthor && post.author?.is_official ? (<OfficialBadge />) : null}
                   {!isDeletedAuthor && post.user_id && <UserBadgeIcons userId={post.user_id} />}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
@@ -2193,7 +2198,7 @@ const Echange = () => {
 
     const { data: postsData, error: postsError } = await supabase
       .from('posts')
-      .select('*, profiles(id, username, avatar_url, is_deleted)')
+      .select('*, profiles(id, username, avatar_url, is_deleted, is_official)')
       .order('created_at', { ascending: false });
 
     if (postsError) {
@@ -2203,7 +2208,7 @@ const Echange = () => {
 
     const { data: audioData, error: audioError } = await supabase
       .from('comments')
-      .select(`*, author:profiles (id, username, avatar_url, is_deleted)`)
+      .select(`*, author:profiles (id, username, avatar_url, is_deleted, is_official)`)
       .eq('content_type', 'echange')
       .is('parent_comment_id', null)
       .order('created_at', { ascending: false });

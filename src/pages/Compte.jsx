@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2, Trophy, Check } from 'lucide-react';
+import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2, Trophy } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Capacitor } from '@capacitor/core';
 import { NativePurchases } from '@capgo/native-purchases';
 import { differenceInDays } from 'date-fns';
+import OfficialBadge from '@/components/OfficialBadge';
 
 const Compte = () => {
   const { user, profile, signOut, balance, loading, session, refreshProfile } = useAuth();
@@ -502,11 +503,7 @@ const Compte = () => {
           <div className="text-center">
             <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
               <span>{profile.username}</span>
-              {profile?.is_official ? (
-                <span className="inline-flex items-center justify-center rounded-full bg-[#F5C300] text-white h-5 w-5">
-                  <Check className="h-3 w-3" />
-                </span>
-              ) : null}
+              {profile?.is_official ? (<OfficialBadge />) : null}
             </h1>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
