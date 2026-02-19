@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2, Trophy } from 'lucide-react';
+import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2, Trophy, Check } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -132,6 +132,19 @@ const Compte = () => {
       return null;
     }
   }, [levels, balance?.points_total]);
+
+  const levelBadgeLabel = useMemo(() => {
+    try {
+      const id = currentLevel?.id ?? (profile?.level ?? 1);
+      const nameRaw = currentLevel?.level_name || profile?.levelName || profile?.level_name || '';
+      const name = String(nameRaw || '').trim();
+      if (name && /^niveau/i.test(name)) return name;
+      return name ? `Niveau ${id} - ${name}` : `Niveau ${id}`;
+    } catch {
+      const id = currentLevel?.id ?? 1;
+      return `Niveau ${id}`;
+    }
+  }, [currentLevel, profile?.level, profile?.levelName, profile?.level_name]);
 
   const isNativeApp = useMemo(() => {
     try {
@@ -474,7 +487,7 @@ const Compte = () => {
 
       <div className="space-y-6">
         <div className="flex flex-col items-center space-y-4">
-          <Avatar className="w-24 h-24 border-4 border-[#2BA84A]">
+          <Avatar className="relative w-24 h-24 border-4 border-[#2BA84A]">
             {profile.avatar_url ? (
               <MediaDisplay
                 bucket="avatars"
@@ -485,6 +498,11 @@ const Compte = () => {
             ) : (
               <AvatarFallback className="text-3xl bg-gray-200">{profile.username?.charAt(0).toUpperCase()}</AvatarFallback>
             )}
+            {profile?.is_official ? (
+              <div className="absolute -top-1 -right-1 bg-[#F5C300] text-white rounded-full h-5 w-5 flex items-center justify-center shadow">
+                <Check className="h-3 w-3" />
+              </div>
+            ) : null}
           </Avatar>
           <div className="text-center">
             <h1 className="text-2xl font-bold">{profile.username}</h1>
@@ -538,7 +556,7 @@ const Compte = () => {
           </CardHeader>
           <CardContent className="flex items-center gap-4">
             <div className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3"/> {`Niveau ${currentLevel?.id ?? (profile?.level ?? 1)} - ${(currentLevel?.level_name || profile?.levelName || profile?.level_name || 'Bronze')}`}
+              <ShieldCheck className="w-3 h-3"/> {levelBadgeLabel}
             </div>
             <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
               <ShieldCheck className="w-3 h-3"/> {displayPlan}

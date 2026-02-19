@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Shield, Award, MessageSquare, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
+import { ArrowLeft, Plus, Shield, Award, MessageSquare, Gem, Star, Crown, Loader2, Flag, Check } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -65,8 +65,17 @@ const UserProfile = () => {
     })();
   }, [API_PREFIX, session?.access_token, userId]);
 
+  const isVipLifetime = React.useMemo(() => {
+    try {
+      return (subInfo?.is_permanent === true) || /vip à vie/i.test(String(subInfo?.plan_name || ''));
+    } catch {
+      return false;
+    }
+  }, [subInfo?.is_permanent, subInfo?.plan_name]);
+
   const effectivePlan = (() => {
     try {
+      if (isVipLifetime) return 'vip';
       if (subInfo?.end_date) {
         const active = new Date(subInfo.end_date).getTime() > Date.now();
         return active ? (subInfo.plan_name || profile?.plan || 'free') : 'free';
@@ -328,24 +337,31 @@ const UserProfile = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center">
-                {profile.avatar_url ? (
-                  <button
-                    type="button"
-                    className="w-32 h-32 rounded-full overflow-hidden mb-4 focus:outline-none focus:ring-2 focus:ring-[#2BA84A]"
-                    onClick={() => setLightboxOpen(true)}
-                  >
-                    <MediaDisplay
-                      bucket="avatars"
-                      path={profile.avatar_url}
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ) : (
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#2BA84A] to-[#F5C300] flex items-center justify-center text-white text-5xl font-bold mb-4">
-                    {(profile.username || 'U').charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <div className="relative mb-4">
+                  {profile.avatar_url ? (
+                    <button
+                      type="button"
+                      className="w-32 h-32 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#2BA84A]"
+                      onClick={() => setLightboxOpen(true)}
+                    >
+                      <MediaDisplay
+                        bucket="avatars"
+                        path={profile.avatar_url}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#2BA84A] to-[#F5C300] flex items-center justify-center text-white text-5xl font-bold">
+                      {(profile.username || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {profile?.is_official ? (
+                    <div className="absolute -top-1 -right-1 bg-[#F5C300] text-white rounded-full h-5 w-5 flex items-center justify-center shadow">
+                      <Check className="h-3 w-3" />
+                    </div>
+                  ) : null}
+                </div>
                 <h1 className="text-3xl font-bold text-gray-800">{profile.username || 'Utilisateur'}</h1>
                 <div className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
