@@ -34,6 +34,7 @@ import { uploadAudioFile, ensurePublicAudioUrl } from '@/utils/audioStorage';
 import { notifyDonationReceived, notifyPostLiked, notifyPostCommented, notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
 import VideoPlayer from '@/components/VideoPlayer';
+import DotsLoader from '@/components/ui/DotsLoader';
 
 const normalizeAudioEntry = (entry) => {
   if (!entry || !entry.audio_url) return entry;
@@ -2148,6 +2149,10 @@ const Echange = () => {
   const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const [feedItems, setFeedItems] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const FEED_PAGE_SIZE = 20;
+  const [visibleFeedCount, setVisibleFeedCount] = useState(FEED_PAGE_SIZE);
+  const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
+  const bottomSentinelRef = useRef(null);
   const [openComments, setOpenComments] = useState({});
   const [deeplinkTarget, setDeeplinkTarget] = useState({ feedType: null, id: null, commentId: null });
   const location = useLocation();
@@ -2356,6 +2361,21 @@ const Echange = () => {
     }
   }, [fetchFeed]);
 
+  useEffect(() => {
+    if (!bottomSentinelRef.current) return;
+    const node = bottomSentinelRef.current;
+    const hasMore = (feedItems || []).length > visibleFeedCount;
+    const io = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry.isIntersecting && hasMore && !loadingMoreFeed && !loadingPosts) {
+        setLoadingMoreFeed(true);
+        setTimeout(() => { setVisibleFeedCount((c) => c + FEED_PAGE_SIZE); setLoadingMoreFeed(false); }, 120);
+      }
+    });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [feedItems.length, visibleFeedCount, loadingMoreFeed, loadingPosts]);
+
   // Deep-link: scroll to targeted item, highlight briefly, and open comments when applicable
   useEffect(() => {
     try {
@@ -2500,7 +2520,7 @@ const Echange = () => {
           </TabsList>
           <TabsContent value="recent" className="space-y-4 mt-4">
             {loadingPosts ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div> : 
-              feedItems.map((item, index) => (
+              feedItems.slice(0, visibleFeedCount).map((item, index) => (
                 <motion.div key={`${item.feed_type}-${item.id}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
                   {item.feed_type === 'post' ? (
                     <PostCard 
@@ -2530,6 +2550,10 @@ const Echange = () => {
                 </motion.div>
               ))
             }
+            <div ref={bottomSentinelRef} />
+            {(!loadingPosts && (feedItems || []).length > visibleFeedCount) ? (
+              <div className="flex justify-center py-4"><DotsLoader centered size={10} /></div>
+            ) : null}
           </TabsContent>
           <TabsContent value="trending" className="space-y-4 mt-4">
             {loadingPosts ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div> :

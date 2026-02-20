@@ -13,6 +13,7 @@ import MediaDisplay from '@/components/MediaDisplay';
 import FavoriteButton from '@/components/FavoriteButton';
 import { canUserAccess } from '@/lib/accessControl';
 import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
+import DotsLoader from '@/components/ui/DotsLoader';
 
 // Même logique de slug que le backend fix-annonces-images
 const slugify = (str = '') =>
@@ -330,6 +331,9 @@ const getDefaultAnnonceImage = (categorieNom) => {
     const Annonces = () => {
   const [annonces, setAnnonces] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 24;
   const [selectedAnnonce, setSelectedAnnonce] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
@@ -365,13 +369,15 @@ const getDefaultAnnonceImage = (categorieNom) => {
           const { data, error } = await supabase
             .from('view_annonces_accessible')
             .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url, profile_public), devises(symbole)')
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .range(0, PAGE_SIZE - 1);
 
           if (error) {
             toast({ title: "Erreur de chargement", description: error.message, variant: "destructive" });
             setAnnonces([]);
           } else {
-            setAnnonces(data);
+            setAnnonces(data || []);
+            setHasMore((data || []).length === PAGE_SIZE);
           }
         } catch (e) {
           toast({ title: "Erreur de chargement", description: e?.message || 'Impossible de charger les annonces.', variant: "destructive" });
@@ -472,6 +478,28 @@ const getDefaultAnnonceImage = (categorieNom) => {
         (annonce.villes?.nom?.toLowerCase() || '').includes(searchTerm.toLowerCase())
       );
 
+      const loadMore = useCallback(async () => {
+        if (loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        try {
+          const from = annonces.length;
+          const to = from + PAGE_SIZE - 1;
+          const { data, error } = await supabase
+            .from('view_annonces_accessible')
+            .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url, profile_public), devises(symbole)')
+            .order('created_at', { ascending: false })
+            .range(from, to);
+          if (error) throw error;
+          const next = data || [];
+          setAnnonces((prev) => [...prev, ...next]);
+          setHasMore(next.length === PAGE_SIZE);
+        } catch (_e) {
+          setHasMore(false);
+        } finally {
+          setLoadingMore(false);
+        }
+      }, [loadingMore, hasMore, annonces.length]);
+
       return (
   <>
     <Helmet>
@@ -523,6 +551,14 @@ const getDefaultAnnonceImage = (categorieNom) => {
                     <p>Aucune annonce pour le moment.</p>
                     <p>Soyez le premier à en publier une !</p>
                 </div>
+            )}
+            {filteredAnnonces.length > 0 && (
+              <div className="mt-6 flex flex-col items-center gap-3">
+                {loadingMore ? <DotsLoader centered size={10} /> : null}
+                {hasMore && !loadingMore ? (
+                  <Button onClick={loadMore} variant="outline">Charger plus</Button>
+                ) : null}
+              </div>
             )}
                 </div>
   </>

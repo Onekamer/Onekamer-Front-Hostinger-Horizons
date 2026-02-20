@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Send } from 'lucide-react';
 import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyRencontreMessage } from '@/services/oneSignalNotifications';
+import DotsLoader from '@/components/ui/DotsLoader';
 
 const MessagesPrives = () => {
   const { user, onlineUserIds } = useAuth();
@@ -39,6 +40,11 @@ const MessagesPrives = () => {
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
   const mimeRef = useRef(null);
+
+  const LIMIT = 30;
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [hasMoreOld, setHasMoreOld] = useState(true);
+  const [oldestTs, setOldestTs] = useState(null);
 
   const isAudioRecordingSupported = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -266,14 +272,51 @@ const MessagesPrives = () => {
   const loadMessages = async (matchId) => {
     setSelectedMatch(matchId);
     setMessages([]);
-    const { data, error } = await supabase
-      .from("messages_rencontres")
-      .select("*")
-      .eq("match_id", matchId)
-      .order("created_at", { ascending: true });
-
-    if (!error) setMessages(data);
+    try {
+      const { data, error } = await supabase
+        .from('messages_rencontres')
+        .select('*')
+        .eq('match_id', matchId)
+        .order('created_at', { ascending: false })
+        .range(0, LIMIT - 1);
+      if (error) throw error;
+      const base = (data || []).reverse();
+      setMessages(base);
+      setOldestTs(base.length ? base[0].created_at : null);
+      setHasMoreOld((data || []).length === LIMIT);
+      // Scroll to bottom after initial load
+      setTimeout(() => {
+        try { listRef.current?.scrollTo({ top: listRef.current.scrollHeight }); } catch {}
+        endRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+      }, 50);
+    } catch {
+      setMessages([]);
+      setHasMoreOld(false);
+    }
   };
+
+  const loadOlder = useCallback(async () => {
+    if (!selectedMatch || !oldestTs || olderLoading || !hasMoreOld) return;
+    setOlderLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages_rencontres')
+        .select('*')
+        .eq('match_id', selectedMatch)
+        .lt('created_at', oldestTs)
+        .order('created_at', { ascending: false })
+        .range(0, LIMIT - 1);
+      if (error) throw error;
+      const chunk = (data || []).reverse();
+      setMessages((prev) => [...chunk, ...prev]);
+      if (chunk.length) setOldestTs(chunk[0].created_at);
+      setHasMoreOld(chunk.length === LIMIT);
+    } catch {
+      setHasMoreOld(false);
+    } finally {
+      setOlderLoading(false);
+    }
+  }, [selectedMatch, oldestTs, olderLoading, hasMoreOld]);
 
   const endMatch = async () => {
     if (!selectedMatch || !myRencontreId) return;
@@ -510,7 +553,13 @@ const MessagesPrives = () => {
                   </div>
                 );
               })()}
-              <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain border p-3 rounded-md bg-gray-50 mb-2">
+              <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain border p-3 rounded-md bg-gray-50 mb-2" onScroll={(e) => {
+                const el = e.currentTarget;
+                if (el.scrollTop < 80) loadOlder();
+              }}>
+                {olderLoading ? (
+                  <div className="flex justify-center py-2"><DotsLoader centered size={10} /></div>
+                ) : null}
                 {messages.map((msg) => {
                   const text = msg.content || '';
                   const mediaUrl = (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
