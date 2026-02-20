@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
 
 const formatMoney = (cents, currency) => `${(Number(cents || 0) / 100).toFixed(2)} ${String(currency || 'EUR').toUpperCase()}`;
 
@@ -97,16 +95,18 @@ const MarketplaceInvoices = () => {
       const res = await fetch(`${apiBaseUrl}/api/market/me/invoices/${encodeURIComponent(invoiceId)}/pdf`, { headers });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.url) throw new Error(data?.error || 'Lien PDF indisponible');
-      try {
-        const isNative = typeof Capacitor?.isNativePlatform === 'function' ? Capacitor.isNativePlatform() : (typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() !== 'web' : false);
-        if (isNative) {
-          await Browser.open({ url: data.url });
-        } else {
-          window.open(data.url, '_blank');
-        }
-      } catch (_) {
-        window.open(data.url, '_blank');
+      const isNative = typeof window !== 'undefined'
+        && window.Capacitor
+        && typeof window.Capacitor.getPlatform === 'function'
+        && window.Capacitor.getPlatform() !== 'web';
+      if (isNative && window?.Capacitor?.Plugins?.Browser?.open) {
+        try {
+          await window.Capacitor.Plugins.Browser.open({ url: data.url });
+          return;
+        } catch (_) {}
       }
+      // Fallback web ou si plugin indisponible
+      window.open(data.url, '_blank');
     } catch (e) {
       toast({ title: 'Erreur', description: e?.message || 'Impossible de télécharger la facture', variant: 'destructive' });
     }
