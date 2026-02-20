@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Shield, Award, MessageSquare, Gem, Star, Crown, Loader2, Flag } from 'lucide-react';
+import { ArrowLeft, Plus, Shield, Award, MessageSquare, Star, Crown, Loader2, Flag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -39,6 +39,7 @@ const UserProfile = () => {
   const [levels, setLevels] = useState([]);
   const [targetBalance, setTargetBalance] = useState(null);
   const [communityBadges, setCommunityBadges] = useState([]);
+  const [okcBadges, setOkcBadges] = useState([]);
   const [subInfo, setSubInfo] = useState(null);
 
   const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
@@ -133,6 +134,19 @@ const UserProfile = () => {
     })();
   }, []);
 
+  // Charger la table badges OK Coins (icône + seuils) pour afficher "icône - Niveau X"
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('badges_ok_coins')
+          .select('id, name, icon_url, points_required')
+          .order('points_required', { ascending: true });
+        setOkcBadges(Array.isArray(data) ? data : []);
+      } catch {}
+    })();
+  }, []);
+
   // Déterminer le solde/points de l'utilisateur affiché
   useEffect(() => {
     if (!userId) return;
@@ -164,6 +178,32 @@ const UserProfile = () => {
       return match || levels[0] || null;
     } catch {
       return null;
+    }
+  })();
+
+  // Badge OK Coins courant basé sur points_total et badges_ok_coins
+  const currentOkc = (() => {
+    try {
+      const pts = Number(targetBalance?.points_total ?? 0);
+      if (!Array.isArray(okcBadges) || okcBadges.length === 0) return null;
+      let found = null;
+      for (const b of okcBadges) {
+        if (Number(b.points_required) <= pts) found = b;
+      }
+      return found;
+    } catch {
+      return null;
+    }
+  })();
+
+  const currentOkcLabel = (() => {
+    try {
+      const name = String(currentOkc?.name || '');
+      const m = name.match(/Niveau\s*(\d+)/i);
+      const lvl = m && m[1] ? m[1] : '';
+      return lvl ? `Niveau ${lvl}` : (name || 'Niveau');
+    } catch {
+      return 'Niveau';
     }
   })();
 
@@ -387,8 +427,8 @@ const UserProfile = () => {
                 
                 <div className="flex flex-wrap justify-center gap-2 mt-4">
                   <Badge 
-                    icon={<Gem className="h-4 w-4" />} 
-                    label={levelBadgeLabel}
+                    icon={<span className="text-base">{currentOkc?.icon_url || '🏅'}</span>} 
+                    label={`- ${currentOkcLabel}`}
                     colorClass="bg-purple-100 text-purple-800"
                   />
                   <Badge 

@@ -221,6 +221,34 @@ const Compte = () => {
     }
   }, [okcBadges, userBadgeIds]);
 
+  // Badge OK Coins courant: sélectionné depuis badges_ok_coins selon points_total
+  const currentOkc = useMemo(() => {
+    try {
+      const pts = Number(balance?.points_total ?? 0);
+      const list = Array.isArray(okcBadges)
+        ? okcBadges.slice().sort((a, b) => Number(a.points_required) - Number(b.points_required))
+        : [];
+      let found = null;
+      for (const b of list) {
+        if (Number(b.points_required) <= pts) found = b;
+      }
+      return found;
+    } catch {
+      return null;
+    }
+  }, [okcBadges, balance?.points_total]);
+
+  const currentOkcLabel = useMemo(() => {
+    try {
+      const name = String(currentOkc?.name || '');
+      const m = name.match(/Niveau\s*(\d+)/i);
+      const lvl = m && m[1] ? m[1] : '';
+      return lvl ? `Niveau ${lvl}` : (name || 'Niveau');
+    } catch {
+      return 'Niveau';
+    }
+  }, [currentOkc?.name]);
+
   useEffect(() => {
     const run = async () => {
       if (!API_PREFIX || !session?.access_token) return;
@@ -555,7 +583,7 @@ const Compte = () => {
           </CardHeader>
           <CardContent className="flex items-center gap-4">
             <div className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3"/> {levelBadgeLabel}
+              <span className="text-base leading-none">{currentOkc?.icon_url || '🏅'}</span> <span>-</span> {currentOkcLabel}
             </div>
             <div className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
               <ShieldCheck className="w-3 h-3"/> {displayPlan}
@@ -571,7 +599,7 @@ const Compte = () => {
               const label = levelNum ? `Niveau ${levelNum}` : (b?.name || 'Niveau');
               return (
                 <div key={b.id} className="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <span className="text-base leading-none">{b?.icon_url || '🏅'}</span> {label}
+                  <span className="text-base leading-none">{b?.icon_url || '🏅'}</span> <span>-</span> {label}
                 </div>
               );
             })}
