@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -18,11 +19,50 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCou
   const navigate = useNavigate();
   const { user, profile } = useAuth();
 
+  const [mapsOpen, setMapsOpen] = useState(false);
+  const isiOS = (() => {
+    const ua = navigator.userAgent || '';
+    return /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+  })();
+  const hasLocationDetail = Boolean((partenaire?.latitude && partenaire?.longitude) || partenaire?.address);
+  const buildUrlsDetail = () => {
+    const { latitude, longitude, address } = partenaire || {};
+    if (latitude && longitude) {
+      const label = address ? encodeURIComponent(address) : 'Destination';
+      const apple = isiOS ? `maps://?q=${label}&ll=${latitude},${longitude}` : `https://maps.apple.com/?daddr=${latitude},${longitude}`;
+      const google = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+      return { apple, google };
+    }
+    const encoded = encodeURIComponent(address || 'Destination');
+    const apple = isiOS ? `maps://?q=${encoded}` : `https://maps.apple.com/?q=${encoded}`;
+    const google = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    return { apple, google };
+  };
+
   const isAdmin =
     profile?.is_admin === true ||
     profile?.is_admin === 1 ||
     profile?.is_admin === 'true' ||
     String(profile?.role || '').toLowerCase() === 'admin';
+
+  const [mapsOpenList, setMapsOpenList] = useState(false);
+  const [mapsPartner, setMapsPartner] = useState(null);
+  const buildUrlsForPartner = (p) => {
+    if (!p) return { apple: '', google: '' };
+    const { latitude, longitude, address } = p || {};
+    const ua = navigator.userAgent || '';
+    const isiOSLocal = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+    if (latitude && longitude) {
+      const label = address ? encodeURIComponent(address) : 'Destination';
+      const apple = isiOSLocal ? `maps://?q=${label}&ll=${latitude},${longitude}` : `https://maps.apple.com/?daddr=${latitude},${longitude}`;
+      const google = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+      return { apple, google };
+    }
+    const encoded = encodeURIComponent(address || 'Destination');
+    const apple = isiOSLocal ? `maps://?q=${encoded}` : `https://maps.apple.com/?q=${encoded}`;
+    const google = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    return { apple, google };
+  };
   const isOwner = user?.id && partenaire?.user_id === user.id;
   const canManage = Boolean(isOwner || isAdmin);
 
@@ -39,43 +79,11 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCou
   };
 
   const handleOpenMaps = () => {
-    if (!partenaire) return;
-
-    const { latitude, longitude, address } = partenaire;
-
-    if (latitude && longitude) {
-      const ua = navigator.userAgent || '';
-      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
-      if (isiOS) {
-        const label = address ? encodeURIComponent(address) : 'Destination';
-        const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
-        window.location.href = url;
-      } else {
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-        window.open(url, "_blank");
-      }
+    if (!hasLocationDetail) {
+      toast({ title: 'Adresse indisponible', description: "Aucune information de localisation disponible pour ce partenaire.", variant: 'destructive' });
       return;
     }
-
-    if (address) {
-      const encoded = encodeURIComponent(address);
-      const ua = navigator.userAgent || '';
-      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
-      if (isiOS) {
-        const url = `maps://?q=${encoded}`;
-        window.location.href = url;
-      } else {
-        const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-        window.open(url, "_blank");
-      }
-      return;
-    }
-
-    toast({
-      title: 'Adresse indisponible',
-      description: "Aucune information de localisation disponible pour ce partenaire.",
-      variant: 'destructive',
-    });
+    setMapsOpen(true);
   };
 
   return (
@@ -158,6 +166,21 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCou
             >
               Ouvrir la localisation
             </button>
+            <Dialog open={mapsOpen} onOpenChange={setMapsOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Ouvrir avec</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-2">
+                  {(() => { const { apple } = buildUrlsDetail(); return (
+                    <Button onClick={() => { try { window.location.href = apple; } catch { window.open(apple, '_blank'); } }}>Plans (Apple)</Button>
+                  ); })()}
+                  {(() => { const { google } = buildUrlsDetail(); return (
+                    <Button onClick={() => { window.open(google, '_blank'); }}>Google Maps</Button>
+                  ); })()}
+                </div>
+              </DialogContent>
+            </Dialog>
             <p className="text-sm text-gray-500 italic border-t pt-4">Recommandé par {recoCount} membres</p>
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={() => onRecommander(partenaire.id)} className="flex-1">
@@ -381,42 +404,13 @@ const Partenaires = () => {
   const handleOpenMapsQuick = (e, partenaire) => {
     e.stopPropagation();
     if (!partenaire) return;
-
-    const { latitude, longitude, address } = partenaire;
-
-    if (latitude && longitude) {
-      const ua = navigator.userAgent || '';
-      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
-      if (isiOS) {
-        const label = address ? encodeURIComponent(address) : 'Destination';
-        const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
-        window.location.href = url;
-      } else {
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-        window.open(url, "_blank");
-      }
+    const hasLoc = Boolean((partenaire?.latitude && partenaire?.longitude) || partenaire?.address);
+    if (!hasLoc) {
+      toast({ title: 'Adresse indisponible', description: "Aucune information de localisation disponible pour ce partenaire.", variant: 'destructive' });
       return;
     }
-
-    if (address) {
-      const encoded = encodeURIComponent(address);
-      const ua = navigator.userAgent || '';
-      const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
-      if (isiOS) {
-        const url = `maps://?q=${encoded}`;
-        window.location.href = url;
-      } else {
-        const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-        window.open(url, "_blank");
-      }
-      return;
-    }
-
-    toast({
-      title: 'Adresse indisponible',
-      description: "Aucune information de localisation disponible pour ce partenaire.",
-      variant: 'destructive',
-    });
+    setMapsPartner(partenaire);
+    setMapsOpenList(true);
   };
 
   return (
@@ -542,6 +536,21 @@ const Partenaires = () => {
             ))}
           </div>
         )}
+        <Dialog open={mapsOpenList} onOpenChange={setMapsOpenList}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ouvrir avec</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-2">
+              {(() => { const { apple } = buildUrlsForPartner(mapsPartner); return (
+                <Button onClick={() => { try { window.location.href = apple; } catch { window.open(apple, '_blank'); } }}>Plans (Apple)</Button>
+              ); })()}
+              {(() => { const { google } = buildUrlsForPartner(mapsPartner); return (
+                <Button onClick={() => { window.open(google, '_blank'); }}>Google Maps</Button>
+              ); })()}
+            </div>
+          </DialogContent>
+        </Dialog>
             </div>
   </>
 );
