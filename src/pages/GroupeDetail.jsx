@@ -23,6 +23,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { extractUniqueMentions } from '@/utils/mentions';
     import VideoPlayer from '@/components/VideoPlayer';
     import OfficialBadge from '@/components/OfficialBadge';
+    import DotsLoader from '@/components/ui/DotsLoader';
 
     const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
       const audioRef = useRef(null);
@@ -283,10 +284,15 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const mimeRef = useRef(null);
       const recordingIntervalRef = useRef(null);
       const messagesEndRef = useRef(null);
+      const messagesListRef = useRef(null);
       const scrolledToMsgRef = useRef(false);
       const editableDivRef = useRef(null);
       const RAW_API = import.meta.env.VITE_API_URL || '';
       const API_API = RAW_API.endsWith('/api') ? RAW_API : `${RAW_API.replace(/\/+$/, '')}/api`;
+      const LIMIT = 30;
+      const [olderLoading, setOlderLoading] = useState(false);
+      const [hasMoreOld, setHasMoreOld] = useState(true);
+      const [oldestTs, setOldestTs] = useState(null);
       
       const isAudioRecordingSupported = useMemo(() => {
         if (typeof window === 'undefined') return false;
@@ -343,7 +349,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             const baseMessages = Array.from(uniqueMessages.values());
             const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
             const visibleMessages = baseMessages.filter((m) => !m.sender_id || !blockedSet.has(String(m.sender_id)));
-            setMessages(visibleMessages);
+            const trimmed = visibleMessages.slice(Math.max(0, visibleMessages.length - LIMIT));
+            setMessages(trimmed);
+            try { setOldestTs(trimmed.length ? trimmed[0].message_date : null); } catch(_) { setOldestTs(null); }
+            setHasMoreOld(visibleMessages.length > trimmed.length);
 
             // Normaliser les auteurs supprimés (post-traitement)
             try {
@@ -367,6 +376,69 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
         setLoading(false);
     }, [groupId, user, session, navigate, toast]);
+
+      const loadOlder = useCallback(async () => {
+        if (!groupId || !oldestTs || olderLoading || !hasMoreOld) return;
+        setOlderLoading(true);
+        const el = messagesListRef.current;
+        const prevHeight = el ? el.scrollHeight : 0;
+        try {
+          const { data, error } = await supabase
+            .from('messages_groupes')
+            .select('id, created_at, contenu, sender_id, is_system_message, groupe_id')
+            .eq('groupe_id', groupId)
+            .lt('created_at', oldestTs)
+            .order('created_at', { ascending: false })
+            .range(0, LIMIT - 1);
+          if (error) throw error;
+          const raw = Array.isArray(data) ? data : [];
+          const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
+          const filtered = raw.filter((r) => !r.sender_id || !blockedSet.has(String(r.sender_id)));
+          filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+          const senderIds = Array.from(new Set(filtered.map((r) => r.sender_id).filter(Boolean)));
+          let byId = {};
+          if (senderIds.length > 0) {
+            const { data: profs } = await supabase
+              .from('profiles')
+              .select('id, username, avatar_url, is_deleted, is_official')
+              .in('id', senderIds);
+            byId = (profs || []).reduce((acc, p) => { acc[String(p.id)] = p; return acc; }, {});
+          }
+          const chunk = filtered.map((r) => {
+            const p = byId[String(r.sender_id)] || {};
+            const isDeleted = p?.is_deleted === true;
+            return {
+              message_id: r.id,
+              message_contenu: r.contenu,
+              message_date: r.created_at,
+              sender_id: r.sender_id,
+              likes_count: 0,
+              sender_username: isDeleted ? 'Compte supprimé' : (p.username || 'Utilisateur'),
+              sender_avatar: isDeleted ? null : (p.avatar_url || null),
+              sender_is_official: p.is_official,
+              is_system_message: r.is_system_message,
+            };
+          });
+          if (chunk.length > 0) {
+            setMessages((prev) => [...chunk, ...prev]);
+            setOldestTs(chunk[0].message_date);
+            setHasMoreOld(chunk.length === LIMIT);
+          } else {
+            setHasMoreOld(false);
+          }
+          setTimeout(() => {
+            try {
+              const newH = el ? el.scrollHeight : 0;
+              const diff = newH - prevHeight;
+              if (el) el.scrollTop = (el.scrollTop || 0) + diff;
+            } catch {}
+          }, 0);
+        } catch (_) {
+          setHasMoreOld(false);
+        } finally {
+          setOlderLoading(false);
+        }
+      }, [groupId, oldestTs, olderLoading, hasMoreOld, profile?.blocked_user_ids]);
 
       useEffect(() => {
         if (!authLoading) {
@@ -1061,8 +1133,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               </div>
               
               <TabsContent value="messages" className="flex-grow flex flex-col overflow-hidden">
-                <div className="flex-grow overflow-y-auto flex flex-col">
+                <div className="flex-grow overflow-y-auto flex flex-col" ref={messagesListRef} onScroll={(e) => {
+                  const el = e.currentTarget;
+                  if (el.scrollTop < 80) loadOlder();
+                }}>
                   <div className="p-4 space-y-2">
+                    {olderLoading ? (<div className="flex justify-center py-2"><DotsLoader centered size={10} /></div>) : null}
                     {messages.map(msg => <MessageItem key={msg.message_id} msg={msg} currentUserId={user.id} groupId={groupId} onActionComplete={fetchGroupData} />)}
                     <div ref={messagesEndRef}></div>
                   </div>
