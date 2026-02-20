@@ -2153,6 +2153,7 @@ const Echange = () => {
   const [visibleFeedCount, setVisibleFeedCount] = useState(FEED_PAGE_SIZE);
   const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
   const bottomSentinelRef = useRef(null);
+  const prevVisibleCountRef = useRef(visibleFeedCount);
   const [openComments, setOpenComments] = useState({});
   const [deeplinkTarget, setDeeplinkTarget] = useState({ feedType: null, id: null, commentId: null });
   const location = useLocation();
@@ -2281,6 +2282,7 @@ const Echange = () => {
     });
 
     setFeedItems(filtered);
+    setVisibleFeedCount(FEED_PAGE_SIZE);
     setLoadingPosts(false);
   }, [profile?.blocked_user_ids]);
   
@@ -2364,17 +2366,26 @@ const Echange = () => {
   useEffect(() => {
     if (!bottomSentinelRef.current) return;
     const node = bottomSentinelRef.current;
-    const hasMore = (feedItems || []).length > visibleFeedCount;
     const io = new IntersectionObserver((entries) => {
       const entry = entries[0];
+      const hasMore = (feedItems || []).length > visibleFeedCount;
       if (entry.isIntersecting && hasMore && !loadingMoreFeed && !loadingPosts) {
-        setLoadingMoreFeed(true);
-        setTimeout(() => { setVisibleFeedCount((c) => c + FEED_PAGE_SIZE); setLoadingMoreFeed(false); }, 120);
+        withScrollAnchor(() => {
+          setLoadingMoreFeed(true);
+          setVisibleFeedCount((c) => c + FEED_PAGE_SIZE);
+        });
       }
-    });
+    }, { root: null, rootMargin: '600px 0px 600px 0px', threshold: 0 });
     io.observe(node);
     return () => io.disconnect();
-  }, [feedItems.length, visibleFeedCount, loadingMoreFeed, loadingPosts]);
+  }, [feedItems.length, visibleFeedCount, loadingMoreFeed, loadingPosts, withScrollAnchor]);
+
+  useEffect(() => {
+    if (visibleFeedCount > prevVisibleCountRef.current) {
+      prevVisibleCountRef.current = visibleFeedCount;
+      requestAnimationFrame(() => setLoadingMoreFeed(false));
+    }
+  }, [visibleFeedCount]);
 
   // Deep-link: scroll to targeted item, highlight briefly, and open comments when applicable
   useEffect(() => {
@@ -2519,7 +2530,7 @@ const Echange = () => {
             <TabsTrigger value="trending">Tendances</TabsTrigger>
           </TabsList>
           <TabsContent value="recent" className="space-y-4 mt-4">
-            {loadingPosts ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div> : 
+            {loadingPosts ? <div className="flex justify-center py-6"><DotsLoader centered size={12} /></div> : 
               feedItems.slice(0, visibleFeedCount).map((item, index) => (
                 <motion.div key={`${item.feed_type}-${item.id}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
                   {item.feed_type === 'post' ? (
@@ -2550,13 +2561,13 @@ const Echange = () => {
                 </motion.div>
               ))
             }
-            <div ref={bottomSentinelRef} />
-            {(!loadingPosts && (feedItems || []).length > visibleFeedCount) ? (
+            <div ref={bottomSentinelRef} className="h-20" />
+            {(!loadingPosts && (loadingMoreFeed || (feedItems || []).length > visibleFeedCount)) ? (
               <div className="flex justify-center py-4"><DotsLoader centered size={10} /></div>
             ) : null}
           </TabsContent>
           <TabsContent value="trending" className="space-y-4 mt-4">
-            {loadingPosts ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div> :
+            {loadingPosts ? <div className="flex justify-center py-6"><DotsLoader centered size={12} /></div> :
               (() => {
                 const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
                 const last7 = [...feedItems].filter((it) => {
