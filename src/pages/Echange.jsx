@@ -290,7 +290,7 @@ const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
     const displayDuration = duration > 0 ? duration : initialDuration;
 
     return (
-        <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2 w-full max-w-full overflow-hidden">
+        <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2 w-full min-w-0 max-w-full overflow-hidden">
             <audio ref={audioRef} preload="auto" playsInline className="hidden">
               {mimeType ? (
                 <source src={src} type={(mimeType || '').split(';')[0]} />
@@ -307,7 +307,7 @@ const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
                     style={{ width: `${(currentTime / displayDuration) * 100 || 0}%` }}
                 ></div>
             </div>
-            <span className="text-xs text-gray-600 w-16 sm:w-20 text-center shrink-0 whitespace-nowrap">{formatTime(currentTime)} / {formatTime(displayDuration)}</span>
+            <span className="text-xs text-gray-600 w-14 sm:w-20 text-center shrink-0 whitespace-nowrap">{formatTime(currentTime)} / {formatTime(displayDuration)}</span>
         </div>
     );
 };
@@ -1150,7 +1150,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                     <div className="cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>
                       <CommentAvatar avatarPath={comment.author?.avatar_url} username={comment.author?.username} userId={comment.author?.id} />
                     </div>
-                    <div className="bg-gray-100 rounded-lg px-3 py-2 w-full">
+                    <div className="bg-gray-100 rounded-lg px-3 py-2 w-full min-w-0 overflow-hidden">
                       <div className="flex items-center gap-1">
                         <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>{comment.author?.username}</p>
                         {comment.author?.is_official ? (<OfficialBadge />) : null}
@@ -1206,7 +1206,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                           <div className="cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>
                             <CommentAvatar avatarPath={child.author?.avatar_url} username={child.author?.username} userId={child.author?.id} />
                           </div>
-                          <div className="bg-gray-50 rounded-lg px-3 py-2 w-full">
+                          <div className="bg-gray-50 rounded-lg px-3 py-2 w-full min-w-0 overflow-hidden">
                             <div className="flex items-center gap-1">
                               <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>{child.author?.username}</p>
                               {child.author?.is_official ? (<OfficialBadge />) : null}
@@ -1554,7 +1554,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
              )}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex items-center gap-1">
@@ -1943,7 +1943,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
             )}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex items-center gap-1">

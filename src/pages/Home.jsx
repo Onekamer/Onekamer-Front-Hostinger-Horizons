@@ -10,6 +10,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import OfficialBadge from '@/components/OfficialBadge';
 
 const SectionHeader = ({ title, icon: Icon, path, navigate }) => (
   <div className="flex items-center justify-between mb-4">
@@ -22,6 +23,50 @@ const SectionHeader = ({ title, icon: Icon, path, navigate }) => (
     </Button>
   </div>
 );
+
+// Icônes de badges communauté (non cliquables) à partir de user_badges
+const UserBadgeIconsStatic = ({ userId, max = 3, className = '' }) => {
+  const [icons, setIcons] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!userId) { if (mounted) setIcons([]); return; }
+        const { data: ub } = await supabase
+          .from('user_badges')
+          .select('badge_id')
+          .eq('user_id', userId);
+        const ids = (ub || []).map((r) => r.badge_id).filter(Boolean);
+        if (!ids.length) { if (mounted) setIcons([]); return; }
+        const { data: bs } = await supabase
+          .from('badges_communaute')
+          .select('id, name, code, icon, icon_url')
+          .in('id', ids);
+        const list = Array.isArray(bs) ? bs.filter((b) => String(b.code || '').toLowerCase() !== 'new_member') : [];
+        if (mounted) setIcons(list);
+      } catch {
+        if (mounted) setIcons([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [userId]);
+
+  if (!icons.length) return null;
+  return (
+    <div className={`flex items-center gap-1 ${className}`}>
+      {icons.slice(0, max).map((b) => (
+        <span key={b.id} className="inline-flex items-center justify-center">
+          {b.icon ? (
+            <span className="text-[14px] leading-none">{b.icon}</span>
+          ) : b.icon_url ? (
+            <img src={b.icon_url} alt={b.name || b.code || 'badge'} className="w-4 h-4 object-contain" />
+          ) : null}
+        </span>
+      ))}
+    </div>
+  );
+};
 
 const Home = () => {
   const navigate = useNavigate();
@@ -40,7 +85,7 @@ const Home = () => {
       // Tendances: Top 2 posts + audios (7j) classés par likes
       const fetchTrendingPosts = supabase
         .from('posts')
-        .select('*, profiles(username, avatar_url)')
+        .select('*, profiles(id, username, avatar_url, is_official)')
         .gte('created_at', sevenDaysAgo)
         .order('likes_count', { ascending: false })
         .order('created_at', { ascending: false })
@@ -48,7 +93,7 @@ const Home = () => {
 
       const fetchTrendingAudios = supabase
         .from('comments')
-        .select('*, author:profiles (username, avatar_url)')
+        .select('*, author:profiles (id, username, avatar_url, is_official)')
         .eq('content_type', 'echange')
         .is('parent_comment_id', null)
         .gte('created_at', sevenDaysAgo)
@@ -161,7 +206,11 @@ const Home = () => {
                           }/>
                         </div>
                         <div className="flex-grow">
-                          <p className="font-bold text-sm">{item.profiles?.username}</p>
+                          <div className="flex items-center gap-1">
+                            <p className="font-bold text-sm">{item.profiles?.username}</p>
+                            {item.profiles?.is_official ? (<OfficialBadge />) : null}
+                            {item.profiles?.id ? (<UserBadgeIconsStatic userId={item.profiles.id} className="ml-1" />) : null}
+                          </div>
                           <p className="text-xs text-gray-500">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: fr })}</p>
                           <p className="text-sm text-gray-700 my-2 line-clamp-2">{item.content}</p>
                           <div className="flex items-center gap-4 text-gray-500">
