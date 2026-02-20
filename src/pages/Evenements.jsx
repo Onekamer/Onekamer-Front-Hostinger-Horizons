@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { motion, AnimatePresence } from 'framer-motion';
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
+    import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
     import { Calendar, MapPin, Clock, Banknote, Share2, ArrowLeft, Ticket, Plus, Loader2, Trash2, Pencil } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -24,48 +25,58 @@ import React, { useState, useEffect, useCallback } from 'react';
 
     const OuvrirGoogleMaps = ({ latitude, longitude, location }) => {
       const { toast } = useToast();
-      const handleOpenMaps = () => {
+      const [open, setOpen] = useState(false);
+
+      const hasLocation = Boolean((latitude && longitude) || location);
+      const isiOS = (() => {
         const ua = navigator.userAgent || '';
-        const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+        return /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+      })();
+
+      const buildUrls = () => {
         if (latitude && longitude) {
-          if (isiOS) {
-            const label = location ? encodeURIComponent(location) : 'Destination';
-            const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
-            window.location.href = url;
-          } else {
-            const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-            window.open(url, "_blank");
-          }
-          return;
+          const label = location ? encodeURIComponent(location) : 'Destination';
+          const apple = isiOS ? `maps://?q=${label}&ll=${latitude},${longitude}` : `https://maps.apple.com/?daddr=${latitude},${longitude}`;
+          const google = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+          return { apple, google };
         }
-
-        if (location) {
-          const encoded = encodeURIComponent(location);
-          if (isiOS) {
-            const url = `maps://?q=${encoded}`;
-            window.location.href = url;
-          } else {
-            const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-            window.open(url, "_blank");
-          }
-          return;
-        }
-
-        toast({
-          title: 'Lieu indisponible',
-          description: "Aucune information de localisation disponible pour cet événement.",
-          variant: 'destructive',
-        });
+        const encoded = encodeURIComponent(location || 'Destination');
+        const apple = isiOS ? `maps://?q=${encoded}` : `https://maps.apple.com/?q=${encoded}`;
+        const google = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+        return { apple, google };
       };
 
+      const handleOpenSelector = () => {
+        if (!hasLocation) {
+          toast({ title: 'Lieu indisponible', description: "Aucune information de localisation disponible pour cet événement.", variant: 'destructive' });
+          return;
+        }
+        setOpen(true);
+      };
+
+      const { apple, google } = buildUrls();
+
       return (
-        <button
-          onClick={handleOpenMaps}
-          className="mt-3 bg-[#2BA84A] hover:bg-[#24903f] text-white px-3 py-2 rounded-md text-sm w-full flex items-center justify-center gap-2"
-        >
-          <MapPin className="h-4 w-4" />
-          <span>S'y rendre</span>
-        </button>
+        <>
+          <button
+            onClick={handleOpenSelector}
+            className="mt-3 bg-[#2BA84A] hover:bg-[#24903f] text-white px-3 py-2 rounded-md text-sm w-full flex items-center justify-center gap-2"
+          >
+            <MapPin className="h-4 w-4" />
+            <span>S'y rendre</span>
+          </button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Ouvrir avec</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-2">
+                <Button onClick={() => { try { window.location.href = apple; } catch { window.open(apple, '_blank'); } }}>Plans (Apple)</Button>
+                <Button onClick={() => { window.open(google, '_blank'); }}>Google Maps</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
       );
     };
 
@@ -322,43 +333,34 @@ import React, { useState, useEffect, useCallback } from 'react';
                 toast({ title: "Partage non disponible" });
             }
         };
+        const [mapsOpen, setMapsOpen] = useState(false);
         const handleOpenMapsQuick = (e) => {
           e.stopPropagation();
-
-          const { latitude, longitude, location } = event;
-          const ua = navigator.userAgent || '';
-          const isiOS = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
-
-          if (latitude && longitude) {
-            if (isiOS) {
-              const label = location ? encodeURIComponent(location) : 'Destination';
-              const url = `maps://?q=${label}&ll=${latitude},${longitude}`;
-              window.location.href = url;
-            } else {
-              const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-              window.open(url, "_blank");
-            }
+          const hasLocation = Boolean((event.latitude && event.longitude) || event.location);
+          if (!hasLocation) {
+            toast({ title: 'Lieu indisponible', description: "Aucune information de localisation disponible pour cet événement.", variant: 'destructive' });
             return;
           }
-
-          if (location) {
-            const encoded = encodeURIComponent(location);
-            if (isiOS) {
-              const url = `maps://?q=${encoded}`;
-              window.location.href = url;
-            } else {
-              const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-              window.open(url, "_blank");
-            }
-            return;
-          }
-
-          toast({
-            title: 'Lieu indisponible',
-            description: "Aucune information de localisation disponible pour cet événement.",
-            variant: 'destructive',
-          });
+          setMapsOpen(true);
         };
+        const isiOS2 = (() => {
+          const ua = navigator.userAgent || '';
+          return /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+        })();
+        const buildUrls2 = () => {
+          const { latitude, longitude, location } = event;
+          if (latitude && longitude) {
+            const label = location ? encodeURIComponent(location) : 'Destination';
+            const apple = isiOS2 ? `maps://?q=${label}&ll=${latitude},${longitude}` : `https://maps.apple.com/?daddr=${latitude},${longitude}`;
+            const google = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+            return { apple, google };
+          }
+          const encoded = encodeURIComponent(location || 'Destination');
+          const apple = isiOS2 ? `maps://?q=${encoded}` : `https://maps.apple.com/?q=${encoded}`;
+          const google = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+          return { apple, google };
+        };
+        const { apple: apple2, google: google2 } = buildUrls2();
         
         return (
             <Card onClick={() => onSelect(event)} className="cursor-pointer group overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 h-full flex flex-col rounded-lg">
@@ -390,13 +392,26 @@ import React, { useState, useEffect, useCallback } from 'react';
                     </div>
                     <div className="mt-3 flex items-center justify-between">
                       <span className="text-2xl font-bold text-[#2BA84A]">{formatPrice(event.price, event.devises)}</span>
-                      <Button
-                        onClick={handleOpenMapsQuick}
-                        className="bg-[#2BA84A] hover:bg-[#24903f] text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
-                      >
-                        <MapPin className="h-4 w-4" />
-                        <span>S'y rendre</span>
-                      </Button>
+                      <>
+                        <Button
+                          onClick={handleOpenMapsQuick}
+                          className="bg-[#2BA84A] hover:bg-[#24903f] text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
+                        >
+                          <MapPin className="h-4 w-4" />
+                          <span>S'y rendre</span>
+                        </Button>
+                        <Dialog open={mapsOpen} onOpenChange={setMapsOpen}>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Ouvrir avec</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-2">
+                              <Button onClick={() => { try { window.location.href = apple2; } catch { window.open(apple2, '_blank'); } }}>Plans (Apple)</Button>
+                              <Button onClick={() => { window.open(google2, '_blank'); }}>Google Maps</Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </>
                     </div>
                 </CardContent>
             </Card>

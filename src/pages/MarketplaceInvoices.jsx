@@ -112,6 +112,18 @@ const MarketplaceInvoices = () => {
     }
   };
 
+  const openPdfViaWebsite = async (invoiceId) => {
+    if (!invoiceId) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/market/me/invoices/${encodeURIComponent(invoiceId)}/pdf`, { headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) throw new Error(data?.error || 'Lien PDF indisponible');
+      window.open(data.url, '_blank');
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || "Impossible d'ouvrir la facture dans le navigateur", variant: 'destructive' });
+    }
+  };
+
   const onChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -178,6 +190,7 @@ const MarketplaceInvoices = () => {
                           <div>TVA: {formatMoney(inv.total_tva, inv.currency)}</div>
                           <div className="font-semibold">TTC: {formatMoney(inv.total_ttc, inv.currency)}</div>
                           <Button className="w-full mt-2" onClick={() => downloadPdf(inv.id)}>Télécharger le PDF</Button>
+                          <Button variant="link" className="w-full mt-1 text-[#2BA84A]" onClick={() => openPdfViaWebsite(inv.id)}>Télécharger via le site internet</Button>
                         </div>
                       </div>
                     </CardContent>

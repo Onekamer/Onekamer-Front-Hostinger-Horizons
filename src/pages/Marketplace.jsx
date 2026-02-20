@@ -32,6 +32,20 @@ const Marketplace = () => {
   const [ratingsOffset, setRatingsOffset] = useState(0);
   const [ratingsHasMore, setRatingsHasMore] = useState(true);
   const [ratingsLoading, setRatingsLoading] = useState(false);
+  const [mapsOpen, setMapsOpen] = useState(false);
+  const [mapsTarget, setMapsTarget] = useState(null);
+  const isiOSMaps = (() => {
+    const ua = navigator.userAgent || '';
+    return /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+  })();
+  const buildUrlsFromAddress = (address) => {
+    const addr = String(address || '').trim();
+    if (!addr) return { apple: '', google: '' };
+    const encoded = encodeURIComponent(addr);
+    const apple = isiOSMaps ? `maps://?q=${encoded}` : `https://maps.apple.com/?q=${encoded}`;
+    const google = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    return { apple, google };
+  };
 
   useEffect(() => {
     const refresh = () => {
@@ -295,17 +309,7 @@ const Marketplace = () => {
                         {mapUrl ? (
                           <Button
                             type="button"
-                            onClick={() => {
-                              try {
-                                if (String(mapUrl).startsWith('maps://')) {
-                                  window.location.href = mapUrl;
-                                } else {
-                                  window.open(mapUrl, '_blank', 'noopener,noreferrer');
-                                }
-                              } catch {
-                                window.open(mapUrl, '_blank', 'noopener,noreferrer');
-                              }
-                            }}
+                            onClick={() => { if (p?.address) { setMapsTarget(p.address); setMapsOpen(true); } }}
                             className="shrink-0 bg-[#2BA84A] hover:bg-[#24903f] text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm"
                           >
                             <MapPin className="h-4 w-4" />
@@ -388,6 +392,21 @@ const Marketplace = () => {
           </div>
         )}
       </div>
+      <Dialog open={mapsOpen} onOpenChange={setMapsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ouvrir avec</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {(() => { const { apple } = buildUrlsFromAddress(mapsTarget); return (
+              <Button onClick={() => { try { window.location.href = apple; } catch { window.open(apple, '_blank'); } }}>Plans (Apple)</Button>
+            ); })()}
+            {(() => { const { google } = buildUrlsFromAddress(mapsTarget); return (
+              <Button onClick={() => { window.open(google, '_blank'); }}>Google Maps</Button>
+            ); })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
