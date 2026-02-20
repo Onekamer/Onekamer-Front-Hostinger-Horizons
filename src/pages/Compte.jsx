@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2, Trophy } from 'lucide-react';
+import { LogOut, ChevronRight, Coins, ShieldCheck, Loader2, Trophy, Star } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import MediaDisplay from '@/components/MediaDisplay';
@@ -31,6 +31,7 @@ const Compte = () => {
   const [subInfo, setSubInfo] = useState(null);
   const [okcBadges, setOkcBadges] = useState([]);
   const [userBadgeIds, setUserBadgeIds] = useState(() => new Set());
+  const [communityBadges, setCommunityBadges] = useState([]);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
   const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -220,6 +221,33 @@ const Compte = () => {
       return [];
     }
   }, [okcBadges, userBadgeIds]);
+
+  // Badges communauté attribués (user_badges -> badges_communaute)
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!user?.id) return;
+        const { data: ub, error: e1 } = await supabase
+          .from('user_badges')
+          .select('badge_id, awarded_at')
+          .eq('user_id', user.id);
+        if (e1 || !Array.isArray(ub) || ub.length === 0) { setCommunityBadges([]); return; }
+        const ids = ub.map((x) => x.badge_id).filter(Boolean);
+        const { data: bs, error: e2 } = await supabase
+          .from('badges_communaute')
+          .select('id, name, code, icon, icon_url, description, is_special, created_at')
+          .in('id', ids);
+        if (e2 || !Array.isArray(bs)) { setCommunityBadges([]); return; }
+        const byId = new Map(bs.map((b) => [b.id, b]));
+        const merged = ub
+          .map((u) => ({ ...(byId.get(u.badge_id) || {}), awarded_at: u.awarded_at }))
+          .filter((b) => b && b.id && String(b.code || '').toLowerCase() !== 'new_member');
+        setCommunityBadges(merged);
+      } catch {
+        setCommunityBadges([]);
+      }
+    })();
+  }, [user?.id]);
 
   // Badge OK Coins courant: sélectionné depuis badges_ok_coins selon points_total
   const currentOkc = useMemo(() => {
@@ -593,6 +621,12 @@ const Compte = () => {
                 <span className="text-base">👋🏾</span> Nouveau membre
               </div>
             )}
+            {communityBadges.map((b) => (
+              <div key={b.id} className="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                {b.icon ? <span className="text-base">{b.icon}</span> : (b.icon_url ? <img src={b.icon_url} alt={b.name} className="h-4 w-4" /> : <Star className="h-4 w-4" />)}
+                {b.name || b.code}
+              </div>
+            ))}
             {unlockedOkcBadges.map((b) => {
               const match = String(b?.name || '').match(/Niveau\s*(\d+)/i);
               const levelNum = match && match[1] ? match[1] : null;
