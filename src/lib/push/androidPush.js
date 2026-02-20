@@ -72,6 +72,15 @@ export async function androidPush(userId) {
 
     PushNotifications.addListener("pushNotificationReceived", (notif) => {
       console.log("[Android Push] pushNotificationReceived", notif);
+      try {
+        const title = notif?.title || notif?.notification?.title || "Notification";
+        const body = notif?.body || notif?.notification?.body || "";
+        const data = notif?.data || notif?.notification?.data || {};
+        const url = (data && (data.url || data.link)) || "/";
+        if (typeof window !== "undefined") {
+          window.postMessage({ type: "NEW_PUSH", payload: { title, body, url, data } }, "*");
+        }
+      } catch (_) {}
     });
   }
 

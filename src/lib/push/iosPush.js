@@ -93,9 +93,18 @@ console.log("[iOS Push] register-device body:", text);
       console.error("[iOS Push] ❌ registrationError event", err);
     });
 
-    // Bonus debug (optionnel)
+    // Bonus debug + in-app signal
     PushNotifications.addListener("pushNotificationReceived", (notif) => {
       console.log("[iOS Push] pushNotificationReceived", notif);
+      try {
+        const title = notif?.title || notif?.notification?.title || "Notification";
+        const body = notif?.body || notif?.notification?.body || "";
+        const data = notif?.data || notif?.notification?.data || {};
+        const url = (data && (data.url || data.link)) || "/";
+        if (typeof window !== "undefined") {
+          window.postMessage({ type: "NEW_PUSH", payload: { title, body, url, data } }, "*");
+        }
+      } catch (_) {}
     });
   }
 
