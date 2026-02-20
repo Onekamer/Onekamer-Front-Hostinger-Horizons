@@ -33,6 +33,7 @@ import { getInitials } from '@/lib/utils';
 import { uploadAudioFile, ensurePublicAudioUrl } from '@/utils/audioStorage';
 import { notifyDonationReceived, notifyPostLiked, notifyPostCommented, notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
+import VideoPlayer from '@/components/VideoPlayer';
 
 const normalizeAudioEntry = (entry) => {
   if (!entry || !entry.audio_url) return entry;
@@ -329,7 +330,16 @@ const CommentMedia = ({ url, type }) => {
         );
     }
     if (type && type.startsWith('video')) {
-        return <video src={url} controls className="rounded-lg max-h-40 mt-2" />;
+        return (
+            <VideoPlayer
+                src={url}
+                className="rounded-lg max-h-40 mt-2 overflow-hidden"
+                autoPlayOnView={true}
+                loop={true}
+                controls={true}
+                muted={true}
+            />
+        );
     }
     return null; // Audio is handled separately
 };
@@ -1304,7 +1314,14 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                   {mediaPreviewUrl && mediaFile?.type.startsWith("image") ? (
                     <img src={mediaPreviewUrl} alt="preview" className="w-24 h-24 rounded object-cover" />
                   ) : mediaPreviewUrl ? (
-                    <video src={mediaPreviewUrl} controls className="w-full rounded object-cover" />
+                    <VideoPlayer
+                      src={mediaPreviewUrl}
+                      className="w-full rounded object-cover overflow-hidden"
+                      autoPlayOnView={true}
+                      loop={true}
+                      controls={true}
+                      muted={true}
+                    />
                   ) : audioBlob ? (
                     <AudioPlayer src={URL.createObjectURL(audioBlob)} mimeType={(mimeRef.current?.type || audioBlob.type || 'audio/mp4').split(';')[0]} />
                   ) : null}
@@ -1637,7 +1654,16 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             }}
           />
         )}
-        {videoUrl && <video src={videoUrl} controls className="rounded-lg w-full mb-4" />}
+        {videoUrl && (
+          <VideoPlayer
+            src={videoUrl}
+            className="rounded-lg w-full mb-4 overflow-hidden"
+            autoPlayOnView={true}
+            loop={true}
+            controls={true}
+            muted={true}
+          />
+        )}
         <div className="flex items-center gap-4 text-[#6B6B6B]">
           <button
             className={`flex items-center gap-2 hover:text-[#E0222A] transition-colors ${isLiked ? 'text-[#E0222A]' : ''}`}
