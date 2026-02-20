@@ -602,6 +602,7 @@ const FaitsDivers = () => {
   const { toast } = useToast();
   const [canCreate, setCanCreate] = useState(false);
   const [searchParams] = useSearchParams();
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com';
   const API_PREFIX = `${serverUrl.replace(/\/$/, '')}/api`;
@@ -633,10 +634,13 @@ const FaitsDivers = () => {
   const fetchNews = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('view_faits_divers_accessible')
-        .select('*, author:profiles(id, username, avatar_url, is_official), category:faits_divers_categories(id, nom)')
-        .order('created_at', { ascending: false });
+        .select('*, author:profiles(id, username, avatar_url, is_official), category:faits_divers_categories(id, nom)');
+
+      if (categoryFilter) query = query.eq('category_id', categoryFilter);
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching news:', error);
@@ -651,7 +655,7 @@ const FaitsDivers = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, categoryFilter]);
 
   const fetchUserLikes = useCallback(async () => {
     if (!user) return;
@@ -1012,6 +1016,14 @@ const FaitsDivers = () => {
             {canCreate && (
               <AddNewsForm categories={categories} onArticleAdded={handleArticleAdded} />
             )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div className="relative">
+              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
+                <option value="">Toutes les catégories</option>
+                {categories.map((c) => (<option key={c.id} value={c.id}>{c.nom}</option>))}
+              </select>
+            </div>
           </div>
         </motion.div>
 

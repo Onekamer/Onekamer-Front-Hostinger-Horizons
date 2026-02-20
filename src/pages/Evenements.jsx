@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { motion, AnimatePresence } from 'framer-motion';
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
+    import { Input } from '@/components/ui/input';
     import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
     import { Calendar, MapPin, Clock, Banknote, Share2, ArrowLeft, Ticket, Plus, Loader2, Trash2, Pencil } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
@@ -428,6 +429,11 @@ import React, { useState, useEffect, useCallback } from 'react';
   const { user, profile, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [canCreateEvent, setCanCreateEvent] = useState(false);
+  const [types, setTypes] = useState([]);
+  const [typeFilter, setTypeFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
   const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
@@ -451,10 +457,18 @@ import React, { useState, useEffect, useCallback } from 'react';
       const fetchEvents = useCallback(async () => {
         setLoading(true);
         try {
-          const { data, error } = await supabase
+          let query = supabase
             .from('view_evenements_accessible')
-            .select('*, evenements_types(nom), profiles(username, profile_public), devises(symbole)')
-            .order('date', { ascending: true });
+            .select('*, evenements_types(nom), profiles(username, profile_public), devises(symbole)');
+
+          if (typeFilter) query = query.eq('type_id', typeFilter);
+          if (locationFilter && locationFilter.trim()) query = query.ilike('location', `%${locationFilter.trim()}%`);
+          if (dateFrom) query = query.gte('date', dateFrom);
+          if (dateTo) query = query.lte('date', dateTo);
+
+          query = query.order('date', { ascending: true });
+
+          const { data, error } = await query;
           if (error) {
             console.error("Error fetching events:", error);
             toast({ title: 'Erreur', description: "Impossible de charger les événements.", variant: 'destructive' });
@@ -468,7 +482,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         } finally {
           setLoading(false);
         }
-      }, [toast]);
+      }, [toast, typeFilter, locationFilter, dateFrom, dateTo]);
       
       useEffect(() => {
         fetchEvents();
@@ -479,6 +493,15 @@ import React, { useState, useEffect, useCallback } from 'react';
           
         return () => supabase.removeChannel(channel);
       }, [fetchEvents]);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const { data, error } = await supabase.from('evenements_types').select('id, nom');
+            if (!error) setTypes(data || []);
+          } catch {}
+        })();
+      }, []);
 
       // Deep link : ouvre un événement précis via ?eventId=
       useEffect(() => {
@@ -578,6 +601,23 @@ import React, { useState, useEffect, useCallback } from 'react';
                 <Button onClick={handleCreateClick} className="bg-gradient-to-r from-[#2BA84A] to-[#F5C300] text-white">
                   <Plus className="mr-2 h-4 w-4" /> Créer
                 </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                <div className="relative">
+                  <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
+                    <option value="">Tous les types</option>
+                    {types.map((t) => (<option key={t.id} value={t.id}>{t.nom}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <Input placeholder="Lieu (ville, adresse)" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} />
+                </div>
+                <div>
+                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                </div>
+                <div>
+                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </div>
               </div>
             </motion.div>
 
