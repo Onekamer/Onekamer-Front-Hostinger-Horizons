@@ -68,7 +68,7 @@ const safeAreaStyle = isCapIOS ? { paddingTop: 'var(--safe-top)' } : undefined;
                 🤝 Partenaires
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/faits-divers')}>
-                📰 Faits Divers
+                📰 Actualités
               </DropdownMenuItem>
                <DropdownMenuItem onClick={() => navigate('/groupes')}>
                 <Users className="mr-2 h-4 w-4" /> Groupes

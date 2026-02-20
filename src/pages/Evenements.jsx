@@ -436,14 +436,12 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [cities, setCities] = useState([]);
   const [countryFilter, setCountryFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateOn, setDateOn] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [tmpTypeFilter, setTmpTypeFilter] = useState('');
   const [tmpCountryFilter, setTmpCountryFilter] = useState('');
   const [tmpCityFilter, setTmpCityFilter] = useState('');
-  const [tmpDateFrom, setTmpDateFrom] = useState('');
-  const [tmpDateTo, setTmpDateTo] = useState('');
+  const [tmpDateOn, setTmpDateOn] = useState('');
 
   const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
   const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
@@ -480,8 +478,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             const cityName = (cities || []).find((v) => String(v.id) === String(cityFilter))?.nom;
             if (cityName) query = query.ilike('location', `%${cityName}%`);
           }
-          if (dateFrom) query = query.gte('date', dateFrom);
-          if (dateTo) query = query.lte('date', dateTo);
+          if (dateOn) query = query.eq('date', dateOn);
 
           query = query.order('date', { ascending: true });
 
@@ -499,7 +496,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         } finally {
           setLoading(false);
         }
-      }, [toast, typeFilter, countryFilter, cityFilter, dateFrom, dateTo, countries, cities]);
+      }, [toast, typeFilter, countryFilter, cityFilter, dateOn, countries, cities]);
       
       useEffect(() => {
         fetchEvents();
@@ -632,8 +629,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     setTmpTypeFilter(typeFilter);
                     setTmpCountryFilter(countryFilter);
                     setTmpCityFilter(cityFilter);
-                    setTmpDateFrom(dateFrom);
-                    setTmpDateTo(dateTo);
+                    setTmpDateOn(dateOn);
                     setFiltersOpen(true);
                   }}>
                     <Filter className="mr-2 h-4 w-4" /> Filtrer
@@ -649,8 +645,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                   setTmpTypeFilter(typeFilter);
                   setTmpCountryFilter(countryFilter);
                   setTmpCityFilter(cityFilter);
-                  setTmpDateFrom(dateFrom);
-                  setTmpDateTo(dateTo);
+                  setTmpDateOn(dateOn);
                   if (countryFilter) fetchCities(countryFilter);
                 }
               }}>
@@ -684,14 +679,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                         </select>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <Label className="mb-1 block">Du</Label>
-                        <Input type="date" value={tmpDateFrom} onChange={(e) => setTmpDateFrom(e.target.value)} />
-                      </div>
-                      <div>
-                        <Label className="mb-1 block">Au</Label>
-                        <Input type="date" value={tmpDateTo} onChange={(e) => setTmpDateTo(e.target.value)} />
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="max-w-xs">
+                        <Label className="mb-1 block">Date</Label>
+                        <Input type="date" value={tmpDateOn} onChange={(e) => setTmpDateOn(e.target.value)} className="h-10" />
                       </div>
                     </div>
                   </div>
@@ -700,21 +691,18 @@ import React, { useState, useEffect, useCallback } from 'react';
                       setTmpTypeFilter('');
                       setTmpCountryFilter('');
                       setTmpCityFilter('');
-                      setTmpDateFrom('');
-                      setTmpDateTo('');
+                      setTmpDateOn('');
                       setTypeFilter('');
                       setCountryFilter('');
                       setCityFilter('');
-                      setDateFrom('');
-                      setDateTo('');
+                      setDateOn('');
                       setFiltersOpen(false);
                     }}>Réinitialiser</Button>
                     <Button onClick={() => {
                       setTypeFilter(tmpTypeFilter || '');
                       setCountryFilter(tmpCountryFilter || '');
                       setCityFilter(tmpCityFilter || '');
-                      setDateFrom(tmpDateFrom || '');
-                      setDateTo(tmpDateTo || '');
+                      setDateOn(tmpDateOn || '');
                       setFiltersOpen(false);
                     }}>Appliquer</Button>
                   </div>
