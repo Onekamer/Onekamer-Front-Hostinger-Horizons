@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, ImageOff } from 'lucide-react';
 import { normalizeMediaUrl } from '@/utils/normalizeMediaUrl';
+import VideoPlayer from '@/components/VideoPlayer';
 
  const MEDIA_CACHE_TTL_MS = 5 * 60 * 1000;
  const mediaCache = new Map();
@@ -257,7 +258,16 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
   }
 
   if (mediaType === 'video') {
-    return <video src={mediaUrl} controls className={className} playsInline />;
+    return (
+      <VideoPlayer
+        src={mediaUrl}
+        className={className}
+        autoPlayOnView={true}
+        loop={true}
+        controls={true}
+        muted={true}
+      />
+    );
   }
 
   return (

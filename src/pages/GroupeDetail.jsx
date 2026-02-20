@@ -21,6 +21,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import { uploadAudioFile } from '@/utils/audioStorage';
     import { notifyGroupMessage, notifyGroupMention } from '@/services/oneSignalNotifications';
     import { extractUniqueMentions } from '@/utils/mentions';
+    import VideoPlayer from '@/components/VideoPlayer';
     import OfficialBadge from '@/components/OfficialBadge';
 
     const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
@@ -151,7 +152,16 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp|\.avif)(\?|$)/i.test(c);
         const isVideo = /(\.mp4|\.webm|\.ogg|\.mov)(\?|$)/i.test(c);
         if (isHttp) {
-          if (isVideo) return <video src={c} controls playsInline className={baseVid} />;
+          if (isVideo) return (
+            <VideoPlayer
+              src={c}
+              className={baseVid}
+              autoPlayOnView={true}
+              loop={true}
+              controls={true}
+              muted={true}
+            />
+          );
           if (isImage) return <img src={c} alt="Média partagé" className={baseImg} />;
           if (isAudio) return <AudioPlayer src={c} initialDuration={msg.audio_duration || 0} />;
         }
