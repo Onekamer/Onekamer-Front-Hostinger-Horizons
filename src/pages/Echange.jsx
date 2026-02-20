@@ -2057,22 +2057,22 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
             </div>
             {post.content && post.content !== "Message vocal" && <p className="mt-2 text-sm text-gray-700">{parseMentions(post.content)}</p>}
             <AudioPlayer src={post.audio_url} initialDuration={post.audio_duration} />
-            <div className="flex flex-wrap items-center gap-3 text-[#6B6B6B] mt-3">
+            <div className="flex items-center gap-2 text-[#6B6B6B] mt-3">
               <button
-                className={`flex items-center gap-2 hover:text-[#E0222A] transition-colors ${isLiked ? 'text-[#E0222A]' : ''}`}
+                className={`flex items-center gap-1 hover:text-[#E0222A] transition-colors ${isLiked ? 'text-[#E0222A]' : ''}`}
                 onClick={handleLike}
               >
                 <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
                 <span>{likesCount || 0}</span>
               </button>
               <button
-                className="flex items-center gap-2 hover:text-[#2BA84A] transition-colors"
+                className="flex items-center gap-1 hover:text-[#2BA84A] transition-colors"
                 onClick={() => setCommentsOpen((v) => !v)}
               >
                 <MessageCircle className="h-5 w-5" />
                 <span>{commentsCount || 0}</span>
               </button>
-              <button className="flex items-center gap-2 hover:text-[#007AFF] transition-colors" onClick={handleShare}>
+              <button className="flex items-center gap-1 hover:text-[#007AFF] transition-colors" onClick={handleShare}>
                 <Share2 className="h-5 w-5" />
                 <span>Partager</span>
               </button>
@@ -2100,7 +2100,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                   profile={profile}
                   refreshBalance={refreshBalance}
                 >
-                  <button className="flex items-center gap-2 hover:text-[#F5C300] transition-colors ml-auto shrink-0 mt-2 md:mt-0">
+                  <button className="flex items-center gap-1 hover:text-[#F5C300] transition-colors ml-auto shrink-0">
                     <Coins className="h-5 w-5" />
                     <span>Don</span>
                   </button>
