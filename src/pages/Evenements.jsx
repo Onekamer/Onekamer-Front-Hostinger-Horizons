@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
+    import { Label } from '@/components/ui/label';
     import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
     import { Calendar, MapPin, Clock, Banknote, Share2, ArrowLeft, Ticket, Plus, Loader2, Trash2, Pencil, Filter } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
@@ -431,12 +432,16 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [canCreateEvent, setCanCreateEvent] = useState(false);
   const [types, setTypes] = useState([]);
   const [typeFilter, setTypeFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
+  const [countries, setCountries] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [countryFilter, setCountryFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [tmpTypeFilter, setTmpTypeFilter] = useState('');
-  const [tmpLocationFilter, setTmpLocationFilter] = useState('');
+  const [tmpCountryFilter, setTmpCountryFilter] = useState('');
+  const [tmpCityFilter, setTmpCityFilter] = useState('');
   const [tmpDateFrom, setTmpDateFrom] = useState('');
   const [tmpDateTo, setTmpDateTo] = useState('');
 
@@ -467,7 +472,14 @@ import React, { useState, useEffect, useCallback } from 'react';
             .select('*, evenements_types(nom), profiles(username, profile_public), devises(symbole)');
 
           if (typeFilter) query = query.eq('type_id', typeFilter);
-          if (locationFilter && locationFilter.trim()) query = query.ilike('location', `%${locationFilter.trim()}%`);
+          if (countryFilter) {
+            const countryName = (countries || []).find((c) => String(c.id) === String(countryFilter))?.nom;
+            if (countryName) query = query.ilike('location', `%${countryName}%`);
+          }
+          if (cityFilter) {
+            const cityName = (cities || []).find((v) => String(v.id) === String(cityFilter))?.nom;
+            if (cityName) query = query.ilike('location', `%${cityName}%`);
+          }
           if (dateFrom) query = query.gte('date', dateFrom);
           if (dateTo) query = query.lte('date', dateTo);
 
@@ -487,7 +499,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         } finally {
           setLoading(false);
         }
-      }, [toast, typeFilter, locationFilter, dateFrom, dateTo]);
+      }, [toast, typeFilter, countryFilter, cityFilter, dateFrom, dateTo, countries, cities]);
       
       useEffect(() => {
         fetchEvents();
@@ -502,10 +514,22 @@ import React, { useState, useEffect, useCallback } from 'react';
       useEffect(() => {
         (async () => {
           try {
-            const { data, error } = await supabase.from('evenements_types').select('id, nom');
-            if (!error) setTypes(data || []);
+            const { data: typeData, error: typeErr } = await supabase.from('evenements_types').select('id, nom');
+            if (!typeErr) setTypes(typeData || []);
+          } catch {}
+          try {
+            const { data: paysData, error: paysErr } = await supabase.from('pays').select('id, nom');
+            if (!paysErr) setCountries(paysData || []);
           } catch {}
         })();
+      }, []);
+
+      const fetchCities = useCallback(async (paysId) => {
+        if (!paysId) { setCities([]); return; }
+        try {
+          const { data, error } = await supabase.from('villes').select('id, nom').eq('pays_id', paysId);
+          if (!error) setCities(data || []);
+        } catch {}
       }, []);
 
       // Deep link : ouvre un événement précis via ?eventId=
@@ -606,7 +630,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={() => {
                     setTmpTypeFilter(typeFilter);
-                    setTmpLocationFilter(locationFilter);
+                    setTmpCountryFilter(countryFilter);
+                    setTmpCityFilter(cityFilter);
                     setTmpDateFrom(dateFrom);
                     setTmpDateTo(dateTo);
                     setFiltersOpen(true);
@@ -622,47 +647,72 @@ import React, { useState, useEffect, useCallback } from 'react';
                 setFiltersOpen(open);
                 if (open) {
                   setTmpTypeFilter(typeFilter);
-                  setTmpLocationFilter(locationFilter);
+                  setTmpCountryFilter(countryFilter);
+                  setTmpCityFilter(cityFilter);
                   setTmpDateFrom(dateFrom);
                   setTmpDateTo(dateTo);
+                  if (countryFilter) fetchCities(countryFilter);
                 }
               }}>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Filtrer les événements</DialogTitle>
                   </DialogHeader>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
-                    <div className="relative">
-                      <select value={tmpTypeFilter} onChange={(e) => setTmpTypeFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
-                        <option value="">Tous les types</option>
-                        {types.map((t) => (<option key={t.id} value={t.id}>{t.nom}</option>))}
-                      </select>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="relative">
+                        <Label className="mb-1 block">Type</Label>
+                        <select value={tmpTypeFilter} onChange={(e) => setTmpTypeFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
+                          <option value="">Tous les types</option>
+                          {types.map((t) => (<option key={t.id} value={t.id}>{t.nom}</option>))}
+                        </select>
+                      </div>
+                      <div className="relative">
+                        <Label className="mb-1 block">Pays</Label>
+                        <select value={tmpCountryFilter} onChange={async (e) => { const val = e.target.value; setTmpCountryFilter(val); setTmpCityFilter(''); await fetchCities(val); }} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
+                          <option value="">Tous les pays</option>
+                          {countries.map((p) => (<option key={p.id} value={p.id}>{p.nom}</option>))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <Input placeholder="Lieu (ville, adresse)" value={tmpLocationFilter} onChange={(e) => setTmpLocationFilter(e.target.value)} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="relative">
+                        <Label className="mb-1 block">Ville</Label>
+                        <select value={tmpCityFilter} onChange={(e) => setTmpCityFilter(e.target.value)} disabled={!tmpCountryFilter || cities.length === 0} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm disabled:opacity-50">
+                          <option value="">Toutes les villes</option>
+                          {cities.map((v) => (<option key={v.id} value={v.id}>{v.nom}</option>))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <Input type="date" value={tmpDateFrom} onChange={(e) => setTmpDateFrom(e.target.value)} />
-                    </div>
-                    <div>
-                      <Input type="date" value={tmpDateTo} onChange={(e) => setTmpDateTo(e.target.value)} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="mb-1 block">Du</Label>
+                        <Input type="date" value={tmpDateFrom} onChange={(e) => setTmpDateFrom(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label className="mb-1 block">Au</Label>
+                        <Input type="date" value={tmpDateTo} onChange={(e) => setTmpDateTo(e.target.value)} />
+                      </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" onClick={() => {
                       setTmpTypeFilter('');
-                      setTmpLocationFilter('');
+                      setTmpCountryFilter('');
+                      setTmpCityFilter('');
                       setTmpDateFrom('');
                       setTmpDateTo('');
                       setTypeFilter('');
-                      setLocationFilter('');
+                      setCountryFilter('');
+                      setCityFilter('');
                       setDateFrom('');
                       setDateTo('');
                       setFiltersOpen(false);
                     }}>Réinitialiser</Button>
                     <Button onClick={() => {
                       setTypeFilter(tmpTypeFilter || '');
-                      setLocationFilter(tmpLocationFilter || '');
+                      setCountryFilter(tmpCountryFilter || '');
+                      setCityFilter(tmpCityFilter || '');
                       setDateFrom(tmpDateFrom || '');
                       setDateTo(tmpDateTo || '');
                       setFiltersOpen(false);

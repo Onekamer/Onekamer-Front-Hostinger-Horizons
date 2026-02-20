@@ -912,7 +912,7 @@ const FaitsDivers = () => {
   return (
     <>
       <Helmet>
-        <title>Faits Divers - OneKamer.co</title>
+        <title>Actualités - OneKamer.co</title>
         <meta name="description" content="Actualités de la communauté camerounaise sur OneKamer.co" />
       </Helmet>
 
@@ -1012,7 +1012,7 @@ const FaitsDivers = () => {
           animate={{ opacity: 1, y: 0 }}
         >
           <div className="flex justify-between items-center mb-4 gap-4">
-            <h1 className="text-3xl font-bold text-[#2BA84A]">Faits Divers</h1>
+            <h1 className="text-3xl font-bold text-[#2BA84A]">Actualités</h1>
             {canCreate && (
               <AddNewsForm categories={categories} onArticleAdded={handleArticleAdded} />
             )}
