@@ -45,24 +45,7 @@ const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCou
     profile?.is_admin === 'true' ||
     String(profile?.role || '').toLowerCase() === 'admin';
 
-  const [mapsOpenList, setMapsOpenList] = useState(false);
-  const [mapsPartner, setMapsPartner] = useState(null);
-  const buildUrlsForPartner = (p) => {
-    if (!p) return { apple: '', google: '' };
-    const { latitude, longitude, address } = p || {};
-    const ua = navigator.userAgent || '';
-    const isiOSLocal = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
-    if (latitude && longitude) {
-      const label = address ? encodeURIComponent(address) : 'Destination';
-      const apple = isiOSLocal ? `maps://?q=${label}&ll=${latitude},${longitude}` : `https://maps.apple.com/?daddr=${latitude},${longitude}`;
-      const google = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-      return { apple, google };
-    }
-    const encoded = encodeURIComponent(address || 'Destination');
-    const apple = isiOSLocal ? `maps://?q=${encoded}` : `https://maps.apple.com/?q=${encoded}`;
-    const google = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-    return { apple, google };
-  };
+  
   const isOwner = user?.id && partenaire?.user_id === user.id;
   const canManage = Boolean(isOwner || isAdmin);
 
@@ -220,6 +203,25 @@ const Partenaires = () => {
   const navigate = useNavigate();
   const [canCreate, setCanCreate] = useState(false);
   const [searchParams] = useSearchParams();
+  const [mapsOpenList, setMapsOpenList] = useState(false);
+  const [mapsPartner, setMapsPartner] = useState(null);
+
+  const buildUrlsForPartner = (p) => {
+    if (!p) return { apple: '', google: '' };
+    const { latitude, longitude, address } = p || {};
+    const ua = navigator.userAgent || '';
+    const isiOSLocal = /iPad|iPhone|iPod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+    if (latitude && longitude) {
+      const label = address ? encodeURIComponent(address) : 'Destination';
+      const apple = isiOSLocal ? `maps://?q=${label}&ll=${latitude},${longitude}` : `https://maps.apple.com/?daddr=${latitude},${longitude}`;
+      const google = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+      return { apple, google };
+    }
+    const encoded = encodeURIComponent(address || 'Destination');
+    const apple = isiOSLocal ? `maps://?q=${encoded}` : `https://maps.apple.com/?q=${encoded}`;
+    const google = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    return { apple, google };
+  };
 
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com';
   const API_PREFIX = `${serverUrl.replace(/\/$/, '')}/api`;
@@ -543,10 +545,10 @@ const Partenaires = () => {
             </DialogHeader>
             <div className="grid gap-2">
               {(() => { const { apple } = buildUrlsForPartner(mapsPartner); return (
-                <Button onClick={() => { try { window.location.href = apple; } catch { window.open(apple, '_blank'); } }}>Plans (Apple)</Button>
+                <Button disabled={!mapsPartner || !apple} onClick={() => { try { window.location.href = apple; } catch { window.open(apple, '_blank'); } }}>Plans (Apple)</Button>
               ); })()}
               {(() => { const { google } = buildUrlsForPartner(mapsPartner); return (
-                <Button onClick={() => { window.open(google, '_blank'); }}>Google Maps</Button>
+                <Button disabled={!mapsPartner || !google} onClick={() => { window.open(google, '_blank'); }}>Google Maps</Button>
               ); })()}
             </div>
           </DialogContent>

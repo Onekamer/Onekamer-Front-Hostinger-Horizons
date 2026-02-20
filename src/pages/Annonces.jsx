@@ -337,12 +337,6 @@ const getDefaultAnnonceImage = (categorieNom) => {
   const { user, profile, session, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [canCreateAd, setCanCreateAd] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
-  const [cityFilter, setCityFilter] = useState('');
-  const [categoriesOptions, setCategoriesOptions] = useState([]);
-  const [countriesOptions, setCountriesOptions] = useState([]);
-  const [citiesOptions, setCitiesOptions] = useState([]);
 
   const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
   const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
@@ -363,46 +357,15 @@ const getDefaultAnnonceImage = (categorieNom) => {
     }
   }, [user]);
 
-  const fetchCities = useCallback(async (paysId) => {
-    if (!paysId) { setCitiesOptions([]); return; }
-    try {
-      const { data, error } = await supabase.from('villes').select('id, nom').eq('pays_id', paysId);
-      if (!error) setCitiesOptions(data || []);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: cats } = await supabase.from('annonces_categories').select('id, nom');
-        setCategoriesOptions(cats || []);
-      } catch {}
-      try {
-        const { data: pays } = await supabase.from('pays').select('id, nom');
-        setCountriesOptions(pays || []);
-      } catch {}
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!countryFilter) { setCitiesOptions([]); setCityFilter(''); return; }
-    fetchCities(countryFilter);
-  }, [countryFilter, fetchCities]);
+  
 
       const fetchAnnonces = useCallback(async () => {
         setLoading(true);
         try {
-          let query = supabase
+          const { data, error } = await supabase
             .from('view_annonces_accessible')
-            .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url, profile_public), devises(symbole)');
-
-          if (categoryFilter) query = query.eq('categorie_id', categoryFilter);
-          if (countryFilter) query = query.eq('pays_id', countryFilter);
-          if (cityFilter) query = query.eq('ville_id', cityFilter);
-
-          query = query.order('created_at', { ascending: false });
-
-          const { data, error } = await query;
+            .select('*, annonces_categories(nom), pays(nom), villes(nom), profiles(username, avatar_url, profile_public), devises(symbole)')
+            .order('created_at', { ascending: false });
 
           if (error) {
             toast({ title: "Erreur de chargement", description: error.message, variant: "destructive" });
@@ -416,7 +379,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
         } finally {
           setLoading(false);
         }
-      }, [toast, categoryFilter, countryFilter, cityFilter]);
+      }, [toast]);
 
       useEffect(() => {
         fetchAnnonces();
@@ -542,26 +505,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6B6B6B]" />
                 <Input placeholder="Rechercher une annonce..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10"/>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                <div className="relative">
-                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
-                    <option value="">Toutes les catégories</option>
-                    {categoriesOptions.map((c) => (<option key={c.id} value={c.id}>{c.nom}</option>))}
-                  </select>
-                </div>
-                <div className="relative">
-                  <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
-                    <option value="">Tous les pays</option>
-                    {countriesOptions.map((p) => (<option key={p.id} value={p.id}>{p.nom}</option>))}
-                  </select>
-                </div>
-                <div className="relative">
-                  <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} disabled={!countryFilter || citiesOptions.length === 0} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm disabled:opacity-50">
-                    <option value="">Toutes les villes</option>
-                    {citiesOptions.map((v) => (<option key={v.id} value={v.id}>{v.nom}</option>))}
-                  </select>
-                </div>
-              </div>
+              
             </motion.div>
 
             {loading ? (

@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-    import { Calendar, MapPin, Clock, Banknote, Share2, ArrowLeft, Ticket, Plus, Loader2, Trash2, Pencil } from 'lucide-react';
+    import { Calendar, MapPin, Clock, Banknote, Share2, ArrowLeft, Ticket, Plus, Loader2, Trash2, Pencil, Filter } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
     import { supabase } from '@/lib/customSupabaseClient';
@@ -434,6 +434,11 @@ import React, { useState, useEffect, useCallback } from 'react';
   const [locationFilter, setLocationFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [tmpTypeFilter, setTmpTypeFilter] = useState('');
+  const [tmpLocationFilter, setTmpLocationFilter] = useState('');
+  const [tmpDateFrom, setTmpDateFrom] = useState('');
+  const [tmpDateTo, setTmpDateTo] = useState('');
 
   const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
   const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
@@ -598,27 +603,73 @@ import React, { useState, useEffect, useCallback } from 'react';
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className="flex justify-between items-center mb-4">
                 <h1 className="text-3xl font-bold text-[#2BA84A]">Événements</h1>
-                <Button onClick={handleCreateClick} className="bg-gradient-to-r from-[#2BA84A] to-[#F5C300] text-white">
-                  <Plus className="mr-2 h-4 w-4" /> Créer
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                <div className="relative">
-                  <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
-                    <option value="">Tous les types</option>
-                    {types.map((t) => (<option key={t.id} value={t.id}>{t.nom}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <Input placeholder="Lieu (ville, adresse)" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} />
-                </div>
-                <div>
-                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                </div>
-                <div>
-                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => {
+                    setTmpTypeFilter(typeFilter);
+                    setTmpLocationFilter(locationFilter);
+                    setTmpDateFrom(dateFrom);
+                    setTmpDateTo(dateTo);
+                    setFiltersOpen(true);
+                  }}>
+                    <Filter className="mr-2 h-4 w-4" /> Filtrer
+                  </Button>
+                  <Button onClick={handleCreateClick} className="bg-gradient-to-r from-[#2BA84A] to-[#F5C300] text-white">
+                    <Plus className="mr-2 h-4 w-4" /> Créer
+                  </Button>
                 </div>
               </div>
+              <Dialog open={filtersOpen} onOpenChange={(open) => {
+                setFiltersOpen(open);
+                if (open) {
+                  setTmpTypeFilter(typeFilter);
+                  setTmpLocationFilter(locationFilter);
+                  setTmpDateFrom(dateFrom);
+                  setTmpDateTo(dateTo);
+                }
+              }}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Filtrer les événements</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                    <div className="relative">
+                      <select value={tmpTypeFilter} onChange={(e) => setTmpTypeFilter(e.target.value)} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm">
+                        <option value="">Tous les types</option>
+                        {types.map((t) => (<option key={t.id} value={t.id}>{t.nom}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <Input placeholder="Lieu (ville, adresse)" value={tmpLocationFilter} onChange={(e) => setTmpLocationFilter(e.target.value)} />
+                    </div>
+                    <div>
+                      <Input type="date" value={tmpDateFrom} onChange={(e) => setTmpDateFrom(e.target.value)} />
+                    </div>
+                    <div>
+                      <Input type="date" value={tmpDateTo} onChange={(e) => setTmpDateTo(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={() => {
+                      setTmpTypeFilter('');
+                      setTmpLocationFilter('');
+                      setTmpDateFrom('');
+                      setTmpDateTo('');
+                      setTypeFilter('');
+                      setLocationFilter('');
+                      setDateFrom('');
+                      setDateTo('');
+                      setFiltersOpen(false);
+                    }}>Réinitialiser</Button>
+                    <Button onClick={() => {
+                      setTypeFilter(tmpTypeFilter || '');
+                      setLocationFilter(tmpLocationFilter || '');
+                      setDateFrom(tmpDateFrom || '');
+                      setDateTo(tmpDateTo || '');
+                      setFiltersOpen(false);
+                    }}>Appliquer</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </motion.div>
 
             {loading ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div> :
