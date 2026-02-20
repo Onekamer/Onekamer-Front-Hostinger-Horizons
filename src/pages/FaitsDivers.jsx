@@ -28,6 +28,7 @@ import { canUserAccess } from '@/lib/accessControl';
 import { notifyNewFaitDivers, notifyMentionInComment } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
 import OfficialBadge from '@/components/OfficialBadge';
+import DotsLoader from '@/components/ui/DotsLoader';
 
 // Helpers masquage local et extrait pour commentaires Faits Divers
 const getHiddenSet = (key) => {
@@ -596,6 +597,9 @@ const FaitsDivers = () => {
   const [newsList, setNewsList] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 24;
   const [selectedNews, setSelectedNews] = useState(null);
   const [userLikes, setUserLikes] = useState({});
   const { user, session, profile } = useAuth();
@@ -640,7 +644,7 @@ const FaitsDivers = () => {
 
       if (categoryFilter) query = query.eq('category_id', categoryFilter);
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query.order('created_at', { ascending: false }).range(0, PAGE_SIZE - 1);
 
       if (error) {
         console.error('Error fetching news:', error);
@@ -648,10 +652,12 @@ const FaitsDivers = () => {
         setNewsList([]);
       } else {
         setNewsList(data || []);
+        setHasMore((data || []).length === PAGE_SIZE);
       }
     } catch (e) {
       toast({ variant: 'destructive', title: 'Erreur de chargement', description: e?.message || 'Impossible de charger les faits divers.' });
       setNewsList([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -1083,6 +1089,14 @@ const FaitsDivers = () => {
               </Card>
             </motion.div>
           ))}
+          {newsList.length > 0 && (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              {loadingMore ? <DotsLoader centered size={10} /> : null}
+              {hasMore && !loadingMore ? (
+                <Button variant="outline" onClick={loadMore}>Charger plus</Button>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </>

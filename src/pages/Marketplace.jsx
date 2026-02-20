@@ -10,6 +10,7 @@ import { ShoppingBag, MapPin } from 'lucide-react';
 import { readMarketplaceCart, getMarketplaceCartCount } from '@/lib/marketplaceCart';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { canUserAccess } from '@/lib/accessControl';
+import DotsLoader from '@/components/ui/DotsLoader';
 
 const Marketplace = () => {
   const { toast } = useToast();
@@ -18,6 +19,9 @@ const Marketplace = () => {
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState([]);
   const [search, setSearch] = useState('');
+  const PAGE_SIZE = 24;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [cartCount, setCartCount] = useState(() => {
     const cart = readMarketplaceCart();
     return getMarketplaceCartCount(cart);
@@ -149,6 +153,9 @@ const Marketplace = () => {
     });
   }, [partners, search]);
 
+  const visible = useMemo(() => (filtered || []).slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = useMemo(() => (filtered || []).length > visibleCount, [filtered, visibleCount]);
+
   const buildMapsUrl = (address) => {
     const addr = String(address || '').trim();
     if (!addr) return null;
@@ -262,7 +269,7 @@ const Marketplace = () => {
           <div className="text-gray-600">Aucune boutique trouvée.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((p) => {
+            {visible.map((p) => {
               const commandable = p?.commandable === true;
               const mapUrl = buildMapsUrl(p?.address);
               const whatsappUrl = buildWhatsappUrl(p?.whatsapp || p?.phone);
@@ -389,6 +396,28 @@ const Marketplace = () => {
                 </Card>
               );
             })}
+          </div>
+        )}
+
+        {filtered.length > 0 && (
+          <div className="mt-6 flex flex-col items-center gap-3">
+            {loadingMore ? <DotsLoader centered size={10} /> : null}
+            {hasMore && !loadingMore ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (loadingMore) return;
+                  setLoadingMore(true);
+                  setTimeout(() => {
+                    setVisibleCount((c) => c + PAGE_SIZE);
+                    setLoadingMore(false);
+                  }, 150);
+                }}
+              >
+                Charger plus
+              </Button>
+            ) : null}
           </div>
         )}
       </div>

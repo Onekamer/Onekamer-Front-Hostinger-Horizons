@@ -13,6 +13,7 @@ import { Plus, Search, Star, Share2, MessageSquare, Mail, ArrowLeft, Lock, MapPi
 import { canUserAccess } from '@/lib/accessControl';
 import FavoriteButton from '@/components/FavoriteButton';
 import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
+import DotsLoader from '@/components/ui/DotsLoader';
 
 const PartenaireDetail = ({ partenaire, onBack, onRecommander, onDelete, recoCount = 0, recommendedByMe = false }) => {
   const { toast } = useToast();
@@ -205,6 +206,9 @@ const Partenaires = () => {
   const [searchParams] = useSearchParams();
   const [mapsOpenList, setMapsOpenList] = useState(false);
   const [mapsPartner, setMapsPartner] = useState(null);
+  const PAGE_SIZE = 24;
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   const buildUrlsForPartner = (p) => {
     if (!p) return { apple: '', google: '' };
@@ -254,16 +258,17 @@ const Partenaires = () => {
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
-      query = query.order('created_at', { ascending: false });
+      query = query.order('created_at', { ascending: false }).range(0, PAGE_SIZE - 1);
 
       const { data, error } = await query;
       if (error) {
         toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les partenaires.' });
         console.error(error);
         setPartenaires([]);
+        setHasMore(false);
       } else {
-        setPartenaires(data);
-        // Charger les recommandations pour les partenaires affichés
+        setPartenaires(data || []);
+        setHasMore((data || []).length === PAGE_SIZE);
         const ids = (data || []).map((p) => p?.id).filter(Boolean);
         if (ids.length > 0) {
           try {
@@ -282,6 +287,7 @@ const Partenaires = () => {
     } catch (e) {
       toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de charger les partenaires.' });
       setPartenaires([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -536,6 +542,45 @@ const Partenaires = () => {
                 </Card>
               </motion.div>
             ))}
+          </div>
+        )}
+        {partenaires.length > 0 && (
+          <div className="mt-6 flex flex-col items-center gap-3">
+            {loadingMore ? <DotsLoader centered size={10} /> : null}
+            {hasMore && !loadingMore ? (
+              <Button onClick={async () => {
+                if (loadingMore) return;
+                setLoadingMore(true);
+                try {
+                  let q = supabase.from('view_partenaires_accessible').select('*, partenaires_categories(id, nom, industrie)');
+                  if (searchTerm) q = q.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+                  q = q.order('created_at', { ascending: false }).range(partenaires.length, partenaires.length + PAGE_SIZE - 1);
+                  const { data, error } = await q;
+                  if (error) throw error;
+                  const next = data || [];
+                  setPartenaires((prev) => [...prev, ...next]);
+                  setHasMore(next.length === PAGE_SIZE);
+                  const ids = next.map((p) => p?.id).filter(Boolean);
+                  if (ids.length > 0) {
+                    try {
+                      const qs = new URLSearchParams({ ids: ids.join(',') });
+                      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+                      const res = await fetch(`${API_PREFIX}/partners/recommendations?${qs.toString()}`, { headers });
+                      const out = await res.json().catch(() => ({}));
+                      if (res.ok && Array.isArray(out?.items)) {
+                        const map = {};
+                        out.items.forEach((it) => { if (it?.partner_id != null) map[String(it.partner_id)] = it; });
+                        setRecos((prev) => ({ ...prev, ...map }));
+                      }
+                    } catch {}
+                  }
+                } catch (e) {
+                  setHasMore(false);
+                } finally {
+                  setLoadingMore(false);
+                }
+              }} variant="outline">Charger plus</Button>
+            ) : null}
           </div>
         )}
         <Dialog open={mapsOpenList} onOpenChange={setMapsOpenList}>

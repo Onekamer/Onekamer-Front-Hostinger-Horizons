@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Input } from '@/components/ui/input';
 import { canUserAccess } from '@/lib/accessControl';
 import MediaDisplay from '@/components/MediaDisplay';
+import DotsLoader from '@/components/ui/DotsLoader';
 
 const Groupes = () => {
   const { user } = useAuth();
@@ -21,6 +22,9 @@ const Groupes = () => {
   const userId = user?.id;
   const [groupes, setGroupes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 24;
   const [searchTerm, setSearchTerm] = useState('');
   const [canCreate, setCanCreate] = useState(false);
   
@@ -39,26 +43,27 @@ const Groupes = () => {
     if (groupes.length === 0) {
       setLoading(true);
     }
-
     let query = supabase.from('view_groupes_accessible').select('*');
     
     if (searchTerm) {
       query = query.ilike('nom', `%${searchTerm}%`);
     }
 
-    const { data, error } = await query;
+    // Page initiale
+    const { data, error } = await query.range(0, PAGE_SIZE - 1);
 
     if (error) {
       console.error('Error fetching groupes:', error);
       toast({ title: 'Erreur', description: 'Impossible de charger les groupes.', variant: 'destructive' });
       setGroupes([]);
     } else {
-        const groupesWithCount = await Promise.all(data.map(async (groupe) => {
+        const groupesWithCount = await Promise.all((data || []).map(async (groupe) => {
             const { count, error: countError } = await supabase.from('groupes_membres').select('*', { count: 'exact' }).eq('groupe_id', groupe.id);
             if(countError) console.error("Error fetching member count", countError);
             return { ...groupe, membres_count: count || 0 };
         }));
         setGroupes(groupesWithCount);
+        setHasMore((data || []).length === PAGE_SIZE);
     }
     setLoading(false);
   }, [userId, searchTerm, groupes.length]);
@@ -125,6 +130,30 @@ const Groupes = () => {
     </Link>
   );
 
+  const loadMore = useCallback(async () => {
+    if (!userId || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      let query = supabase.from('view_groupes_accessible').select('*');
+      if (searchTerm) query = query.ilike('nom', `%${searchTerm}%`);
+      const from = groupes.length;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error } = await query.range(from, to);
+      if (error) throw error;
+      const withCount = await Promise.all((data || []).map(async (groupe) => {
+        const { count } = await supabase.from('groupes_membres').select('*', { count: 'exact' }).eq('groupe_id', groupe.id);
+        return { ...groupe, membres_count: count || 0 };
+      }));
+      setGroupes((prev) => [...prev, ...withCount]);
+      setHasMore((data || []).length === PAGE_SIZE);
+    } catch (e) {
+      console.error('Load more groupes failed:', e);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [userId, searchTerm, groupes.length, hasMore, loadingMore]);
+
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div>;
   }
@@ -169,6 +198,14 @@ const Groupes = () => {
               </div>
             ) : (
               <p className="text-gray-500 text-center mt-8">Aucun groupe ne correspond à votre recherche.</p>
+            )}
+            {groupes.length > 0 && (
+              <div className="mt-6 flex flex-col items-center gap-3">
+                {loadingMore ? <DotsLoader centered size={10} /> : null}
+                {hasMore && !loadingMore ? (
+                  <Button onClick={loadMore} variant="outline">Charger plus</Button>
+                ) : null}
+              </div>
             )}
           </section>
         </div>
