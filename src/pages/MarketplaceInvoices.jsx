@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 const formatMoney = (cents, currency) => `${(Number(cents || 0) / 100).toFixed(2)} ${String(currency || 'EUR').toUpperCase()}`;
 
@@ -95,7 +97,16 @@ const MarketplaceInvoices = () => {
       const res = await fetch(`${apiBaseUrl}/api/market/me/invoices/${encodeURIComponent(invoiceId)}/pdf`, { headers });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.url) throw new Error(data?.error || 'Lien PDF indisponible');
-      window.open(data.url, '_blank');
+      try {
+        const isNative = typeof Capacitor?.isNativePlatform === 'function' ? Capacitor.isNativePlatform() : (typeof Capacitor?.getPlatform === 'function' ? Capacitor.getPlatform() !== 'web' : false);
+        if (isNative) {
+          await Browser.open({ url: data.url });
+        } else {
+          window.open(data.url, '_blank');
+        }
+      } catch (_) {
+        window.open(data.url, '_blank');
+      }
     } catch (e) {
       toast({ title: 'Erreur', description: e?.message || 'Impossible de télécharger la facture', variant: 'destructive' });
     }
