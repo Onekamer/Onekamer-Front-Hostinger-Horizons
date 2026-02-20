@@ -933,6 +933,21 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     console.log('[Echange] uploadToBunny success', data?.url);
     return data.url;
   };
+  
+  const getApiPrefix = () => (import.meta.env.VITE_API_URL || '/api');
+  
+  const importToBunnyStream = async (cdnUrl, title = 'OneKamer Video') => {
+    try {
+      const res = await fetch(`${getApiPrefix()}/stream/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceUrl: cdnUrl, title }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.embedUrl) return data.embedUrl;
+    } catch (_) {}
+    return null;
+  };
 
   // Mentions: saisie commentaire + suggestions
   const handleCommentChange = (e) => {
@@ -1018,6 +1033,10 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             media_url = await uploadToBunny(mediaFile, "comments");
             media_type = mediaFile.type;
             type = mediaFile.type.startsWith('image') ? 'image' : 'video';
+            if (mediaFile.type.startsWith('video')) {
+              const embed = await importToBunnyStream(media_url, `Comment ${user?.id || ''} ${Date.now()}`);
+              if (embed) media_url = embed;
+            }
         } else if (finalAudioBlob) {
             const { type: mimeType, ext } = mimeRef.current || { type: finalAudioBlob.type || 'audio/webm', ext: 'webm' };
             const normalizedType = mimeType.split(";")[0];

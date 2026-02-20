@@ -12,6 +12,20 @@ import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
 
+const getApiPrefix = () => (import.meta.env.VITE_API_URL || '/api');
+const importToBunnyStream = async (cdnUrl, title = 'OneKamer Video') => {
+  try {
+    const res = await fetch(`${getApiPrefix()}/stream/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceUrl: cdnUrl, title }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.embedUrl) return data.embedUrl;
+  } catch (_) {}
+  return null;
+};
+
 const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
     const audioRef = useRef(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -597,7 +611,9 @@ const CreatePost = () => {
             if (mediaType === 'image') {
               postData.image_url = mediaUrl;
             } else {
-              postData.video_url = mediaUrl;
+              // Tentative d’ingestion Bunny Stream pour lecture HLS/ABR
+              const embed = await importToBunnyStream(mediaUrl, `Post ${user?.id || ''} ${Date.now()}`);
+              postData.video_url = embed || mediaUrl;
             }
           }
           
