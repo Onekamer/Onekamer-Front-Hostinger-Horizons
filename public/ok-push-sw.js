@@ -9,6 +9,7 @@ self.addEventListener('push', (event) => {
     const icon = data.icon || 'https://onekamer-media-cdn.b-cdn.net/logo/IMG_0885%202.PNG';
     const badge = data.badge || 'https://onekamer-media-cdn.b-cdn.net/favicon-32x32.png';
     const url = data.url || (data.data && data.data.url) || '/';
+    const notifType = (data && data.data && data.data.type) || 'systeme';
 
     const options = {
       body,
@@ -22,7 +23,26 @@ self.addEventListener('push', (event) => {
 
     event.waitUntil(
       Promise.all([
-        self.registration.showNotification(title, options),
+        (async () => {
+          // Vérifie les préférences locales (CacheStorage: 'ok-prefs' → '/ok-prefs')
+          let allowed = true;
+          try {
+            if (typeof caches !== 'undefined') {
+              const cache = await caches.open('ok-prefs');
+              const resp = await cache.match('/ok-prefs');
+              if (resp) {
+                const prefs = await resp.json();
+                if (prefs && Object.prototype.hasOwnProperty.call(prefs, notifType) && prefs[notifType] === false) {
+                  allowed = false;
+                }
+              }
+            }
+          } catch (_e) {
+            // ignore erreurs de lecture des préférences
+          }
+          if (!allowed) return; // Catégorie désactivée → pas d'affichage
+          await self.registration.showNotification(title, options);
+        })(),
         (async () => {
           try {
             const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

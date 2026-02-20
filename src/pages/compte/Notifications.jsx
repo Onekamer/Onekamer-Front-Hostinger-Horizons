@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useNotifPrefs } from '@/hooks/useNotifPrefs';
 import { useWebPush } from '@/hooks/useWebPush';
 import { iosPush } from "@/lib/push/iosPush";
+import { androidPush } from "@/lib/push/androidPush";
 
 
 const API_BASE =
@@ -24,22 +25,25 @@ const Notifications = () => {
 
   const featureBell = useMemo(() => `${import.meta.env.VITE_FEATURE_NOTIF_BELL}` === 'true', []);
 
-    const isIOSNativeApp =
-    typeof window !== "undefined" &&
-    window.Capacitor &&
-    typeof window.Capacitor.getPlatform === "function" &&
-    window.Capacitor.getPlatform() === "ios";
+    const platform = (typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function') ? window.Capacitor.getPlatform() : null;
+    const isNativeApp = typeof window !== "undefined" && window.Capacitor && typeof window.Capacitor.getPlatform === "function" && (platform === 'ios' || platform === 'android');
+    const isIOSNativeApp = isNativeApp && platform === 'ios';
+    const isAndroidNativeApp = isNativeApp && platform === 'android';
 
   // Sur iOS natif, ton "subscribed" webpush n'a pas de sens (pas de SW).
   // On se contente d'afficher "Actif" si on a déjà enregistré un token dans ce device (simple).
  const [iosEnabled, setIosEnabled] = useState(() => {
   try { return localStorage.getItem("ios_push_enabled") === "1"; } catch { return false; }
 });
+ const [androidEnabled, setAndroidEnabled] = useState(() => {
+  try { return localStorage.getItem("android_push_enabled") === "1"; } catch { return false; }
+});
 
 // si tu veux être safe quand la page revient au premier plan
 useEffect(() => {
   const onFocus = () => {
     try { setIosEnabled(localStorage.getItem("ios_push_enabled") === "1"); } catch {}
+    try { setAndroidEnabled(localStorage.getItem("android_push_enabled") === "1"); } catch {}
   };
   window.addEventListener("focus", onFocus);
   return () => window.removeEventListener("focus", onFocus);
@@ -53,6 +57,10 @@ useEffect(() => {
         await iosPush(user.id); // récupère token APNs + POST /push/register-device
         try { localStorage.setItem("ios_push_enabled", "1"); } catch {}
         setIosEnabled(true);
+      } else if (isAndroidNativeApp) {
+        await androidPush(user.id); // récupère token FCM + POST /push/register-device
+        try { localStorage.setItem("android_push_enabled", "1"); } catch {}
+        setAndroidEnabled(true);
       } else {
         await subscribe(); // web / android inchangé
       }
@@ -67,6 +75,9 @@ useEffect(() => {
       if (isIOSNativeApp) {
         try { localStorage.removeItem("ios_push_enabled"); } catch {}
         setIosEnabled(false);
+      } else if (isAndroidNativeApp) {
+        try { localStorage.removeItem("android_push_enabled"); } catch {}
+        setAndroidEnabled(false);
       } else {
         await disableOnThisDevice();
       }
@@ -83,6 +94,10 @@ useEffect(() => {
         await iosPush(user.id);
         try { localStorage.setItem("ios_push_enabled", "1"); } catch {}
         setIosEnabled(true);
+      } else if (isAndroidNativeApp) {
+        await androidPush(user.id);
+        try { localStorage.setItem("android_push_enabled", "1"); } catch {}
+        setAndroidEnabled(true);
       } else {
         await subscribe();
       }
@@ -99,6 +114,9 @@ useEffect(() => {
         // Ici on fait juste "désactiver côté UI locale".
         try { localStorage.removeItem("ios_push_enabled"); } catch {}
         setIosEnabled(false);
+      } else if (isAndroidNativeApp) {
+        try { localStorage.removeItem("android_push_enabled"); } catch {}
+        setAndroidEnabled(false);
       } else {
         await unsubscribe();
       }
@@ -135,6 +153,29 @@ useEffect(() => {
         } else {
           console.log("[iOS Push] test send ok:", txt);
         }
+      } else if (isAndroidNativeApp) {
+        // S'assure qu'un token est bien enregistré
+        await androidPush(user.id);
+        try { localStorage.setItem("android_push_enabled", "1"); } catch {}
+        setAndroidEnabled(true);
+
+        const res = await fetch(`${API_BASE}/api/notifications/dispatch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "🔔 Test OneKamer",
+            message: "Si tu vois ça, tes notifications Android sont OK ✅",
+            targetUserIds: [user.id],
+            url: "/compte/notifications",
+            data: { type: "systeme" },
+          }),
+        });
+        const txt = await res.text();
+        if (!res.ok) {
+          console.error("[Android Push] test send failed:", res.status, txt);
+        } else {
+          console.log("[Android Push] test send ok:", txt);
+        }
       } else {
         if (!subscribed) await subscribe();
         await sendTest();
@@ -144,7 +185,7 @@ useEffect(() => {
     }
   };
   
-    const effectiveSubscribed = isIOSNativeApp ? iosEnabled : subscribed;
+    const effectiveSubscribed = isIOSNativeApp ? iosEnabled : (isAndroidNativeApp ? androidEnabled : subscribed);
   
   return (
     <>
@@ -179,36 +220,50 @@ useEffect(() => {
 </div>
                   <div className="flex items-center justify-between">
   <div className="text-sm text-gray-700">
-    {isIOSNativeApp ? "Permission système" : "Permission navigateur"}
+    {isIOSNativeApp ? "Permission système" : isAndroidNativeApp ? "Permission système" : "Permission navigateur"}
   </div>
   <div className="text-sm font-medium">
-    {isIOSNativeApp ? "Gérée par iOS" : permission}
+    {isIOSNativeApp ? "Gérée par iOS" : isAndroidNativeApp ? "Gérée par Android" : permission}
   </div>
 </div>
-                  {!isIOSNativeApp && endpoint && (
+                  {!isNativeApp && endpoint && (
   <div className="text-xs text-gray-500 break-all">{endpoint}</div>
 )}
 
                   <div className="grid grid-cols-2 gap-2 pt-2">
-                    {!effectiveSubscribed ? (
-                      <Button disabled={loading} onClick={handleSubscribe} className="bg-[#2BA84A] text-white">S'abonner</Button>
+                    {isNativeApp ? (
+                      <>
+                        {!effectiveSubscribed && (
+                          <Button disabled={loading} onClick={handleSubscribe} className="bg-[#2BA84A] text-white">Activer</Button>
+                        )}
+                        <Button disabled={loading} onClick={handleTest} className="bg-[#2BA84A] text-white">Envoyer un test</Button>
+                      </>
                     ) : (
-                      <Button disabled={loading} onClick={handleUnsubscribe} className="bg-[#2BA84A] text-white">Se désabonner</Button>
+                      <>
+                        {!effectiveSubscribed ? (
+                          <Button disabled={loading} onClick={handleSubscribe} className="bg-[#2BA84A] text-white">S'abonner</Button>
+                        ) : (
+                          <Button disabled={loading} onClick={handleUnsubscribe} className="bg-[#2BA84A] text-white">Se désabonner</Button>
+                        )}
+                        <Button disabled={loading} onClick={handleTest} className="bg-[#2BA84A] text-white">Envoyer un test</Button>
+                      </>
                     )}
-                    <Button disabled={loading} onClick={handleTest} className="bg-[#2BA84A] text-white">Envoyer un test</Button>
                   </div>
                   {isIOSNativeApp && (
-  <div className="text-xs text-gray-500 pt-2">
-    Pour désactiver complètement : Réglages iPhone → Notifications → OneKamer.
-  </div>
-)}
-                  <div className="pt-2">
-                    {effectiveSubscribed ? (
-                      <Button disabled={loading} onClick={handleDisableThisDevice} variant="outline" className="w-full">Désactiver sur cet appareil</Button>
-                    ) : (
-                      <Button disabled={loading} onClick={handleEnableThisDevice} variant="outline" className="w-full">Activer sur cet appareil</Button>
-                    )}
-                  </div>
+                    <div className="text-xs text-gray-500 pt-2">Pour désactiver complètement : Réglages iPhone → Notifications → OneKamer.</div>
+                  )}
+                  {isAndroidNativeApp && (
+                    <div className="text-xs text-gray-500 pt-2">Pour désactiver complètement : Paramètres Android → Notifications → OneKamer.</div>
+                  )}
+                  {!isNativeApp && (
+                    <div className="pt-2">
+                      {effectiveSubscribed ? (
+                        <Button disabled={loading} onClick={handleDisableThisDevice} variant="outline" className="w-full">Désactiver sur cet appareil</Button>
+                      ) : (
+                        <Button disabled={loading} onClick={handleEnableThisDevice} variant="outline" className="w-full">Activer sur cet appareil</Button>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>
@@ -222,7 +277,6 @@ useEffect(() => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium">Afficher la cloche de notifications</div>
-                  <div className="text-xs text-gray-500">Contrôle local sur cet appareil</div>
                 </div>
                 <div className="origin-right scale-90 sm:scale-75">
                   <Switch
@@ -249,6 +303,7 @@ useEffect(() => {
                 { key: 'faits_divers', label: 'Faits divers' },
                 { key: 'groupes', label: 'Groupes' },
                 { key: 'rencontre', label: 'Rencontre' },
+                { key: 'marketplace', label: 'Marketplace' },
               ].map((row) => (
                 <div key={row.key} className="flex items-center justify-between">
                   <div className="text-sm">{row.label}</div>
