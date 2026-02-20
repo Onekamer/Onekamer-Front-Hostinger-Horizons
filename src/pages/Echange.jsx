@@ -290,7 +290,7 @@ const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
     const displayDuration = duration > 0 ? duration : initialDuration;
 
     return (
-        <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2 w-full">
+        <div className="flex items-center gap-2 bg-gray-200 rounded-full p-2 mt-2 w-full max-w-full overflow-hidden">
             <audio ref={audioRef} preload="auto" playsInline className="hidden">
               {mimeType ? (
                 <source src={src} type={(mimeType || '').split(';')[0]} />
@@ -307,7 +307,7 @@ const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
                     style={{ width: `${(currentTime / displayDuration) * 100 || 0}%` }}
                 ></div>
             </div>
-            <span className="text-xs text-gray-600 w-20 text-center shrink-0">{formatTime(currentTime)} / {formatTime(displayDuration)}</span>
+            <span className="text-xs text-gray-600 w-16 sm:w-20 text-center shrink-0 whitespace-nowrap">{formatTime(currentTime)} / {formatTime(displayDuration)}</span>
         </div>
     );
 };

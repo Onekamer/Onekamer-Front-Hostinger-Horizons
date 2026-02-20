@@ -609,7 +609,7 @@ const Compte = () => {
           <CardHeader>
             <CardTitle>Mes Badges</CardTitle>
           </CardHeader>
-          <CardContent className="flex items-center gap-4">
+          <CardContent className="flex flex-wrap items-center gap-2">
             <div className="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
               <span className="text-base leading-none">{currentOkc?.icon_url || '🏅'}</span> <span>-</span> {currentOkcLabel}
             </div>
