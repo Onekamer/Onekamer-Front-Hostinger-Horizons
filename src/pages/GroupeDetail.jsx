@@ -1135,7 +1135,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
               <TabsContent value="messages" className="flex-grow flex flex-col overflow-hidden">
                 <div className="flex-grow overflow-y-auto flex flex-col" ref={messagesListRef} onScroll={(e) => {
                   const el = e.currentTarget;
-                  if (el.scrollTop < 80) loadOlder();
+                  const nearTop = el.scrollTop <= 80;
+                  const nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
+                  // Si l'utilisateur n'est pas près du bas, on bloque l'auto-scroll bas
+                  scrolledToMsgRef.current = !nearBottom;
+                  if (nearTop) loadOlder();
                 }}>
                   <div className="p-4 space-y-2">
                     {olderLoading ? (<div className="flex justify-center py-2"><DotsLoader centered size={10} /></div>) : null}

@@ -10,6 +10,7 @@ import { Image as ImageIcon, Mic, Square, X } from 'lucide-react';
 import { uploadAudioFile } from '@/utils/audioStorage';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import DotsLoader from '@/components/ui/DotsLoader';
 
 const MarketplaceOrderDetail = () => {
   const { orderId } = useParams();
@@ -37,6 +38,11 @@ const MarketplaceOrderDetail = () => {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
+  const LIMIT = 30;
+  const [visibleCount, setVisibleCount] = useState(LIMIT);
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [hasMoreOld, setHasMoreOld] = useState(false);
+  const stickToBottomRef = useRef(true);
   const mediaInputRef = useRef(null);
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
@@ -121,10 +127,26 @@ const MarketplaceOrderDetail = () => {
   }, [loadMessages]);
 
   useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
+    const el = listRef.current;
+    if (!el) return;
+    if (stickToBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [messages.length]);
+
+  useEffect(() => {
+    setHasMoreOld(messages.length > visibleCount);
+  }, [messages.length, visibleCount]);
+
+  useEffect(() => {
+    setVisibleCount(LIMIT);
+  }, [orderId]);
+
+  const visibleMessages = useMemo(() => {
+    const total = messages.length || 0;
+    const count = Math.min(visibleCount, total);
+    return messages.slice(Math.max(0, total - count));
+  }, [messages, visibleCount]);
 
   const pickSupportedMime = useCallback(() => {
     const ua = navigator.userAgent.toLowerCase();
@@ -725,8 +747,32 @@ const MarketplaceOrderDetail = () => {
                     <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
                   </CardHeader>
                   <CardContent className="p-0 flex-1 flex flex-col">
-                    <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-                      {messages.map((m) => {
+                    <div
+                      ref={listRef}
+                      className="flex-1 overflow-y-auto p-4 space-y-3"
+                      onScroll={(e) => {
+                        const el = e.currentTarget;
+                        const nearTop = el.scrollTop <= 80;
+                        const nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
+                        stickToBottomRef.current = nearBottom;
+                        if (nearTop && hasMoreOld && !olderLoading) {
+                          const prevHeight = el.scrollHeight;
+                          const prevTop = el.scrollTop;
+                          setOlderLoading(true);
+                          setVisibleCount((c) => Math.min(messages.length, c + LIMIT));
+                          setTimeout(() => {
+                            try {
+                              const newH = el.scrollHeight;
+                              const diff = newH - prevHeight;
+                              el.scrollTop = prevTop + diff;
+                            } catch {}
+                            setOlderLoading(false);
+                          }, 0);
+                        }
+                      }}
+                    >
+                      {olderLoading ? (<div className="flex justify-center py-2"><DotsLoader centered size={10} /></div>) : null}
+                      {visibleMessages.map((m) => {
                         const text = m.content || m.body || '';
                         const mediaUrl = (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
                         const isVideo = mediaUrl ? /(\.mp4|\.mov|\.webm)(\?|$)/i.test(mediaUrl) : false;
@@ -770,10 +816,34 @@ const MarketplaceOrderDetail = () => {
                   <CardTitle className="text-base font-semibold">Chat commande</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 flex-1 flex flex-col">
-                  <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {messages.length === 0 ? (
+                  <div
+                    ref={listRef}
+                    className="flex-1 overflow-y-auto p-4 space-y-3"
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      const nearTop = el.scrollTop <= 80;
+                      const nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
+                      stickToBottomRef.current = nearBottom;
+                      if (nearTop && hasMoreOld && !olderLoading) {
+                        const prevHeight = el.scrollHeight;
+                        const prevTop = el.scrollTop;
+                        setOlderLoading(true);
+                        setVisibleCount((c) => Math.min(messages.length, c + LIMIT));
+                        setTimeout(() => {
+                          try {
+                            const newH = el.scrollHeight;
+                            const diff = newH - prevHeight;
+                            el.scrollTop = prevTop + diff;
+                          } catch {}
+                          setOlderLoading(false);
+                        }, 0);
+                      }
+                    }}
+                  >
+                    {olderLoading ? (<div className="flex justify-center py-2"><DotsLoader centered size={10} /></div>) : null}
+                    {visibleMessages.length === 0 ? (
                       <div className="text-gray-500 text-sm">Aucun message pour le moment.</div>
-                    ) : messages.map((m) => {
+                    ) : visibleMessages.map((m) => {
                       const text = m.content || m.body || '';
                       const mediaUrl = (/(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|avif|mp4|mov|webm))(\?|$)/i.test(text) ? text : null);
                       const isVideo = mediaUrl ? /(\.mp4|\.mov|\.webm)(\?|$)/i.test(mediaUrl) : false;
