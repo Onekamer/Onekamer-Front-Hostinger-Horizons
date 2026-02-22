@@ -27,6 +27,8 @@ const Groupes = () => {
   const PAGE_SIZE = 24;
   const [searchTerm, setSearchTerm] = useState('');
   const [canCreate, setCanCreate] = useState(false);
+  const [memberGroupIds, setMemberGroupIds] = useState([]);
+  const [memberIdsLoaded, setMemberIdsLoaded] = useState(false);
   
 
   useEffect(() => {
@@ -35,11 +37,38 @@ const Groupes = () => {
     }
   }, [userId]);
 
+  useEffect(() => {
+    if (!userId) {
+      setMemberGroupIds([]);
+      setMemberIdsLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setMemberIdsLoaded(false);
+      const { data, error } = await supabase
+        .from('groupes_membres')
+        .select('groupe_id')
+        .eq('user_id', userId);
+      if (!cancelled) {
+        if (!error) {
+          setMemberGroupIds((data || []).map((r) => r.groupe_id));
+        } else {
+          setMemberGroupIds([]);
+        }
+        setMemberIdsLoaded(true);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [userId]);
+
   const fetchGroups = useCallback(async () => {
     if (!userId) {
         setLoading(false);
         return;
     }
+    if (!memberIdsLoaded) return; // attendre d'avoir les IDs de groupes du user
     if (groupes.length === 0) {
       setLoading(true);
     }
@@ -47,6 +76,14 @@ const Groupes = () => {
     
     if (searchTerm) {
       query = query.ilike('nom', `%${searchTerm}%`);
+    } else {
+      // Masquer les groupes privés dont l'utilisateur n'est pas membre
+      if (memberGroupIds.length > 0) {
+        const idsList = memberGroupIds.map((id) => `"${id}"`).join(',');
+        query = query.or(`est_prive.eq.false,id.in.(${idsList})`);
+      } else {
+        query = query.eq('est_prive', false);
+      }
     }
 
     // Page initiale
@@ -57,7 +94,12 @@ const Groupes = () => {
       toast({ title: 'Erreur', description: 'Impossible de charger les groupes.', variant: 'destructive' });
       setGroupes([]);
     } else {
-        const groupesWithCount = await Promise.all((data || []).map(async (groupe) => {
+        // Fallback sécurité côté front si or/in non supporté par la vue
+        const filtered = searchTerm
+          ? (data || [])
+          : (data || []).filter((g) => !g.est_prive || memberGroupIds.includes(g.id));
+
+        const groupesWithCount = await Promise.all((filtered || []).map(async (groupe) => {
             const { count, error: countError } = await supabase.from('groupes_membres').select('*', { count: 'exact' }).eq('groupe_id', groupe.id);
             if(countError) console.error("Error fetching member count", countError);
             return { ...groupe, membres_count: count || 0 };
@@ -66,7 +108,7 @@ const Groupes = () => {
         setHasMore((data || []).length === PAGE_SIZE);
     }
     setLoading(false);
-  }, [userId, searchTerm, groupes.length]);
+  }, [userId, searchTerm, groupes.length, memberIdsLoaded, memberGroupIds]);
 
   useEffect(() => {
     fetchGroups();
@@ -131,16 +173,28 @@ const Groupes = () => {
   );
 
   const loadMore = useCallback(async () => {
-    if (!userId || loadingMore || !hasMore) return;
+    if (!userId || loadingMore || !hasMore || !memberIdsLoaded) return;
     setLoadingMore(true);
     try {
       let query = supabase.from('view_groupes_accessible').select('*');
-      if (searchTerm) query = query.ilike('nom', `%${searchTerm}%`);
+      if (searchTerm) {
+        query = query.ilike('nom', `%${searchTerm}%`);
+      } else {
+        if (memberGroupIds.length > 0) {
+          const idsList = memberGroupIds.map((id) => `"${id}"`).join(',');
+          query = query.or(`est_prive.eq.false,id.in.(${idsList})`);
+        } else {
+          query = query.eq('est_prive', false);
+        }
+      }
       const from = groupes.length;
       const to = from + PAGE_SIZE - 1;
       const { data, error } = await query.range(from, to);
       if (error) throw error;
-      const withCount = await Promise.all((data || []).map(async (groupe) => {
+      const filtered = searchTerm
+        ? (data || [])
+        : (data || []).filter((g) => !g.est_prive || memberGroupIds.includes(g.id));
+      const withCount = await Promise.all((filtered || []).map(async (groupe) => {
         const { count } = await supabase.from('groupes_membres').select('*', { count: 'exact' }).eq('groupe_id', groupe.id);
         return { ...groupe, membres_count: count || 0 };
       }));
@@ -152,7 +206,7 @@ const Groupes = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [userId, searchTerm, groupes.length, hasMore, loadingMore]);
+  }, [userId, searchTerm, groupes.length, hasMore, loadingMore, memberIdsLoaded, memberGroupIds]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-[#2BA84A]" /></div>;
