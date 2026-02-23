@@ -68,7 +68,7 @@ const ResetPassword = () => {
                 toast({ title: 'Erreur', description: updateError.message, variant: 'destructive' });
             } else {
                 toast({ title: 'Succès', description: 'Votre mot de passe a été mis à jour avec succès ✅' });
-                navigate('/auth');
+                navigate('/compte');
             }
         } catch (err) {
             toast({ title: 'Erreur', description: err?.message || "Impossible de mettre à jour le mot de passe.", variant: 'destructive' });
