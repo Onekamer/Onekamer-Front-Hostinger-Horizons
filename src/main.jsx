@@ -30,7 +30,7 @@ if ('serviceWorker' in navigator && !isIOSNativeApp) {
       .then(() => console.log('✅ Service Worker PWA enregistré'))
       .catch((err) => console.error('❌ Erreur enregistrement SW PWA :', err));
 
-    const provider = import.meta.env.VITE_NOTIFICATIONS_PROVIDER || 'onesignal';
+    const provider = 'supabase_light';
     if (provider === 'onesignal') {
       navigator.serviceWorker
         .register('/OneSignalSDKWorker.js', { scope: '/' })
@@ -81,7 +81,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('click', updateActivity);
   window.addEventListener('keydown', updateActivity);
 }
-
+// ============================================================
+// ✅ Lancement React
+// ============================================================
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
