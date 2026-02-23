@@ -22,15 +22,28 @@ const ResetPassword = () => {
     const { toast } = useToast();
 
     useEffect(() => {
-        const check = async () => {
+        const init = async () => {
             try {
+                const hash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : '';
+                const search = window.location.search?.startsWith('?') ? window.location.search.slice(1) : '';
+                const params = new URLSearchParams(hash || search);
+                const access_token = params.get('access_token');
+                const refresh_token = params.get('refresh_token');
+                if (access_token && refresh_token) {
+                    const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+                    if (!error && data?.session) {
+                        setHasSession(true);
+                        try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
+                        return;
+                    }
+                }
                 const { data } = await supabase.auth.getSession();
                 setHasSession(!!data?.session);
             } catch (_) {
                 setHasSession(false);
             }
         };
-        check();
+        init();
     }, []);
 
     const handleResetPassword = async (e) => {
@@ -49,15 +62,18 @@ const ResetPassword = () => {
         }
         setError('');
         setLoading(true);
-
-        const { error: updateError } = await supabase.auth.updateUser({ password });
-
-        setLoading(false);
-        if (updateError) {
-            toast({ title: 'Erreur', description: updateError.message, variant: 'destructive' });
-        } else {
-            toast({ title: 'Succès', description: 'Votre mot de passe a été mis à jour avec succès ✅' });
-            navigate('/auth');
+        try {
+            const { error: updateError } = await supabase.auth.updateUser({ password });
+            if (updateError) {
+                toast({ title: 'Erreur', description: updateError.message, variant: 'destructive' });
+            } else {
+                toast({ title: 'Succès', description: 'Votre mot de passe a été mis à jour avec succès ✅' });
+                navigate('/auth');
+            }
+        } catch (err) {
+            toast({ title: 'Erreur', description: err?.message || "Impossible de mettre à jour le mot de passe.", variant: 'destructive' });
+        } finally {
+            setLoading(false);
         }
     };
 
