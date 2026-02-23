@@ -109,7 +109,33 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // 👉 Si une fenêtre cliente est visible, on envoie un message pour afficher un toast in-app
+  // Sinon, on affiche la notification système comme d'habitude.
+  event.waitUntil((async () => {
+    try {
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const hasVisibleClient = Array.isArray(clientList) && clientList.some((c) => {
+        try { return c.visibilityState === 'visible' || c.focused === true; } catch (_) { return false; }
+      });
+
+      if (hasVisibleClient) {
+        for (const client of clientList) {
+          try {
+            client.postMessage({
+              type: 'ok_push_in_app',
+              payload: { title, body, url, icon, image, tag: options.tag },
+            });
+          } catch (_) {}
+        }
+        return; // pas de notification système si l'app est visible
+      }
+
+      return self.registration.showNotification(title, options);
+    } catch (e) {
+      // En cas d'erreur, fallback sur la notif système
+      return self.registration.showNotification(title, options);
+    }
+  })());
 });
 
 // Clic sur la notification (focus/navigate robuste vers l'origine cible)

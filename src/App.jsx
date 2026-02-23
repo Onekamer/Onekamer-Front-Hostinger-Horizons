@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import { Helmet } from 'react-helmet';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
@@ -110,6 +111,7 @@ const AppContent = () => {
   const userId = session?.user?.id;
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const publicPaths = useMemo(() => ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'], []);
   const isPublic = !session && publicPaths.includes(location.pathname);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -141,6 +143,38 @@ const AppContent = () => {
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const handler = (event) => {
+      const data = event?.data;
+      if (!data || typeof data !== 'object') return;
+      if (data.type === 'ok_push_in_app') {
+        const p = data.payload || {};
+        const rawUrl = p.url || '/';
+        let path = '/';
+        try {
+          const u = new URL(rawUrl, window.location.origin);
+          path = u.pathname + (u.search || '');
+        } catch (_) {
+          path = rawUrl;
+        }
+        toast({
+          title: p.title || 'Notification',
+          description: p.body || '',
+          action: (
+            <ToastAction altText="Ouvrir" onClick={() => navigate(path)}>
+              Ouvrir
+            </ToastAction>
+          ),
+        });
+      } else if (data.type === 'ok_push_subscription_changed') {
+        // no-op
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }, [navigate, toast]);
 
   useEffect(() => {
     if (loading) return;
