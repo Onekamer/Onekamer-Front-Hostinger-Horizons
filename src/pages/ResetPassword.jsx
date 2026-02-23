@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
@@ -15,12 +15,30 @@ const ResetPassword = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [hasSession, setHasSession] = useState(true);
+    const [email, setEmail] = useState('');
 
     const navigate = useNavigate();
     const { toast } = useToast();
 
+    useEffect(() => {
+        const check = async () => {
+            try {
+                const { data } = await supabase.auth.getSession();
+                setHasSession(!!data?.session);
+            } catch (_) {
+                setHasSession(false);
+            }
+        };
+        check();
+    }, []);
+
     const handleResetPassword = async (e) => {
         e.preventDefault();
+        if (!hasSession) {
+            setError("Lien expiré. Veuillez renvoyer l'e-mail de réinitialisation ci-dessous.");
+            return;
+        }
         if (password !== confirmPassword) {
             setError('Les mots de passe ne correspondent pas.');
             return;
@@ -43,6 +61,27 @@ const ResetPassword = () => {
         }
     };
 
+    const handleResend = async (e) => {
+        e.preventDefault();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setError('Veuillez saisir un e-mail valide.');
+            return;
+        }
+        setError('');
+        setLoading(true);
+        try {
+            const redirectTo = `${window.location.origin}/reset-password`;
+            const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+            if (err) {
+                toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+            } else {
+                toast({ title: 'E-mail envoyé', description: 'Vérifiez votre boîte mail pour continuer.' });
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <>
             <Helmet>
@@ -53,27 +92,42 @@ const ResetPassword = () => {
                     <CardHeader>
                         <CardTitle>Réinitialiser le mot de passe</CardTitle>
                         <CardDescription>
-                            Entrez votre nouveau mot de passe.
+                            {hasSession ? 'Entrez votre nouveau mot de passe.' : 'Votre lien est invalide ou expiré. Renvoyez un e-mail pour continuer.'}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleResetPassword} className="space-y-4">
-
-                            <div className="space-y-2">
-                                <Label htmlFor="new-password">Nouveau mot de passe</Label>
-                                <Input id="new-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
-                                <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                            </div>
-                            {error && <p className="text-sm text-red-500">{error}</p>}
-                            <Button type="submit" className="w-full" disabled={loading}>
-                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Mettre à jour le mot de passe
-                            </Button>
-                        </form>
-
+                        {hasSession ? (
+                            <form onSubmit={handleResetPassword} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                                    <Input id="new-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                                    <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                                </div>
+                                {error && <p className="text-sm text-red-500">{error}</p>}
+                                <Button type="submit" className="w-full" disabled={loading}>
+                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Mettre à jour le mot de passe
+                                </Button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleResend} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Votre e-mail</Label>
+                                    <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" />
+                                </div>
+                                {error && <p className="text-sm text-red-500">{error}</p>}
+                                <Button type="submit" className="w-full" disabled={loading}>
+                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Renvoyer l’e-mail de réinitialisation
+                                </Button>
+                                <Button type="button" variant="ghost" className="w-full" onClick={() => navigate('/auth')}>
+                                    Revenir à la connexion
+                                </Button>
+                            </form>
+                        )}
                     </CardContent>
                 </Card>
             </div>

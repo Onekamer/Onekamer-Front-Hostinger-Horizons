@@ -68,8 +68,13 @@ const MerciVerification = () => {
 
         handleVerification();
 
+        const fallbackTimer = setTimeout(() => {
+            setStatus((prev) => (prev === 'loading' ? 'error' : prev));
+        }, 12000);
+
         return () => {
             try { sub.data.subscription.unsubscribe(); } catch (_) {}
+            clearTimeout(fallbackTimer);
         };
     }, [navigate]);
 
