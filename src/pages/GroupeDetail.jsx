@@ -674,14 +674,14 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                 .map((m) => m.user_id)
                 .filter((id) => id && id !== user.id);
               if (recipientIds.length) {
-                await notifyGroupMessage({
+                void notifyGroupMessage({
                   recipientIds,
                   actorName: user?.user_metadata?.username || user?.email || 'Un membre',
                   groupName: groupInfo?.groupe_nom,
                   groupId,
                   messageId: inserted?.id,
                   excerpt: 'Message audio',
-                });
+                }).catch(() => {});
               }
             } catch (_) {}
             handleRemoveAudio();
@@ -708,14 +708,14 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                 .map((m) => m.user_id)
                 .filter((id) => id && id !== user.id);
               if (recipientIds.length) {
-                await notifyGroupMessage({
+                void notifyGroupMessage({
                   recipientIds,
                   actorName: user?.user_metadata?.username || user?.email || 'Un membre',
                   groupName: groupInfo?.groupe_nom,
                   groupId,
                   messageId: inserted?.id,
                   excerpt: 'Média partagé',
-                });
+                }).catch(() => {});
               }
             } catch (_) {}
             handleRemoveMedia();
@@ -730,48 +730,55 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
         const currentText = (editableDivRef.current?.innerText || newMessage || '').trim();
         if (!currentText) { setSending(false); return; }
-        const { data: inserted, error } = await supabase
+        const textToSend = currentText;
+        // UI optimiste: vider immédiatement le champ
+        setNewMessage('');
+        if (editableDivRef.current) editableDivRef.current.innerHTML = '';
+        const { error } = await supabase
           .from('messages_groupes')
-          .insert({ groupe_id: groupId, sender_id: user.id, contenu: currentText })
-          .select('id')
-          .single();
+          .insert({ groupe_id: groupId, sender_id: user.id, contenu: textToSend });
         if (error) {
+            // Restaure le texte en cas d'échec
+            setNewMessage(textToSend);
+            if (editableDivRef.current) editableDivRef.current.innerText = textToSend;
             toast({ title: 'Erreur', description: 'Impossible d\'envoyer le message.', variant: 'destructive' });
         } else {
-            setNewMessage('');
-            if (editableDivRef.current) editableDivRef.current.innerHTML = '';
             toast({ title: 'Envoyé', description: 'Message publié.' });
             try {
               const recipientIds = (members || [])
                 .map((m) => m.user_id)
                 .filter((id) => id && id !== user.id);
               if (recipientIds.length) {
-                await notifyGroupMessage({
+                void notifyGroupMessage({
                   recipientIds,
                   actorName: user?.user_metadata?.username || user?.email || 'Un membre',
                   groupName: groupInfo?.groupe_nom,
                   groupId,
-                  messageId: inserted?.id,
-                  excerpt: currentText,
-                });
+                  excerpt: textToSend,
+                }).catch(() => {});
               }
             } catch (_) {}
             try {
-              const usernames = extractUniqueMentions(currentText);
+              const usernames = extractUniqueMentions(textToSend);
               if (usernames.length) {
-                const { data: profs } = await supabase
+                supabase
                   .from('profiles')
                   .select('id, username')
-                  .in('username', usernames);
-                const ids = (profs || []).map((p) => p.id).filter((id) => id && id !== user.id);
-                if (ids.length) {
-                  await notifyGroupMention({
-                    mentionedUserIds: ids,
-                    actorName: user?.user_metadata?.username || user?.email || 'Un membre',
-                    groupId,
-                    messageExcerpt: currentText,
-                  });
-                }
+                  .in('username', usernames)
+                  .then(({ data: profs }) => {
+                    const ids = (profs || []).map((p) => p.id).filter((id) => id && id !== user.id);
+                    if (ids.length) {
+                      return notifyGroupMention({
+                        mentionedUserIds: ids,
+                        actorName: user?.user_metadata?.username || user?.email || 'Un membre',
+                        groupId,
+                        messageExcerpt: textToSend,
+                      });
+                    }
+                    return null;
+                  })
+                  .then(() => {})
+                  .catch(() => {});
               }
             } catch (_) {}
         }
