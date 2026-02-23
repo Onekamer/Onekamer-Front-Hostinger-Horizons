@@ -474,6 +474,12 @@ const CreatePost = () => {
         recorderPromiseRef.current = null;
     };
 
+  const formatRecordingTime = (time) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
   const uploadToBunny = async (file, folder) => {
     console.log('[CreatePost] uploadToBunny start', { name: file?.name, type: file?.type, folder });
     const formData = new FormData();
@@ -736,6 +742,12 @@ const CreatePost = () => {
                     <X className="h-3 w-3" />
                 </Button>
             </div>
+        )}
+        {recording && (
+          <div className="flex items-center gap-2 w-full bg-gray-100 p-2 rounded-lg mb-3">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-sm text-red-500 font-mono">{formatRecordingTime(recordingTime)}</span>
+          </div>
         )}
         
         <div className="flex justify-between items-center mt-2">
