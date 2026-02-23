@@ -96,11 +96,37 @@ const AppLayout = () => {
 
   useEffect(() => {
     if (profile?.is_deleted) {
+      try {
+        const params = new URLSearchParams(window.location.search || '');
+        const fromReactivate = params.get('reactivate') === '1';
+        const flag = typeof window !== 'undefined' ? window.localStorage.getItem('ok_reactivate_requested') === '1' : false;
+
+        if (fromReactivate || flag) {
+          // Tenter une réactivation douce du profil
+          supabase
+            .from('profiles')
+            .update({ is_deleted: false, updated_at: new Date().toISOString() })
+            .eq('id', profile.id)
+            .then(({ error }) => {
+              if (!error) {
+                try { window.localStorage.removeItem('ok_reactivate_requested'); } catch (_) {}
+                toast({ title: 'Compte réactivé', description: 'Bienvenue à nouveau sur OneKamer !' });
+                // Reste sur place; les composants se mettront à jour via le listener sur profile
+              } else {
+                toast({ title: 'Réactivation impossible', description: 'Veuillez contacter le support.', variant: 'destructive' });
+                try { supabase.auth.signOut(); } catch {}
+                navigate('/auth', { replace: true });
+              }
+            });
+          return;
+        }
+      } catch (_) {}
+
       toast({ title: 'Compte supprimé', description: 'Votre compte a été supprimé. Vous pouvez créer un nouveau compte si nécessaire.' });
       try { supabase.auth.signOut(); } catch {}
       navigate('/auth', { replace: true });
     }
-  }, [profile?.is_deleted, navigate, toast]);
+  }, [profile?.is_deleted, profile?.id, navigate, toast]);
 
   return null;
 };

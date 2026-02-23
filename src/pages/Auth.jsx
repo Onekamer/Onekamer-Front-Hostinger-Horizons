@@ -133,6 +133,47 @@ const AuthPage = () => {
           });
         }
       } catch {}
+    } else {
+      // Cas email déjà existant: tenter de distinguer profil supprimé vs compte actif
+      const msg = String(error?.message || '').toLowerCase();
+      const looksExisting = msg.includes('already') || msg.includes('exist');
+      try {
+        if (looksExisting) {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('id,is_deleted')
+            .eq('email', registerEmail)
+            .maybeSingle();
+
+          if (prof?.is_deleted === true) {
+            try { window.localStorage.setItem('ok_reactivate_requested', '1'); } catch (_) {}
+            // Tenter une connexion directe avec le mot de passe saisi pour réactiver automatiquement
+            const { error: loginErr } = await signIn({ email: registerEmail, password: registerPassword });
+            if (!loginErr) {
+              toast({ title: 'Réactivation en cours', description: 'Connexion réussie. Votre compte va être réactivé.' });
+              setLoading(false);
+              navigate('/compte');
+              return;
+            }
+            // Mot de passe inconnu → orienter vers reset
+            toast({ title: 'Compte supprimé détecté', description: 'Votre compte existe (supprimé). Utilisez "Mot de passe oublié" pour le réactiver.', variant: 'destructive' });
+            setShowForgotPassword(true);
+            setLoading(false);
+            return;
+          }
+
+          // Compte actif: guider vers reset mot de passe
+          toast({ title: 'Compte existant', description: 'Cet e-mail est déjà utilisé. Utilisez "Mot de passe oublié" pour accéder à votre compte.' , variant: 'destructive' });
+          setShowForgotPassword(true);
+          setLoading(false);
+          return;
+        }
+      } catch (_) {
+        // ignore et laisser tomber sur gestion générique
+      }
+
+      // Gestion générique des autres erreurs d’inscription
+      toast({ title: 'Inscription impossible', description: error.message || 'Veuillez réessayer plus tard.', variant: 'destructive' });
     }
     setLoading(false);
   };
