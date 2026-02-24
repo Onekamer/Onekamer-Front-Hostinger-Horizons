@@ -1684,6 +1684,9 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             muted={true}
           />
         )}
+        {post.audio_url && (
+          <AudioPlayer src={post.audio_url} initialDuration={post.audio_duration} />
+        )}
         <div className="flex items-center gap-4 text-[#6B6B6B]">
           <button
             className={`flex items-center gap-2 hover:text-[#E0222A] transition-colors ${isLiked ? 'text-[#E0222A]' : ''}`}
