@@ -151,6 +151,19 @@ const Landing = () => {
                 <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
                   S'inscrire
                 </button>
+                {isIOS ? (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    En utilisant OneKamer, vous acceptez
+                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
+                    nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    En utilisant OneKamer, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -169,8 +182,12 @@ const Landing = () => {
                 </ul>
               </div>
               <div className="mt-6">
-                <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
-                  Souscrire au forfait Standard
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]"
+                  disabled={isIOS}
+                >
+                  {isIOS ? 'Bientôt disponible' : 'Souscrire au forfait Standard'}
                 </button>
                 {isIOS ? (
                   <div className="mt-2 text-[11px] text-gray-500">
