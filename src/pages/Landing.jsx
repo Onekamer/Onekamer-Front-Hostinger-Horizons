@@ -1,10 +1,54 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
 import { Link, useNavigate } from 'react-router-dom'
 import { Megaphone, Users, Store, Coins } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
+import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases'
 
 const Landing = () => {
   const navigate = useNavigate()
+  const isIOS = Capacitor.getPlatform() === 'ios'
+  const [vipIosPrice, setVipIosPrice] = useState(null)
+  const [iapVipReady, setIapVipReady] = useState(false)
+  const [iapVipChecked, setIapVipChecked] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    const preload = async () => {
+      try {
+        if (!isIOS) { if (mounted) setIapVipChecked(true); return }
+        const hasFn = typeof NativePurchases?.getProducts === 'function'
+        if (!hasFn) { if (mounted) setIapVipChecked(true); return }
+        const res = await NativePurchases.getProducts({
+          productIdentifiers: ['onekamer_vip_monthly', 'co.onekamer.vip.monthly'],
+          productType: PURCHASE_TYPE.SUBS,
+        })
+        const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : [])
+        const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim()
+        const wanted = new Set(['onekamer_vip_monthly', 'co.onekamer.vip.monthly'])
+        const hasAny = Array.isArray(list) && list.length > 0
+        const foundItem = (list || []).find((p) => wanted.has(getId(p)))
+        const pickPrice = (p) => {
+          if (!p) return null
+          const s = p.localizedPrice || p.priceString || p.price_formatted || p.priceFormatted || p.formattedPrice
+          if (s) return String(s)
+          const val = Number(p.price)
+          const cur = p.currency || p.currencyCode
+          if (Number.isFinite(val) && cur) {
+            try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: String(cur) }).format(val) } catch {}
+            return `${val} ${cur}`
+          }
+          return null
+        }
+        const priceLabel = pickPrice(foundItem) || pickPrice(list?.[0])
+        if (mounted) { setIapVipReady(hasAny || !!foundItem); setIapVipChecked(true); setVipIosPrice(priceLabel || null) }
+      } catch (_) {
+        if (mounted) setIapVipChecked(true)
+      }
+    }
+    preload()
+    return () => { mounted = false }
+  }, [isIOS])
 
   return (
     <div className="min-h-screen bg-white text-black">
@@ -128,6 +172,23 @@ const Landing = () => {
                 <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
                   Souscrire au forfait Standard
                 </button>
+                {isIOS ? (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Abonnement auto-renouvelable, sans engagement, résiliable à tout moment.
+                    <br />
+                    En appuyant sur le bouton, vous acceptez
+                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
+                    nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Abonnement mensuel sans engagement, résiliable à tout moment.
+                    <br />
+                    En poursuivant, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -141,7 +202,7 @@ const Landing = () => {
               </h3>
               <p className="text-sm italic text-gray-600 mt-1">À peine le prix de deux courses en moto-taxi.</p>
               <div className="mt-3 flex-1">
-                <div className="text-3xl font-extrabold">5€ <span className="text-base font-normal">/ mois</span></div>
+                <div className="text-3xl font-extrabold">{isIOS ? (vipIosPrice || '—') : '5€'} <span className="text-base font-normal">/ mois</span></div>
                 <ul className="mt-4 space-y-2 text-gray-700 text-sm">
                   <li>✅ Tout du plan Standard</li>
                   <li>❤️ Accès complet à la section Rencontre</li>
@@ -157,6 +218,23 @@ const Landing = () => {
                 <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
                   Devenir membre VIP
                 </button>
+                {isIOS ? (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Abonnement auto-renouvelable, sans engagement, résiliable à tout moment.
+                    <br />
+                    En appuyant sur le bouton, vous acceptez
+                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
+                    nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Abonnement mensuel sans engagement, résiliable à tout moment.
+                    <br />
+                    En poursuivant, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                  </div>
+                )}
               </div>
             </div>
           </div>
