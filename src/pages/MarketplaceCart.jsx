@@ -150,6 +150,9 @@ const MarketplaceCart = () => {
       return;
     }
 
+    // Mémoriser l'acceptation pour la page de paiement
+    try { window.localStorage.setItem('ok_market_buyer_terms_accepted', '1'); } catch (_) {}
+
     setPayLoading(true);
     try {
       const createRes = await fetch(`${apiBaseUrl}/api/market/orders`, {

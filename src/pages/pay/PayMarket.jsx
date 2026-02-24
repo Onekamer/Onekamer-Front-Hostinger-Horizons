@@ -74,6 +74,18 @@ export default function PayMarket() {
   const [shipCountry, setShipCountry] = useState('');
   const [acceptBuyerTerms, setAcceptBuyerTerms] = useState(false);
 
+  // Pré-cocher la charte si acceptée sur l'étape Panier
+  useEffect(() => {
+    try {
+      const flag = window.localStorage.getItem('ok_market_buyer_terms_accepted');
+      if (flag === '1') {
+        setAcceptBuyerTerms(true);
+        // Nettoyer pour éviter l'effet collant si l'utilisateur revient plus tard
+        window.localStorage.removeItem('ok_market_buyer_terms_accepted');
+      }
+    } catch (_) {}
+  }, []);
+
   useEffect(() => {
     const run = async () => {
       try {
@@ -125,9 +137,18 @@ export default function PayMarket() {
 
   const prePay = useMemo(() => {
     return async () => {
-      if (!acceptBuyerTerms) {
-        throw new Error('Vous devez accepter la charte acheteur pour continuer.');
-      }
+      // Vérifie aussi un éventuel flag persistant depuis la page Panier
+      let accepted = acceptBuyerTerms;
+      try {
+        if (!accepted) {
+          accepted = window.localStorage.getItem('ok_market_buyer_terms_accepted') === '1';
+          if (accepted) {
+            setAcceptBuyerTerms(true);
+            window.localStorage.removeItem('ok_market_buyer_terms_accepted');
+          }
+        }
+      } catch (_) {}
+      if (!accepted) throw new Error('Vous devez accepter la charte acheteur pour continuer.');
       const mode = String(deliveryMode || '').toLowerCase();
       if (mode && mode !== 'pickup') {
         const required = [shipFirstName, shipLastName, shipEmail, shipPhone, shipAddress1, shipPostalCode, shipCity, shipCountry];
@@ -171,6 +192,7 @@ export default function PayMarket() {
         if (!res.ok) {
           throw new Error(data?.error || 'buyer_terms_required');
         }
+        try { window.localStorage.removeItem('ok_market_buyer_terms_accepted'); } catch (_) {}
       } catch (e) {
         throw new Error(e?.message || 'buyer_terms_required');
       }
