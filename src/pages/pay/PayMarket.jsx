@@ -104,6 +104,7 @@ export default function PayMarket() {
           });
           if (termsRes.ok) {
             try { window.localStorage.removeItem('ok_market_buyer_terms_accepted'); } catch {}
+            setAcceptBuyerTerms(true);
           }
         } catch {}
 
@@ -304,16 +305,19 @@ export default function PayMarket() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Paiement Marketplace</CardTitle>
+            <CardTitle>{order?.partner_display_name ? `Payer ${order.partner_display_name}` : 'Paiement Marketplace'}</CardTitle>
           </CardHeader>
           <CardContent>
             {order && (
               <div className="mb-3 text-sm text-gray-600 space-y-1">
+                {order?.partner_display_name ? (
+                  <div>Panier: {order.partner_display_name}</div>
+                ) : null}
                 <div>
                   Total: {Intl.NumberFormat('fr-FR', { style: 'currency', currency: (order.currency || 'eur').toUpperCase() }).format((Number(order.amount || 0) / 100))}
                 </div>
                 <div>
-                  Frais plateforme: {Intl.NumberFormat('fr-FR', { style: 'currency', currency: (order.currency || 'eur').toUpperCase() }).format((Number(order.platform_fee || 0) / 100))}
+                  Frais de service OneKamer (10%) inclus: {Intl.NumberFormat('fr-FR', { style: 'currency', currency: (order.currency || 'eur').toUpperCase() }).format((Number(order.platform_fee || 0) / 100))}
                 </div>
                 <div>
                   Part partenaire: {Intl.NumberFormat('fr-FR', { style: 'currency', currency: (order.currency || 'eur').toUpperCase() }).format((Number(order.partner_amount || 0) / 100))}
@@ -353,17 +357,6 @@ export default function PayMarket() {
             )}
             {stripePromise && clientSecret && (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <div className="flex items-start gap-2 mb-3">
-                  <input
-                    id="buyer_terms"
-                    type="checkbox"
-                    checked={acceptBuyerTerms}
-                    onChange={(e) => setAcceptBuyerTerms(e.target.checked)}
-                  />
-                  <label htmlFor="buyer_terms" className="text-xs text-gray-700">
-                    J’accepte la charte acheteur du Marketplace
-                  </label>
-                </div>
                 <PayForm
                   clientSecret={clientSecret}
                   onPrePay={async () => {

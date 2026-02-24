@@ -198,6 +198,9 @@ const Marketplace = () => {
   };
 
   const RATINGS_LIMIT = 20;
+  const activeRatingsPartner = useMemo(() => {
+    return (partners || []).find((p) => String(p?.id) === String(activeRatingsPartnerId)) || null;
+  }, [partners, activeRatingsPartnerId]);
   const openRatingsDialog = async (partnerId) => {
     setActiveRatingsPartnerId(String(partnerId));
     setRatingsList([]);
@@ -357,7 +360,7 @@ const Marketplace = () => {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Avis de la boutique</DialogTitle>
+                            <DialogTitle>{activeRatingsPartner?.display_name ? `Avis sur ${activeRatingsPartner.display_name}` : 'Avis de la boutique'}</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-3 max-h-[70vh] overflow-y-auto">
                             {ratingsList.length === 0 ? (
