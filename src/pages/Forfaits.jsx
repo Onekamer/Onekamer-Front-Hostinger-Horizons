@@ -303,7 +303,7 @@ const Forfaits = () => {
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-between space-y-4">
                 <div>
-                  <p className="text-3xl font-bold">{isIOS && plan.key === 'vip' ? (vipIosPrice || '6,49€') : plan.price} <span className="text-sm font-normal">/ mois</span></p>
+                  <p className="text-3xl font-bold">{isIOS && plan.key === 'vip' ? (vipIosPrice || '—') : plan.price} <span className="text-sm font-normal">/ mois</span></p>
                   <ul className="space-y-2 text-sm mt-4">
                     {plan.features?.map(feat => <li key={feat} className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> {feat}</li>)}
                     {plan.nonFeatures?.map(feat => <li key={feat} className="flex items-center"><XCircle className="h-4 w-4 mr-2 text-red-500" /> {feat}</li>)}
@@ -324,7 +324,8 @@ const Forfaits = () => {
                   disabled={
                     loadingPlan === plan.key ||
                     isCurrentPlan ||
-                    (isIOS && plan.key === 'standard')
+                    (isIOS && plan.key === 'standard') ||
+                    (isIOS && plan.key === 'vip' && (!vipIosPrice || !iapVipReady))
                   }
                 >
                   {loadingPlan === plan.key ? <Loader2 className="h-4 w-4 animate-spin" /> :

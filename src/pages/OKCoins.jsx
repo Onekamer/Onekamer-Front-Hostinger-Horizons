@@ -533,7 +533,7 @@ const OKCoins = () => {
                            🪙
                         </div>
                         <div className="font-bold text-lg">{isIosPack(pack)
-                          ? (okcIosPrice || '11,99€')
+                          ? (okcIosPrice || '—')
                           : (!isIOS && Number(pack?.coins) === IOS_OKC_COINS ? '11,99€' : `${pack.price_eur}€`)}</div>
                         <div className="text-sm text-[#6B6B6B] mb-2">{pack.coins.toLocaleString()} pièces</div>
                         <div className="text-xs text-[#2BA84A] font-semibold">+{pack.points} points</div>
@@ -544,7 +544,8 @@ const OKCoins = () => {
                         onClick={() => handleBuyPack(pack)}
                         disabled={
                           buyingPackId === pack.id ||
-                          (isIOS && !isIosPack(pack))
+                          (isIOS && !isIosPack(pack)) ||
+                          (isIOS && isIosPack(pack) && (!okcIosPrice || !iapOkcReady))
                         }
                       >
                         {buyingPackId === pack.id
