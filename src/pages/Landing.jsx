@@ -141,12 +141,13 @@ const Landing = () => {
               <div className="mt-3 flex-1">
                 <div className="text-3xl font-extrabold">0€ <span className="text-base font-normal">/ mois</span></div>
                 <ul className="mt-4 space-y-2 text-gray-700 text-sm">
-                  <li>📰 Accès aux Annonces (lecture)</li>
-                  <li>🎟️ Accès aux Événements (lecture)</li>
-                  <li>💬 Accès aux Échanges (lecture + commentaires)</li>
+                  <li>📰 Accès aux Annonces</li>
+                  <li>🎟️ Accès aux Événements</li>
+                  <li>💬 Accès aux Échanges</li>
                   <li>🗞️ Accès aux Faits divers</li>
-                  <li>👥 Accès aux Groupes (lecture)</li>
+                  <li>👥 Accès aux Groupes</li>
                   <li>📱 Accès au QR Code pour les événements</li>
+                  <li>🛒 Accès Marketplace : création d'une boutique + achat</li>
                 </ul>
               </div>
               <div className="mt-6">
@@ -179,8 +180,6 @@ const Landing = () => {
                 <ul className="mt-4 space-y-2 text-gray-700 text-sm">
                   <li>✅ Tout du plan Gratuit</li>
                   <li>🏢 Accès aux Partenaires & Recommandations</li>
-                  <li>🏷️ Badge Standard sur le profil</li>
-                  <li>📱 Accès au QR Code pour les événements</li>
                 </ul>
               </div>
               <div className="mt-6">
@@ -219,12 +218,10 @@ const Landing = () => {
                 <div className="text-3xl font-extrabold">{isIOS ? (vipIosPrice || '—') : '5€'} <span className="text-base font-normal">/ mois</span></div>
                 <ul className="mt-4 space-y-2 text-gray-700 text-sm">
                   <li>✅ Tout du plan Standard</li>
-                  <li>❤️ Accès complet à la section Rencontre</li>
+                  <li>❤️ Accès complet à la section Rencontres</li>
                   <li>✍️ Création d’annonces</li>
                   <li>🎉 Création d’événements</li>
                   <li>👨‍👩‍👧‍👦 Création de groupes</li>
-                  <li>📱 Accès au QR Code pour les événements</li>
-                  <li>💎 Badge VIP sur le profil</li>
                 </ul>
               </div>
               <div className="mt-6">
