@@ -157,6 +157,8 @@ export default function PayMarket() {
           const detail = await detailRes.json().catch(() => ({}));
           if (detailRes.ok && detail?.order) {
             setDeliveryMode(String(detail.order.delivery_mode || '').toLowerCase() || null);
+            // injecter le nom de la boutique dans l'état order pour l'affichage
+            setOrder((prev) => ({ ...(prev || {}), partner_display_name: detail.order.partner_display_name || null }));
           }
         } catch {}
       } catch (e) {

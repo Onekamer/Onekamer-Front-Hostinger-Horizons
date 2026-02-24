@@ -38,6 +38,7 @@ const MarketplaceCart = () => {
   const [customerNote, setCustomerNote] = useState('');
   const [acceptBuyerTerms, setAcceptBuyerTerms] = useState(false);
   const [showBuyerCharte, setShowBuyerCharte] = useState(false);
+  const [partnerName, setPartnerName] = useState(null);
 
   const cartCount = useMemo(() => getMarketplaceCartCount(cart), [cart]);
 
@@ -98,6 +99,25 @@ const MarketplaceCart = () => {
     };
     fetchShipping();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart?.partnerId, apiBaseUrl]);
+
+  // Charger le nom de la boutique pour l'afficher dans le titre du panier
+  useEffect(() => {
+    const loadPartnerName = async () => {
+      try {
+        const pid = cart?.partnerId ? String(cart.partnerId) : null;
+        if (!pid) { setPartnerName(null); return; }
+        const res = await fetch(`${apiBaseUrl}/api/market/partners`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { setPartnerName(null); return; }
+        const list = Array.isArray(data?.partners) ? data.partners : [];
+        const found = list.find((p) => String(p?.id) === pid);
+        setPartnerName(found?.display_name || null);
+      } catch {
+        setPartnerName(null);
+      }
+    };
+    loadPartnerName();
   }, [cart?.partnerId, apiBaseUrl]);
 
   const syncCartToServer = async (nextCart) => {
@@ -216,7 +236,7 @@ const MarketplaceCart = () => {
 
         <Card>
           <CardHeader className="p-4">
-            <CardTitle className="text-base">Panier</CardTitle>
+            <CardTitle className="text-base">{partnerName ? `Panier : ${partnerName}` : 'Panier'}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 space-y-3">
             {!cart?.items?.length ? (
