@@ -575,17 +575,18 @@ const CreatePost = () => {
           const { publicUrl: audioUrl } = await uploadAudioFile(audioFile, 'comments_audio');
 
           const normalizedDuration = Math.max(1, Math.round(audioDuration || recordingTime || 1));
-          const { data: insertedComment, error: insertError } = await supabase
-            .from("comments")
-            .insert({
-              type: "audio",
-              audio_url: audioUrl,
-              user_id: user?.id,
-              content_type: "echange",
-              content: currentPostText || "",
-              created_at: new Date(),
-              audio_duration: normalizedDuration,
-            })
+          const { data: insertedPost, error: insertError } = await supabase
+            .from('posts')
+            .insert([
+              {
+                user_id: user.id,
+                content: currentPostText || '',
+                likes_count: 0,
+                comments_count: 0,
+                audio_url: audioUrl,
+                audio_duration: normalizedDuration,
+              },
+            ])
             .select()
             .single();
           if (insertError) throw insertError;
@@ -596,7 +597,7 @@ const CreatePost = () => {
                 mentionedUserIds: mentionProfiles.map((m) => m.id),
                 authorName: profile?.username || user?.email || 'Un membre OneKamer',
                 excerpt: currentPostText,
-                postId: insertedComment?.id,
+                postId: insertedPost?.id,
                 preview: { text80: currentPostText || '', mediaType: 'audio' },
               });
             } catch (notificationError) {
@@ -695,7 +696,7 @@ const CreatePost = () => {
         <div className="relative mb-3">
           <div
             ref={editableDivRef}
-            contentEditable={!loading && !recording}
+            contentEditable={!loading}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             onBlur={highlightExistingMentions}
