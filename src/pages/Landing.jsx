@@ -4,9 +4,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Megaphone, Users, Store, Coins } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases'
+import { useAuth } from '@/contexts/SupabaseAuthContext'
 
 const Landing = () => {
   const navigate = useNavigate()
+  const { session } = useAuth()
   const isIOS = Capacitor.getPlatform() === 'ios'
   const [vipIosPrice, setVipIosPrice] = useState(null)
   const [iapVipReady, setIapVipReady] = useState(false)
@@ -211,12 +213,7 @@ const Landing = () => {
 
             {/* VIP */}
             <div className="relative rounded-xl border border-gray-200 bg-white p-6 flex flex-col h-full shadow-sm">
-              <h3 className="text-lg font-semibold flex items-center justify-between">
-                <span>VIP</span>
-                <span className="ml-4 px-4 py-1.5 rounded-full text-sm font-semibold bg-[#2BA84A] text-white">
-                  1 mois d'essai gratuit
-                </span>
-              </h3>
+              <h3 className="text-lg font-semibold">VIP</h3>
               <p className="text-sm italic text-gray-600 mt-1">À peine le prix de deux courses en moto-taxi.</p>
               <div className="mt-3 flex-1">
                 <div className="text-3xl font-extrabold">{isIOS ? (vipIosPrice || '—') : '5€'} <span className="text-base font-normal">/ mois</span></div>
@@ -228,11 +225,19 @@ const Landing = () => {
                   <li>👨‍👩‍👧‍👦 Création de groupes</li>
                   <li>📱 Accès au QR Code pour les événements</li>
                   <li>💎 Badge VIP sur le profil</li>
-                  <li>🆓 1 mois d'essai gratuit</li>
                 </ul>
               </div>
               <div className="mt-6">
-                <button onClick={() => navigate('/auth')} className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]">
+                <button
+                  onClick={() => {
+                    if (session) {
+                      navigate('/forfaits')
+                    } else {
+                      navigate('/auth?next=%2Fforfaits')
+                    }
+                  }}
+                  className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]"
+                >
                   Devenir membre VIP
                 </button>
                 {isIOS ? (
