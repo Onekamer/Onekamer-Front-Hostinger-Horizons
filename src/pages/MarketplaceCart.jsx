@@ -173,6 +173,21 @@ const MarketplaceCart = () => {
       const orderId = createData?.orderId;
       if (!orderId) throw new Error('orderId manquant');
 
+      // Enregistrer l'acceptation de la charte au niveau de la commande
+      try {
+        const acceptRes = await fetch(`${apiBaseUrl}/api/market/orders/${encodeURIComponent(orderId)}/terms/buyer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        // nettoyage du flag local si succès
+        if (acceptRes.ok) {
+          try { window.localStorage.removeItem('ok_market_buyer_terms_accepted'); } catch (_) {}
+        }
+      } catch (_) {}
+
       navigate(`/pay/market/${encodeURIComponent(orderId)}`);
     } catch (e) {
       toast({

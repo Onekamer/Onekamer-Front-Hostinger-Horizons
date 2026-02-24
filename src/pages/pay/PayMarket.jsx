@@ -80,8 +80,6 @@ export default function PayMarket() {
       const flag = window.localStorage.getItem('ok_market_buyer_terms_accepted');
       if (flag === '1') {
         setAcceptBuyerTerms(true);
-        // Nettoyer pour éviter l'effet collant si l'utilisateur revient plus tard
-        window.localStorage.removeItem('ok_market_buyer_terms_accepted');
       }
     } catch (_) {}
   }, []);
@@ -95,7 +93,21 @@ export default function PayMarket() {
         if (!keyRes.ok || !keyData?.publishableKey) throw new Error('Clé Stripe manquante');
         setPk(keyData.publishableKey);
 
-        const res = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/intent`, {
+        // Enregistrer l'acceptation de la charte au niveau de la commande avant de créer l'intent
+        try {
+          const termsRes = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/terms/buyer`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+          });
+          if (termsRes.ok) {
+            try { window.localStorage.removeItem('ok_market_buyer_terms_accepted'); } catch {}
+          }
+        } catch {}
+
+        let res = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/intent`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -103,7 +115,29 @@ export default function PayMarket() {
           },
           body: JSON.stringify({}),
         });
-        const data = await res.json().catch(() => ({}));
+        let data = await res.json().catch(() => ({}));
+        if (!res.ok && data?.error === 'buyer_terms_required') {
+          try {
+            const termsRes = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/terms/buyer`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+              },
+            });
+            if (termsRes.ok) {
+              res = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/intent`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                },
+                body: JSON.stringify({}),
+              });
+              data = await res.json().catch(() => ({}));
+            }
+          } catch {}
+        }
         if (!res.ok || !data?.clientSecret) {
           setInitError(data?.error || 'Erreur création paiement');
           return;
@@ -134,6 +168,43 @@ export default function PayMarket() {
   }, [orderId, session?.access_token]);
 
   const stripePromise = useMemo(() => (pk ? loadStripe(pk) : null), [pk]);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        if (!API_PREFIX) return;
+        if (!orderId) return;
+        if (!acceptBuyerTerms) return;
+        const res = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/terms/buyer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+        });
+        if (res.ok) {
+          try { window.localStorage.removeItem('ok_market_buyer_terms_accepted'); } catch {}
+          if (!clientSecret) {
+            const r = await fetch(`${API_PREFIX}/market/orders/${encodeURIComponent(orderId)}/intent`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+              },
+              body: JSON.stringify({}),
+            });
+            const d = await r.json().catch(() => ({}));
+            if (r.ok && d?.clientSecret) {
+              setClientSecret(d.clientSecret);
+              setOrder(d.order || null);
+              setInitError(null);
+            }
+          }
+        }
+      } catch {}
+    };
+    run();
+  }, [acceptBuyerTerms, orderId, session?.access_token]);
 
   const prePay = useMemo(() => {
     return async () => {
