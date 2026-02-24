@@ -21,6 +21,7 @@ const Forfaits = () => {
   const [subInfo, setSubInfo] = useState(null);
   const [iapVipReady, setIapVipReady] = useState(false);
   const [iapVipChecked, setIapVipChecked] = useState(false);
+  const [vipIosPrice, setVipIosPrice] = useState(null);
 
   useEffect(() => {
     const run = async () => {
@@ -54,10 +55,25 @@ const Forfaits = () => {
         const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
         const wanted = new Set(['onekamer_vip_monthly', 'co.onekamer.vip.monthly']);
         const hasAny = Array.isArray(list) && list.length > 0;
-        const foundWanted = (list || []).some((p) => wanted.has(getId(p)));
+        const foundItem = (list || []).find((p) => wanted.has(getId(p)));
+        let priceLabel = null;
+        const pickPrice = (p) => {
+          if (!p) return null;
+          const s = p.localizedPrice || p.priceString || p.price_formatted || p.priceFormatted || p.formattedPrice;
+          if (s) return String(s);
+          const val = Number(p.price);
+          const cur = p.currency || p.currencyCode;
+          if (Number.isFinite(val) && cur) {
+            try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: String(cur) }).format(val); } catch {}
+            return `${val} ${cur}`;
+          }
+          return null;
+        };
+        priceLabel = pickPrice(foundItem) || pickPrice(list?.[0]);
         if (mounted) {
-          setIapVipReady(hasAny || foundWanted);
+          setIapVipReady(hasAny || !!foundItem);
           setIapVipChecked(true);
+          setVipIosPrice(priceLabel || null);
           if (!hasAny) {
             // eslint-disable-next-line no-console
             console.log('[IAP] preload getProducts result:', list);
@@ -287,7 +303,7 @@ const Forfaits = () => {
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-between space-y-4">
                 <div>
-                  <p className="text-3xl font-bold">{isIOS && plan.key === 'vip' ? '6,49€' : plan.price} <span className="text-sm font-normal">/ mois</span></p>
+                  <p className="text-3xl font-bold">{isIOS && plan.key === 'vip' ? (vipIosPrice || '6,49€') : plan.price} <span className="text-sm font-normal">/ mois</span></p>
                   <ul className="space-y-2 text-sm mt-4">
                     {plan.features?.map(feat => <li key={feat} className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> {feat}</li>)}
                     {plan.nonFeatures?.map(feat => <li key={feat} className="flex items-center"><XCircle className="h-4 w-4 mr-2 text-red-500" /> {feat}</li>)}

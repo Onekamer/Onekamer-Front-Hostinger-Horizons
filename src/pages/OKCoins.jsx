@@ -43,6 +43,7 @@ const OKCoins = () => {
   const isIOS = Capacitor.getPlatform() === 'ios';
   const [iapOkcReady, setIapOkcReady] = useState(false);
   const [iapOkcChecked, setIapOkcChecked] = useState(false);
+  const [okcIosPrice, setOkcIosPrice] = useState(null);
   
   const [receiverSuggestions, setReceiverSuggestions] = useState([]);
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
@@ -148,7 +149,22 @@ const OKCoins = () => {
         });
         const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
         const ok = (list || []).some((p) => String(p?.productId || p?.productIdentifier) === 'co.onekamer.okcoins.pack10');
-        if (mounted) { setIapOkcReady(!!ok); setIapOkcChecked(true); }
+        let priceLabel = null;
+        const pickPrice = (p) => {
+          if (!p) return null;
+          const s = p.localizedPrice || p.priceString || p.price_formatted || p.priceFormatted || p.formattedPrice;
+          if (s) return String(s);
+          const val = Number(p.price);
+          const cur = p.currency || p.currencyCode;
+          if (Number.isFinite(val) && cur) {
+            try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: String(cur) }).format(val); } catch {}
+            return `${val} ${cur}`;
+          }
+          return null;
+        };
+        const found = (list || []).find((p) => String(p?.productId || p?.productIdentifier) === 'co.onekamer.okcoins.pack10');
+        priceLabel = pickPrice(found) || pickPrice(list?.[0]);
+        if (mounted) { setIapOkcReady(!!ok); setIapOkcChecked(true); setOkcIosPrice(priceLabel || null); }
       } catch {
         if (mounted) setIapOkcChecked(true);
       }
@@ -516,7 +532,9 @@ const OKCoins = () => {
                         <div className={`text-3xl mb-2 ${coinColorClass}`}>
                            🪙
                         </div>
-                        <div className="font-bold text-lg">{isIosPack(pack) ? '11,99€' : `${pack.price_eur}€`}</div>
+                        <div className="font-bold text-lg">{isIosPack(pack)
+                          ? (okcIosPrice || '11,99€')
+                          : (!isIOS && Number(pack?.coins) === IOS_OKC_COINS ? '11,99€' : `${pack.price_eur}€`)}</div>
                         <div className="text-sm text-[#6B6B6B] mb-2">{pack.coins.toLocaleString()} pièces</div>
                         <div className="text-xs text-[#2BA84A] font-semibold">+{pack.points} points</div>
                       </div>
