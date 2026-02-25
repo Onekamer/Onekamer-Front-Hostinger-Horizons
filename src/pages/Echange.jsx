@@ -1665,7 +1665,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           <img 
             src={imageUrl} 
             alt="Post media" 
-            className="rounded-lg w-full max-h-96 md:max-h-[420px] object-cover mb-4" 
+            className="rounded-lg w-full max-h-64 md:max-h-80 object-cover mb-4" 
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src="https://onekamer-media-cdn.b-cdn.net/posts/default_post_image.png";
@@ -1675,7 +1675,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
         {videoUrl && (
           <VideoPlayer
             src={videoUrl}
-            className="rounded-lg w-full max-h-96 md:max-h-[420px] mb-4 overflow-hidden"
+            className="rounded-lg w-full max-h-64 md:max-h-80 mb-4 overflow-hidden"
             autoPlayOnView={true}
             loop={true}
             controls={true}
@@ -2881,9 +2881,9 @@ const Echange = () => {
                       ) : null}
                       {spMediaFile ? (
                         spMediaFile.type?.startsWith('image') ? (
-                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-72 md:max-h-96 rounded-md object-cover" />
+                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-48 md:max-h-64 rounded-md object-cover" />
                         ) : (
-                          <video src={spMediaPreviewUrl || ''} className="w-full max-h-72 md:max-h-96 rounded-md" controls playsInline />
+                          <video src={spMediaPreviewUrl || ''} className="w-full max-h-48 md:max-h-64 rounded-md" controls playsInline />
                         )
                       ) : null}
                     </CardContent>
