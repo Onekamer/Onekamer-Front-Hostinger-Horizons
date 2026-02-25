@@ -2165,7 +2165,10 @@ const Echange = () => {
   const [sponsorOpen, setSponsorOpen] = useState(false);
   const [spTitle, setSpTitle] = useState('');
   const [spBody, setSpBody] = useState('');
-  const [spImageUrl, setSpImageUrl] = useState('');
+  const [spMediaFile, setSpMediaFile] = useState(null);
+  const [spMediaPreviewUrl, setSpMediaPreviewUrl] = useState(null);
+  const [spAudioFile, setSpAudioFile] = useState(null);
+  const [spAudioPreviewUrl, setSpAudioPreviewUrl] = useState(null);
   const [spPlanId, setSpPlanId] = useState('');
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
@@ -2208,7 +2211,19 @@ const Echange = () => {
     setSpSubmitting(true);
     try {
       const body = spBody ? String(spBody) : null;
-      const media = spImageUrl ? { image_url: String(spImageUrl) } : null;
+      let media = null;
+      if (spMediaFile) {
+        const url = await uploadToBunny(spMediaFile, "sponsored");
+        if (spMediaFile.type && spMediaFile.type.startsWith('image')) {
+          media = { ...(media || {}), image_url: url, image_mime: spMediaFile.type };
+        } else if (spMediaFile.type && spMediaFile.type.startsWith('video')) {
+          media = { ...(media || {}), video_url: url, video_mime: spMediaFile.type };
+        }
+      }
+      if (spAudioFile) {
+        const aUrl = await uploadToBunny(spAudioFile, "sponsored");
+        media = { ...(media || {}), audio_url: aUrl, audio_mime: spAudioFile.type };
+      }
       const res = await fetch(`${API_PREFIX}/sponsor/posts`, {
         method: 'POST',
         headers: {
@@ -2221,7 +2236,8 @@ const Echange = () => {
       if (!res.ok) throw new Error(data?.error || 'Création impossible');
       toast({ title: 'Envoyé', description: 'Votre post sponsorisé est en attente d’approbation.' });
       setSponsorOpen(false);
-      setSpTitle(''); setSpBody(''); setSpImageUrl(''); setSpPlanId('');
+      setSpTitle(''); setSpBody(''); setSpPlanId('');
+      setSpMediaFile(null); setSpMediaPreviewUrl(null); setSpAudioFile(null); setSpAudioPreviewUrl(null);
     } catch (e) {
       toast({ title: 'Erreur', description: e?.message || 'Soumission échouée', variant: 'destructive' });
     } finally {
@@ -2784,8 +2800,53 @@ const Echange = () => {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="sp_image">Image URL (optionnel)</Label>
-                <Input id="sp_image" value={spImageUrl} onChange={(e) => setSpImageUrl(e.target.value)} placeholder="https://..." />
+                <Label>Média (image/vidéo)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={(e) => {
+                      const f = e.target.files && e.target.files[0];
+                      if (f) {
+                        setSpMediaFile(f);
+                        try { setSpMediaPreviewUrl(URL.createObjectURL(f)); } catch (_) { setSpMediaPreviewUrl(null); }
+                      }
+                    }}
+                  />
+                  {spMediaFile ? (
+                    spMediaFile.type?.startsWith('image') ? (
+                      <img src={spMediaPreviewUrl || ''} alt="aperçu" className="h-12 w-12 rounded object-cover" />
+                    ) : (
+                      <span className="text-xs text-gray-500">Vidéo sélectionnée</span>
+                    )
+                  ) : null}
+                  {spMediaFile ? (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setSpMediaFile(null); setSpMediaPreviewUrl(null); }}>Retirer</Button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Audio (optionnel)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => {
+                      const f = e.target.files && e.target.files[0];
+                      if (f) {
+                        setSpAudioFile(f);
+                        try { setSpAudioPreviewUrl(URL.createObjectURL(f)); } catch (_) { setSpAudioPreviewUrl(null); }
+                      }
+                    }}
+                  />
+                  {spAudioFile ? (
+                    <audio src={spAudioPreviewUrl || ''} controls className="h-8" />
+                  ) : null}
+                  {spAudioFile ? (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setSpAudioFile(null); setSpAudioPreviewUrl(null); }}>Retirer</Button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="space-y-1">
