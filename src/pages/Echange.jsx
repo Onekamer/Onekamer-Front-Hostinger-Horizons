@@ -2861,7 +2861,31 @@ const Echange = () => {
                 </div>
               </div>
 
-              
+              {(spTitle?.trim() || spBody?.trim() || spMediaFile) ? (
+                <div className="space-y-1">
+                  <Label>Aperçu</Label>
+                  <Card>
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs rounded-full px-2 py-0.5 bg-yellow-100 text-yellow-800">Sponsorisé</span>
+                      </div>
+                      {spTitle?.trim() ? (
+                        <div className="text-sm font-semibold">{spTitle}</div>
+                      ) : null}
+                      {spBody?.trim() ? (
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap">{spBody}</div>
+                      ) : null}
+                      {spMediaFile ? (
+                        spMediaFile.type?.startsWith('image') ? (
+                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full rounded-md object-cover" />
+                        ) : (
+                          <video src={spMediaPreviewUrl || ''} className="w-full rounded-md" controls playsInline />
+                        )
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : null}
 
               <div className="space-y-1">
                 <Label>Forfait</Label>
