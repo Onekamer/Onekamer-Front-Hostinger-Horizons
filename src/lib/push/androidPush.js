@@ -82,6 +82,21 @@ export async function androidPush(userId) {
         }
       } catch (_) {}
     });
+    
+    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+      try {
+        const data = action?.notification?.data || {};
+        const rawUrl = (data && (data.url || data.link)) || "/";
+        let path = "/";
+        try {
+          const u = new URL(rawUrl, typeof window !== "undefined" ? window.location.origin : "https://onekamer.co");
+          path = (u.pathname || "/") + (u.search || "") + (u.hash || "");
+        } catch (_) {}
+        if (typeof window !== "undefined") {
+          window.location.href = path;
+        }
+      } catch (_) {}
+    });
   }
 
   const perm = await PushNotifications.requestPermissions();

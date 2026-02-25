@@ -146,23 +146,30 @@ self.addEventListener('notificationclick', (event) => {
   try {
     target = new URL(raw, self.location.origin).href;
   } catch (_) {}
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      const targetOrigin = new URL(target).origin;
-      for (const client of clientList) {
-        try {
-          const clientOrigin = new URL(client.url).origin;
-          if (clientOrigin === targetOrigin) {
-            if ('focus' in client) client.focus();
-            if ('navigate' in client) client.navigate(target);
-            return true;
-          }
-        } catch (_) {}
-      }
-      if (self.clients.openWindow) return self.clients.openWindow(target);
-      return false;
-    })
-  );
+  event.waitUntil((async () => {
+    let targetUrl;
+    try {
+      targetUrl = new URL(raw, self.location.origin);
+    } catch (_) {
+      try { targetUrl = new URL('https://onekamer.co/'); }
+      catch (_) { return false; }
+    }
+    const pathOnly = targetUrl.pathname + (targetUrl.search || '') + (targetUrl.hash || '');
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const targetOrigin = targetUrl.origin;
+    for (const client of clientList) {
+      try {
+        const clientOrigin = new URL(client.url).origin;
+        if (clientOrigin === targetOrigin) {
+          if ('focus' in client) await client.focus();
+          if ('navigate' in client) return client.navigate(pathOnly);
+          return true;
+        }
+      } catch (_) {}
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(targetUrl.href);
+    return false;
+  })());
 });
 
 // Renouvellement d'abonnement push: notifie l'app de relancer subscribeForPush

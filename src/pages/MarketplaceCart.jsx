@@ -348,7 +348,7 @@ const MarketplaceCart = () => {
                 value={customerNote}
                 onChange={(e) => setCustomerNote(e.target.value)}
                 placeholder="Ex: précisions de taille, remise en main propre, etc. (optionnel)"
-                className="w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm min-h-[80px]"
+                className="w-full rounded-md border border-[#2BA84A]/30 bg-white px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-[#2BA84A] focus:border-[#2BA84A]"
               />
             </div>
 
