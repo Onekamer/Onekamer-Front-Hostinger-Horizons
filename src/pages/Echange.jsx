@@ -2229,6 +2229,52 @@ const Echange = () => {
     }
   };
 
+  // Mes posts sponsorisés (liste + paiement draft)
+  const [mySpLoading, setMySpLoading] = useState(false);
+  const [mySpItems, setMySpItems] = useState([]);
+  const isIOSNativeApp = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() === 'ios';
+
+  const loadMySponsor = useCallback(async () => {
+    if (!session?.access_token) return;
+    setMySpLoading(true);
+    try {
+      const res = await fetch(`${API_PREFIX}/sponsor/my-posts`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur lecture');
+      setMySpItems(Array.isArray(data?.items) ? data.items : []);
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Chargement échoué', variant: 'destructive' });
+      setMySpItems([]);
+    } finally {
+      setMySpLoading(false);
+    }
+  }, [API_PREFIX, session?.access_token, toast]);
+
+  useEffect(() => {
+    if (user?.id) loadMySponsor();
+  }, [user?.id, loadMySponsor]);
+
+  const handlePaySponsored = async (postId) => {
+    if (!session?.access_token) {
+      toast({ title: 'Session requise', description: 'Veuillez vous reconnecter.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const provider = isIOSNativeApp ? 'iap' : 'stripe';
+      const res = await fetch(`${API_PREFIX}/sponsor/orders/${encodeURIComponent(postId)}/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ provider }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Création commande échouée');
+      toast({ title: 'Commande créée', description: 'Brouillon de paiement prêt. Le paiement sera bientôt disponible.' });
+      loadMySponsor();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible de créer la commande', variant: 'destructive' });
+    }
+  };
+
   const getScrollAnchor = useCallback(() => {
     try {
       const nodes = Array.from(document.querySelectorAll('[id^="feed-item-"]'));
