@@ -1682,6 +1682,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             loop={true}
             controls={true}
             muted={true}
+            allowSoundAutoplay={true}
+            onOpenLightbox={() => setLightboxUrl(videoUrl)}
           />
         )}
         {post.audio_url && (
@@ -2918,11 +2920,15 @@ const Echange = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Lightbox image */}
+        {/* Lightbox image/vidéo */}
         <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) setLightboxUrl(null); }}>
           <DialogContent className="sm:max-w-[90vw] p-0 bg-transparent border-0 shadow-none">
             {lightboxUrl ? (
-              <img src={lightboxUrl} alt="" className="max-h-[85vh] w-auto mx-auto rounded-lg" />
+              /\.(mp4|webm|ogg|m4v)(\?|$)/i.test(lightboxUrl) ? (
+                <video src={lightboxUrl} className="w-auto max-w-[90vw] max-h-[85vh] mx-auto rounded-lg" controls autoPlay playsInline />
+              ) : (
+                <img src={lightboxUrl} alt="" className="max-h-[85vh] w-auto mx-auto rounded-lg" />
+              )
             ) : null}
           </DialogContent>
         </Dialog>

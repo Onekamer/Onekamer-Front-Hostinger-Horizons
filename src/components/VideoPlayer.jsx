@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const OK_LOGO_URL = 'https://onekamer-media-cdn.b-cdn.net/logo/IMG_0885%202.PNG';
 
@@ -24,10 +24,13 @@ const VideoPlayer = ({
   controls = true,
   muted = true,
   fitContain = false,
+  allowSoundAutoplay = false,
+  onOpenLightbox = null,
 }) => {
   const videoRef = useRef(null);
   const useEmbed = useMemo(() => isBunnyEmbed(src), [src]);
   const embedUrl = useMemo(() => (useEmbed ? buildEmbedUrl(src) : null), [useEmbed, src]);
+  const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
     if (!autoPlayOnView || useEmbed) return;
@@ -39,8 +42,17 @@ const VideoPlayer = ({
       const entry = entries[0];
       const nowVisible = entry && entry.isIntersecting && entry.intersectionRatio >= 0.5;
       if (nowVisible && !wasVisible) {
-        el.muted = true; // ensure autoplay works on mobile
-        el.play().catch(() => {});
+        if (allowSoundAutoplay) {
+          el.muted = false;
+          el.play().catch(() => {
+            // Autoplay avec son bloqué: fallback muet
+            el.muted = true;
+            try { el.play(); } catch {}
+          });
+        } else {
+          el.muted = true; // autoplay muet par défaut
+          el.play().catch(() => {});
+        }
       } else if (!nowVisible && wasVisible) {
         try { el.pause(); } catch {}
       }
@@ -52,10 +64,24 @@ const VideoPlayer = ({
     return () => {
       try { io.disconnect(); } catch {}
     };
-  }, [autoPlayOnView, useEmbed]);
+  }, [autoPlayOnView, useEmbed, allowSoundAutoplay]);
 
+  // Suivre l'état muet pour afficher un bouton overlay
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const onVol = () => setIsMuted(el.muted || el.volume === 0);
+    el.addEventListener('volumechange', onVol);
+    onVol();
+    return () => {
+      try { el.removeEventListener('volumechange', onVol); } catch {}
+    };
+  }, [videoRef.current]);
+
+  const wrapperClass = `relative ${className} ${fitContain ? 'aspect-video overflow-hidden bg-black/5' : ''}`;
+  const videoClass = `rounded-lg ${fitContain ? 'w-full h-full object-contain' : 'w-full h-auto'}`;
   return (
-    <div className={`relative ${className}`}>
+    <div className={wrapperClass}>
       {useEmbed ? (
         <iframe
           src={embedUrl}
@@ -63,8 +89,8 @@ const VideoPlayer = ({
           loading="lazy"
           allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowFullScreen
-          className="w-full h-full rounded-lg"
-          style={{ aspectRatio: '16 / 9', border: '0' }}
+          className={`w-full h-full rounded-lg`}
+          style={{ border: '0' }}
         />
       ) : (
         <video
@@ -75,8 +101,34 @@ const VideoPlayer = ({
           loop={loop}
           playsInline
           preload="metadata"
-          className={`w-full rounded-lg ${fitContain ? 'object-contain bg-black/5 max-h-full h-auto' : 'h-auto'}`}
+          className={videoClass}
         />
+      )}
+      {onOpenLightbox ? (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); try { onOpenLightbox(); } catch (_) {} }}
+          className="absolute top-2 right-2 z-10 text-xs px-2 py-1 rounded bg-black/60 text-white"
+        >
+          Plein écran
+        </button>
+      ) : null}
+      {!useEmbed && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            const el = videoRef.current;
+            if (!el) return;
+            el.muted = !el.muted;
+            if (!el.muted && el.paused) {
+              el.play().catch(() => {});
+            }
+          }}
+          className="absolute bottom-2 left-2 z-10 text-xs px-2 py-1 rounded bg-black/60 text-white"
+        >
+          {isMuted ? 'Activer le son' : 'Couper le son'}
+        </button>
       )}
       {/* Watermark OneKamer (overlay non bloquant) */}
       <img
