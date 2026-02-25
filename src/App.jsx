@@ -21,6 +21,7 @@ import GroupInvitations from '@/pages/groupes/GroupInvitations';
 import OKCoins from '@/pages/OKCoins';
 import Forfaits from '@/pages/Forfaits';
 import Compte from '@/pages/Compte';
+import MesPostsSponsorises from '@/pages/compte/MesPostsSponsorises';
 import EmailsAdmin from '@/pages/EmailsAdmin';
 import InfluenceursAdmin from '@/pages/InfluenceursAdmin';
 import InfluenceurStats from '@/pages/InfluenceurStats';
@@ -292,6 +293,7 @@ const AppContent = () => {
           <Route path="/pay/market/:orderId" element={<PayMarket />} />
           <Route path="/forfaits" element={<Forfaits />} />
           <Route path="/compte" element={<Compte />} />
+          <Route path="/compte/mes-posts-sponsorises" element={<MesPostsSponsorises />} />
           <Route path="/compte/emails-admin" element={<EmailsAdmin />} />
           <Route path="/compte/admin-utilisateurs" element={<AdminUsers />} />
           <Route path="/compte/admin-invitations" element={<AdminInvitations />} />

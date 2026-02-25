@@ -766,6 +766,7 @@ const Compte = () => {
               <MenuItem onClick={() => navigate('/compte/marketplace-admin')} title="Gestion Marketplace" />
             )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
+            <MenuItem onClick={() => navigate('/compte/mes-posts-sponsorises')} title="Mes posts sponsorisés" />
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
             <MenuItem onClick={() => navigate('/compte/comptes-bloques')} title="Comptes bloqués" />
             <MenuItem onClick={() => navigate('/compte/mes-signalements')} title="Mes signalements" />

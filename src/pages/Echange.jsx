@@ -2633,47 +2633,11 @@ const Echange = () => {
           <h1 className="text-3xl font-bold text-[#2BA84A] mb-4">La Place du Kwat</h1>
         </motion.div>
 
-        {user && (
-          <div className="flex items-center justify-end">
-            <Button variant="outline" onClick={() => setSponsorOpen(true)}>
-              <Star className="w-4 h-4 mr-2" /> Post sponsorisé
-            </Button>
-          </div>
-        )}
-
-        {user && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-base">Mes posts sponsorisés</CardTitle>
-              <Button variant="outline" size="sm" onClick={loadMySponsor} disabled={mySpLoading}>Rafraîchir</Button>
-            </CardHeader>
-            <CardContent>
-              {mySpLoading ? (
-                <div className="text-sm text-gray-500">Chargement…</div>
-              ) : (mySpItems || []).length === 0 ? (
-                <div className="text-sm text-gray-500">Aucun post sponsorisé</div>
-              ) : (
-                <div className="divide-y">
-                  {mySpItems.map((it) => (
-                    <div key={it.id} className="py-2 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">{it.title || 'Sans titre'}</div>
-                        <div className="text-xs text-gray-500">Statut: {it.status}</div>
-                      </div>
-                      {String(it.status || '') === 'approved' ? (
-                        <Button size="sm" onClick={() => handlePaySponsored(it.id)}>Payer</Button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        
 
         {user && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <CreatePost />
+            <CreatePost onCreateSponsored={() => setSponsorOpen(true)} />
           </motion.div>
         )}
 

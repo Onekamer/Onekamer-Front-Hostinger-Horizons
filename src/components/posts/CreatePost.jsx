@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toast } from '@/components/ui/use-toast';
-import { Loader2, X, Mic, Square, Play, Pause, Image as ImageIcon } from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
+import { Loader2, X, Mic, Square, Play, Pause, Image as ImageIcon, Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
@@ -43,6 +44,16 @@ const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
             setIsPlaying(!isPlaying);
         }
     };
+
+  const handleSponsorClick = () => {
+    toast({
+      title: 'Créer un post sponsorisé ?',
+      description: 'Post brillant avec la mention « Sponsorisé », soumis à validation et condition de paiement.',
+      action: (
+        <ToastAction altText="Créer" onClick={() => onCreateSponsored?.()}>Créer</ToastAction>
+      ),
+    });
+  };
 
     useEffect(() => {
         const audio = audioRef.current;
@@ -111,7 +122,7 @@ const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
     );
 };
 
-const CreatePost = () => {
+const CreatePost = ({ onCreateSponsored }) => {
   const { user, profile } = useAuth();
   const [postText, setPostText] = useState('');
   const [mediaFile, setMediaFile] = useState(null);
@@ -784,6 +795,17 @@ const CreatePost = () => {
                     aria-label="Enregistrer audio"
                   >
                     <Mic className="h-4 w-4" />
+                  </Button>
+                )}
+                {!recording && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSponsorClick}
+                    aria-label="Créer post sponsorisé"
+                  >
+                    <Star className="h-4 w-4" />
                   </Button>
                 )}
                 {recording && (
