@@ -2888,7 +2888,16 @@ const Echange = () => {
                         spMediaFile.type?.startsWith('image') ? (
                           <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-48 md:max-h-64 rounded-md object-contain cursor-zoom-in bg-black/5" onClick={() => setLightboxUrl(spMediaPreviewUrl || '')} />
                         ) : (
-                          <video src={spMediaPreviewUrl || ''} className="w-full max-h-48 md:max-h-64 rounded-md" controls playsInline />
+                          <VideoPlayer
+                            src={spMediaPreviewUrl || ''}
+                            className="w-full max-h-48 md:max-h-64 rounded-md"
+                            fitContain={true}
+                            controls={true}
+                            autoPlayOnView={false}
+                            muted={true}
+                            allowSoundAutoplay={false}
+                            onOpenLightbox={() => setLightboxUrl(spMediaPreviewUrl || '')}
+                          />
                         )
                       ) : null}
                     </CardContent>
@@ -2924,7 +2933,16 @@ const Echange = () => {
         <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) setLightboxUrl(null); }}>
           <DialogContent className="sm:max-w-[90vw] p-0 bg-transparent border-0 shadow-none">
             {lightboxUrl ? (
-              /\.(mp4|webm|ogg|m4v)(\?|$)/i.test(lightboxUrl) ? (
+              /iframe\.mediadelivery\.net\/embed\//i.test(lightboxUrl) ? (
+                <iframe
+                  src={lightboxUrl}
+                  title="video"
+                  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  className="w-[90vw] max-w-[1200px] h-[50vw] max-h-[85vh] mx-auto rounded-lg"
+                  style={{ border: '0' }}
+                />
+              ) : /\.(mp4|webm|ogg|m4v)(\?|$)/i.test(lightboxUrl) ? (
                 <video src={lightboxUrl} className="w-auto max-w-[90vw] max-h-[85vh] mx-auto rounded-lg" controls autoPlay playsInline />
               ) : (
                 <img src={lightboxUrl} alt="" className="max-h-[85vh] w-auto mx-auto rounded-lg" />
