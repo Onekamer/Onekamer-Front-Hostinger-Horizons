@@ -45,16 +45,6 @@ const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
         }
     };
 
-  const handleSponsorClick = () => {
-    toast({
-      title: 'Créer un post sponsorisé ?',
-      description: 'Post brillant avec la mention « Sponsorisé », soumis à validation et condition de paiement.',
-      action: (
-        <ToastAction altText="Créer" onClick={() => onCreateSponsored?.()}>Créer</ToastAction>
-      ),
-    });
-  };
-
     useEffect(() => {
         const audio = audioRef.current;
         if (audio) {
@@ -469,6 +459,16 @@ const CreatePost = ({ onCreateSponsored }) => {
       setAudioBlob(null);
       setAudioDuration(0);
     }
+  };
+
+  const handleSponsorClick = () => {
+    toast({
+      title: 'Créer un post sponsorisé ?',
+      description: 'Post brillant avec la mention « Sponsorisé », soumis à validation et condition de paiement.',
+      action: (
+        <ToastAction altText="Créer" onClick={() => onCreateSponsored?.()}>Créer</ToastAction>
+      ),
+    });
   };
 
   const handleRemoveMedia = () => {
