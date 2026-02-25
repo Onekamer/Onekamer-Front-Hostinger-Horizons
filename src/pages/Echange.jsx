@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Share2, Send, Loader2, Trash2, Image as ImageIcon, X, Coins, Mic, Square, Play, Pause, EyeOff, Flag, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Send, Loader2, Trash2, Image as ImageIcon, X, Coins, Mic, Square, Play, Pause, EyeOff, Flag, MoreHorizontal, Star } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -186,6 +186,52 @@ const DonationDialog = ({ post, user, profile, refreshBalance, children }) => {
       toast({ title: "Erreur de don", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Mes posts sponsorisés (liste + paiement draft)
+  const [mySpLoading, setMySpLoading] = useState(false);
+  const [mySpItems, setMySpItems] = useState([]);
+  const isIOSNativeApp = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() === 'ios';
+
+  const loadMySponsor = useCallback(async () => {
+    if (!session?.access_token) return;
+    setMySpLoading(true);
+    try {
+      const res = await fetch(`${API_PREFIX}/sponsor/my-posts`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur lecture');
+      setMySpItems(Array.isArray(data?.items) ? data.items : []);
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Chargement échoué', variant: 'destructive' });
+      setMySpItems([]);
+    } finally {
+      setMySpLoading(false);
+    }
+  }, [API_PREFIX, session?.access_token, toast]);
+
+  useEffect(() => {
+    if (user?.id) loadMySponsor();
+  }, [user?.id, loadMySponsor]);
+
+  const handlePaySponsored = async (postId) => {
+    if (!session?.access_token) {
+      toast({ title: 'Session requise', description: 'Veuillez vous reconnecter.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const provider = isIOSNativeApp ? 'iap' : 'stripe';
+      const res = await fetch(`${API_PREFIX}/sponsor/orders/${encodeURIComponent(postId)}/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ provider }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Création commande échouée');
+      toast({ title: 'Commande créée', description: 'Brouillon de paiement prêt. Le paiement sera bientôt disponible.' });
+      loadMySponsor();
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Impossible de créer la commande', variant: 'destructive' });
     }
   };
 
@@ -2162,6 +2208,74 @@ const Echange = () => {
   const location = useLocation();
 
   const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
+  
+  // Sponsorisé — état du Dialog et formulaire
+  const [sponsorOpen, setSponsorOpen] = useState(false);
+  const [spTitle, setSpTitle] = useState('');
+  const [spBody, setSpBody] = useState('');
+  const [spImageUrl, setSpImageUrl] = useState('');
+  const [spPlanId, setSpPlanId] = useState('');
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [spSubmitting, setSpSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!sponsorOpen) return;
+    if (plans.length > 0 || plansLoading) return;
+    const loadPlans = async () => {
+      setPlansLoading(true);
+      try {
+        const res = await fetch(`${API_PREFIX}/sponsor/plans`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Erreur lecture plans');
+        setPlans(Array.isArray(data?.items) ? data.items : []);
+      } catch (e) {
+        toast({ title: 'Erreur', description: e?.message || 'Chargement des plans échoué', variant: 'destructive' });
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    loadPlans();
+  }, [sponsorOpen, plans.length, plansLoading, API_PREFIX]);
+
+  const handleSubmitSponsored = async (e) => {
+    e?.preventDefault?.();
+    if (!session?.access_token) {
+      toast({ title: 'Session requise', description: 'Veuillez vous reconnecter.', variant: 'destructive' });
+      return;
+    }
+    const title = String(spTitle || '').trim();
+    if (title.length < 3) {
+      toast({ title: 'Titre trop court', description: 'Minimum 3 caractères.', variant: 'destructive' });
+      return;
+    }
+    if (!spPlanId) {
+      toast({ title: 'Plan requis', description: 'Veuillez sélectionner un forfait.', variant: 'destructive' });
+      return;
+    }
+    setSpSubmitting(true);
+    try {
+      const body = spBody ? String(spBody) : null;
+      const media = spImageUrl ? { image_url: String(spImageUrl) } : null;
+      const res = await fetch(`${API_PREFIX}/sponsor/posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ title, body, media, plan_id: spPlanId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Création impossible');
+      toast({ title: 'Envoyé', description: 'Votre post sponsorisé est en attente d’approbation.' });
+      setSponsorOpen(false);
+      setSpTitle(''); setSpBody(''); setSpImageUrl(''); setSpPlanId('');
+    } catch (e) {
+      toast({ title: 'Erreur', description: e?.message || 'Soumission échouée', variant: 'destructive' });
+    } finally {
+      setSpSubmitting(false);
+    }
+  };
 
   const getScrollAnchor = useCallback(() => {
     try {
@@ -2522,6 +2636,44 @@ const Echange = () => {
         </motion.div>
 
         {user && (
+          <div className="flex items-center justify-end">
+            <Button variant="outline" onClick={() => setSponsorOpen(true)}>
+              <Star className="w-4 h-4 mr-2" /> Post sponsorisé
+            </Button>
+          </div>
+        )}
+
+        {user && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base">Mes posts sponsorisés</CardTitle>
+              <Button variant="outline" size="sm" onClick={loadMySponsor} disabled={mySpLoading}>Rafraîchir</Button>
+            </CardHeader>
+            <CardContent>
+              {mySpLoading ? (
+                <div className="text-sm text-gray-500">Chargement…</div>
+              ) : (mySpItems || []).length === 0 ? (
+                <div className="text-sm text-gray-500">Aucun post sponsorisé</div>
+              ) : (
+                <div className="divide-y">
+                  {mySpItems.map((it) => (
+                    <div key={it.id} className="py-2 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{it.title || 'Sans titre'}</div>
+                        <div className="text-xs text-gray-500">Statut: {it.status}</div>
+                      </div>
+                      {String(it.status || '') === 'approved' ? (
+                        <Button size="sm" onClick={() => handlePaySponsored(it.id)}>Payer</Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {user && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <CreatePost />
           </motion.div>
@@ -2649,6 +2801,54 @@ const Echange = () => {
             }
           </TabsContent>
         </Tabs>
+
+        {/* Dialog Post sponsorisé */}
+        <Dialog open={sponsorOpen} onOpenChange={setSponsorOpen}>
+          <DialogContent>
+            <form onSubmit={handleSubmitSponsored} className="space-y-3">
+              <DialogHeader>
+                <DialogTitle>Créer un post sponsorisé</DialogTitle>
+                <DialogDescription>Votre demande sera d’abord validée par un admin.</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-1">
+                <Label htmlFor="sp_title">Titre</Label>
+                <Input id="sp_title" value={spTitle} onChange={(e) => setSpTitle(e.target.value)} placeholder="Titre" required />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="sp_body">Texte (optionnel)</Label>
+                <Textarea id="sp_body" value={spBody} onChange={(e) => setSpBody(e.target.value)} placeholder="Décrivez votre contenu" rows={4} />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="sp_image">Image URL (optionnel)</Label>
+                <Input id="sp_image" value={spImageUrl} onChange={(e) => setSpImageUrl(e.target.value)} placeholder="https://..." />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Forfait</Label>
+                <Select value={spPlanId} onValueChange={setSpPlanId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={plansLoading ? 'Chargement…' : 'Choisir un forfait'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(plans || []).map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.name} • {(Number(p.price_cents || 0) / 100).toFixed(2)} {String(p.currency || 'EUR').toUpperCase()} • {p.duration_days}j{p.pinned ? ' • Épinglé' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setSponsorOpen(false)} disabled={spSubmitting}>Annuler</Button>
+                <Button type="submit" disabled={spSubmitting}>{spSubmitting ? 'Envoi…' : 'Soumettre'}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );

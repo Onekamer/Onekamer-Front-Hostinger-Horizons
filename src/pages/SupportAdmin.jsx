@@ -51,12 +51,35 @@ const SupportAdmin = () => {
   const [delLoading, setDelLoading] = useState(false);
   const [deletions, setDeletions] = useState([]);
 
+  // Sponsorisation
+  const [sponsorStatus, setSponsorStatus] = useState('pending_review');
+  const [sponsorLoading, setSponsorLoading] = useState(false);
+  const [sponsorItems, setSponsorItems] = useState([]);
+
   const displayUser = (username, email, uid) => {
     const parts = [];
     if (username) parts.push(`@${username}`);
     if (email) parts.push(email);
     const text = parts.length ? parts.join(' • ') : (uid || '—');
     return text;
+  };
+
+  const loadSponsorPosts = async () => {
+    if (!session?.access_token) return;
+    setSponsorLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (sponsorStatus) qs.set('status', sponsorStatus);
+      const res = await fetch(`${apiBaseUrl}/api/sponsor/admin/posts?${qs.toString()}`, { headers: authHeaders });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Erreur lecture sponsorisation');
+      setSponsorItems(Array.isArray(data?.items) ? data.items : []);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Chargement sponsorisation échoué' });
+      setSponsorItems([]);
+    } finally {
+      setSponsorLoading(false);
+    }
   };
 
   const authHeaders = useMemo(() => ({
@@ -160,6 +183,37 @@ const SupportAdmin = () => {
     if (tab === 'deletions') loadDeletions();
   }, [tab]);
 
+  useEffect(() => {
+    if (tab === 'sponsor') loadSponsorPosts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, sponsorStatus]);
+
+  const approveSponsor = async (id) => {
+    if (!session?.access_token) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/sponsor/posts/${encodeURIComponent(id)}/approve`, { method: 'POST', headers: authHeaders });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Action échouée');
+      toast({ title: 'Approuvé' });
+      loadSponsorPosts();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible d\'approuver' });
+    }
+  };
+
+  const rejectSponsor = async (id) => {
+    if (!session?.access_token) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/sponsor/posts/${encodeURIComponent(id)}/reject`, { method: 'POST', headers: authHeaders });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Action échouée');
+      toast({ title: 'Rejeté' });
+      loadSponsorPosts();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Impossible de rejeter' });
+    }
+  };
+
   const updateRequestStatus = async (id, status) => {
     if (!session?.access_token) return;
     try {
@@ -209,6 +263,7 @@ const SupportAdmin = () => {
               <TabButton active={tab==='requests'} onClick={() => setTab('requests')}>Signalements & Feedback</TabButton>
               <TabButton active={tab==='shop'} onClick={() => setTab('shop')}>Signalements boutiques</TabButton>
               <TabButton active={tab==='deletions'} onClick={() => setTab('deletions')}>Suppressions de compte</TabButton>
+              <TabButton active={tab==='sponsor'} onClick={() => setTab('sponsor')}>Sponsorisation</TabButton>
             </div>
 
             {tab === 'requests' && (
@@ -316,6 +371,44 @@ const SupportAdmin = () => {
                           </div>
                           {!d.is_deleted && (
                             <Button size="sm" onClick={() => softDeleteUser(d.deleted_user_id, d.id)}>Supprimer le compte</Button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {tab === 'sponsor' && (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-gray-600">Statut:</span>
+                  <TabButton active={sponsorStatus==='pending_review'} onClick={() => setSponsorStatus('pending_review')}>En revue</TabButton>
+                  <TabButton active={sponsorStatus==='approved'} onClick={() => setSponsorStatus('approved')}>Approuvés</TabButton>
+                  <TabButton active={sponsorStatus==='rejected'} onClick={() => setSponsorStatus('rejected')}>Rejetés</TabButton>
+                  <TabButton active={sponsorStatus==='published'} onClick={() => setSponsorStatus('published')}>Publiés</TabButton>
+                  <TabButton active={sponsorStatus==='expired'} onClick={() => setSponsorStatus('expired')}>Expirés</TabButton>
+                </div>
+                <div className="border rounded divide-y">
+                  {sponsorLoading ? (
+                    <div className="p-3 text-sm text-gray-500">Chargement…</div>
+                  ) : sponsorItems.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-500">Aucun élément</div>
+                  ) : (
+                    sponsorItems.map((r) => (
+                      <div key={r.id} className="p-3 text-sm flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">{r.title}</div>
+                          <StatusPill status={r.status} />
+                        </div>
+                        <div className="text-xs text-gray-500">Plan: {r.plan_id || '—'} • {new Date(r.created_at).toLocaleString()}</div>
+                        <div className="pt-2 flex gap-2">
+                          {r.status === 'pending_review' && (
+                            <>
+                              <Button size="sm" onClick={() => approveSponsor(r.id)}>Approuver</Button>
+                              <Button variant="outline" size="sm" onClick={() => rejectSponsor(r.id)}>Rejeter</Button>
+                            </>
                           )}
                         </div>
                       </div>
