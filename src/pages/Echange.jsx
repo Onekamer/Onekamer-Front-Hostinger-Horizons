@@ -2167,12 +2167,51 @@ const Echange = () => {
   const [spBody, setSpBody] = useState('');
   const [spMediaFile, setSpMediaFile] = useState(null);
   const [spMediaPreviewUrl, setSpMediaPreviewUrl] = useState(null);
-  const [spAudioFile, setSpAudioFile] = useState(null);
-  const [spAudioPreviewUrl, setSpAudioPreviewUrl] = useState(null);
   const [spPlanId, setSpPlanId] = useState('');
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [spSubmitting, setSpSubmitting] = useState(false);
+
+  // Upload BunnyCDN (local au composant Echange pour sponsorisé)
+  const uploadToBunnySponsored = async (file, folder) => {
+    console.log('[Echange] uploadToBunny(sponsored) start', { name: file?.name, type: file?.type, folder });
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    }).catch((e) => {
+      if (e.name === 'AbortError') {
+        console.warn('[Echange] uploadToBunny(sponsored) aborted by timeout');
+        throw new Error("Délai dépassé lors de l’upload (timeout)");
+      }
+      throw e;
+    }).finally(() => clearTimeout(timer));
+
+    const text = await response.text();
+    let data = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        console.error("Réponse upload invalide:", text);
+        throw new Error("Réponse inattendue du serveur d'upload");
+      }
+    }
+
+    if (!response.ok || !data?.success) {
+      const message = data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`;
+      throw new Error(message);
+    }
+
+    console.log('[Echange] uploadToBunny(sponsored) success', data?.url);
+    return data.url;
+  };
 
   useEffect(() => {
     if (!sponsorOpen) return;
@@ -2213,16 +2252,12 @@ const Echange = () => {
       const body = spBody ? String(spBody) : null;
       let media = null;
       if (spMediaFile) {
-        const url = await uploadToBunny(spMediaFile, "sponsored");
+        const url = await uploadToBunnySponsored(spMediaFile, "sponsored");
         if (spMediaFile.type && spMediaFile.type.startsWith('image')) {
           media = { ...(media || {}), image_url: url, image_mime: spMediaFile.type };
         } else if (spMediaFile.type && spMediaFile.type.startsWith('video')) {
           media = { ...(media || {}), video_url: url, video_mime: spMediaFile.type };
         }
-      }
-      if (spAudioFile) {
-        const aUrl = await uploadToBunny(spAudioFile, "sponsored");
-        media = { ...(media || {}), audio_url: aUrl, audio_mime: spAudioFile.type };
       }
       const res = await fetch(`${API_PREFIX}/sponsor/posts`, {
         method: 'POST',
@@ -2237,7 +2272,7 @@ const Echange = () => {
       toast({ title: 'Envoyé', description: 'Votre post sponsorisé est en attente d’approbation.' });
       setSponsorOpen(false);
       setSpTitle(''); setSpBody(''); setSpPlanId('');
-      setSpMediaFile(null); setSpMediaPreviewUrl(null); setSpAudioFile(null); setSpAudioPreviewUrl(null);
+      setSpMediaFile(null); setSpMediaPreviewUrl(null);
     } catch (e) {
       toast({ title: 'Erreur', description: e?.message || 'Soumission échouée', variant: 'destructive' });
     } finally {
@@ -2826,28 +2861,7 @@ const Echange = () => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label>Audio (optionnel)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept="audio/*"
-                    onChange={(e) => {
-                      const f = e.target.files && e.target.files[0];
-                      if (f) {
-                        setSpAudioFile(f);
-                        try { setSpAudioPreviewUrl(URL.createObjectURL(f)); } catch (_) { setSpAudioPreviewUrl(null); }
-                      }
-                    }}
-                  />
-                  {spAudioFile ? (
-                    <audio src={spAudioPreviewUrl || ''} controls className="h-8" />
-                  ) : null}
-                  {spAudioFile ? (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => { setSpAudioFile(null); setSpAudioPreviewUrl(null); }}>Retirer</Button>
-                  ) : null}
-                </div>
-              </div>
+              
 
               <div className="space-y-1">
                 <Label>Forfait</Label>
