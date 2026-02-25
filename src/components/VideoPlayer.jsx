@@ -23,6 +23,7 @@ const VideoPlayer = ({
   loop = true,
   controls = true,
   muted = true,
+  fitContain = false,
 }) => {
   const videoRef = useRef(null);
   const useEmbed = useMemo(() => isBunnyEmbed(src), [src]);
@@ -74,7 +75,7 @@ const VideoPlayer = ({
           loop={loop}
           playsInline
           preload="metadata"
-          className="w-full h-auto rounded-lg"
+          className={`w-full rounded-lg ${fitContain ? 'object-contain bg-black/5 max-h-full h-auto' : 'h-auto'}`}
         />
       )}
       {/* Watermark OneKamer (overlay non bloquant) */}

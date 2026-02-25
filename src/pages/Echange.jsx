@@ -1665,7 +1665,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           <img 
             src={imageUrl} 
             alt="Post media" 
-            className="rounded-lg w-full max-h-64 md:max-h-80 object-cover mb-4" 
+            className="rounded-lg w-full max-h-64 md:max-h-80 object-contain bg-black/5 mb-4 cursor-zoom-in" 
+            onClick={() => setLightboxUrl(imageUrl)}
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src="https://onekamer-media-cdn.b-cdn.net/posts/default_post_image.png";
@@ -1675,7 +1676,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
         {videoUrl && (
           <VideoPlayer
             src={videoUrl}
-            className="rounded-lg w-full max-h-64 md:max-h-80 mb-4 overflow-hidden"
+            className="rounded-lg w-full max-h-64 md:max-h-80 mb-4"
+            fitContain={true}
             autoPlayOnView={true}
             loop={true}
             controls={true}
@@ -2156,6 +2158,7 @@ const Echange = () => {
   const bottomSentinelRef = useRef(null);
   const prevVisibleCountRef = useRef(visibleFeedCount);
   const [openComments, setOpenComments] = useState({});
+  const [lightboxUrl, setLightboxUrl] = useState(null);
   const [deeplinkTarget, setDeeplinkTarget] = useState({ feedType: null, id: null, commentId: null });
   const location = useLocation();
 
@@ -2252,7 +2255,7 @@ const Echange = () => {
       const body = spBody ? String(spBody) : null;
       let media = null;
       if (spMediaFile) {
-        const url = await uploadToBunnySponsored(spMediaFile, "sponsored");
+        const url = await uploadToBunnySponsored(spMediaFile, "posts");
         if (spMediaFile.type && spMediaFile.type.startsWith('image')) {
           media = { ...(media || {}), image_url: url, image_mime: spMediaFile.type };
         } else if (spMediaFile.type && spMediaFile.type.startsWith('video')) {
@@ -2864,7 +2867,7 @@ const Echange = () => {
               {(spTitle?.trim() || spBody?.trim() || spMediaFile) ? (
                 <div className="space-y-1">
                   <Label>Aperçu</Label>
-                  <Card>
+                  <Card className="ring-2 ring-[#2BA84A] shadow-[0_0_0_3px_rgba(43,168,74,0.15),0_0_18px_rgba(43,168,74,0.35)] animate-pulse">
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
@@ -2881,7 +2884,7 @@ const Echange = () => {
                       ) : null}
                       {spMediaFile ? (
                         spMediaFile.type?.startsWith('image') ? (
-                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-48 md:max-h-64 rounded-md object-cover" />
+                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-48 md:max-h-64 rounded-md object-contain cursor-zoom-in bg-black/5" onClick={() => setLightboxUrl(spMediaPreviewUrl || '')} />
                         ) : (
                           <video src={spMediaPreviewUrl || ''} className="w-full max-h-48 md:max-h-64 rounded-md" controls playsInline />
                         )
@@ -2912,6 +2915,15 @@ const Echange = () => {
                 <Button type="submit" disabled={spSubmitting}>{spSubmitting ? 'Envoi…' : 'Soumettre'}</Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Lightbox image */}
+        <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) setLightboxUrl(null); }}>
+          <DialogContent className="sm:max-w-[90vw] p-0 bg-transparent border-0 shadow-none">
+            {lightboxUrl ? (
+              <img src={lightboxUrl} alt="" className="max-h-[85vh] w-auto mx-auto rounded-lg" />
+            ) : null}
           </DialogContent>
         </Dialog>
       </div>
