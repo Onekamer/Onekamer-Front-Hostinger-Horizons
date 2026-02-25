@@ -1665,7 +1665,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           <img 
             src={imageUrl} 
             alt="Post media" 
-            className="rounded-lg w-full mb-4" 
+            className="rounded-lg w-full max-h-96 md:max-h-[420px] object-cover mb-4" 
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src="https://onekamer-media-cdn.b-cdn.net/posts/default_post_image.png";
@@ -1675,7 +1675,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
         {videoUrl && (
           <VideoPlayer
             src={videoUrl}
-            className="rounded-lg w-full mb-4 overflow-hidden"
+            className="rounded-lg w-full max-h-96 md:max-h-[420px] mb-4 overflow-hidden"
             autoPlayOnView={true}
             loop={true}
             controls={true}
@@ -2866,7 +2866,11 @@ const Echange = () => {
                   <Label>Aperçu</Label>
                   <Card>
                     <CardContent className="p-3 space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <UserAvatar avatarUrl={profile?.avatar_url} username={profile?.username} className="h-8 w-8" />
+                          <div className="text-sm font-medium truncate">@{profile?.username || 'vous'}</div>
+                        </div>
                         <span className="text-xs rounded-full px-2 py-0.5 bg-yellow-100 text-yellow-800">Sponsorisé</span>
                       </div>
                       {spTitle?.trim() ? (
@@ -2877,9 +2881,9 @@ const Echange = () => {
                       ) : null}
                       {spMediaFile ? (
                         spMediaFile.type?.startsWith('image') ? (
-                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full rounded-md object-cover" />
+                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-72 md:max-h-96 rounded-md object-cover" />
                         ) : (
-                          <video src={spMediaPreviewUrl || ''} className="w-full rounded-md" controls playsInline />
+                          <video src={spMediaPreviewUrl || ''} className="w-full max-h-72 md:max-h-96 rounded-md" controls playsInline />
                         )
                       ) : null}
                     </CardContent>
