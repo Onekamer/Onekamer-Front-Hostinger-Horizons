@@ -512,7 +512,7 @@ const OKCoins = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {packs.map((pack) => {
+              {(isIOS ? packs.filter((p) => isIosPack(p)) : packs).map((pack) => {
                 let coinColorClass = 'text-[#6B6B6B]';
                 if (pack.price_eur <= 25) {
                   coinColorClass = 'text-amber-700';

@@ -282,7 +282,7 @@ const Forfaits = () => {
         )}
 
         <div className="grid md:grid-cols-3 gap-8">
-          {plans.map((plan) => {
+          {(isIOS ? plans.filter((p) => p.key !== 'standard') : plans).map((plan) => {
             const vipActiveNow = subInfo && subInfo.plan_name === 'vip' && subInfo.end_date && (new Date(subInfo.end_date).getTime() > Date.now());
             const vipInactiveNow = subInfo && subInfo.plan_name === 'vip' && subInfo.end_date && (new Date(subInfo.end_date).getTime() <= Date.now());
             const isCurrentPlan = (

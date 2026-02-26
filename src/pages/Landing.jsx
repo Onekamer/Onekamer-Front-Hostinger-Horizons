@@ -170,45 +170,35 @@ const Landing = () => {
               </div>
             </div>
 
-            {/* Standard */}
-            <div className="relative rounded-xl border-2 border-[#2BA84A] bg-white p-6 flex flex-col h-full shadow-sm">
-              <div className="absolute top-0 right-4 -mt-3 bg-[#2BA84A] text-white text-xs font-bold px-3 py-1 rounded-full">POPULAIRE</div>
-              <h3 className="text-lg font-semibold">Standard</h3>
-              <p className="text-sm italic text-gray-600 mt-1">Moins cher qu’une portion de soya bien pimenté.</p>
-              <div className="mt-3 flex-1">
-                <div className="text-3xl font-extrabold">2€ <span className="text-base font-normal">/ mois</span></div>
-                <ul className="mt-4 space-y-2 text-gray-700 text-sm">
-                  <li>✅ Tout du plan Gratuit</li>
-                  <li>🏢 Accès aux Partenaires & Recommandations</li>
-                </ul>
-              </div>
-              <div className="mt-6">
-                <button
-                  onClick={() => navigate('/auth')}
-                  className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]"
-                  disabled={isIOS}
-                >
-                  {isIOS ? 'Bientôt disponible' : 'Souscrire au forfait Standard'}
-                </button>
-                {isIOS ? (
-                  <div className="mt-2 text-[11px] text-gray-500">
-                    Abonnement auto-renouvelable, sans engagement, résiliable à tout moment.
-                    <br />
-                    En appuyant sur le bouton, vous acceptez
-                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
-                    nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
-                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
-                  </div>
-                ) : (
+            {/* Standard (masqué sur iOS pendant la review) */}
+            {!isIOS && (
+              <div className="relative rounded-xl border-2 border-[#2BA84A] bg-white p-6 flex flex-col h-full shadow-sm">
+                <div className="absolute top-0 right-4 -mt-3 bg-[#2BA84A] text-white text-xs font-bold px-3 py-1 rounded-full">POPULAIRE</div>
+                <h3 className="text-lg font-semibold">Standard</h3>
+                <p className="text-sm italic text-gray-600 mt-1">Moins cher qu’une portion de soya bien pimenté.</p>
+                <div className="mt-3 flex-1">
+                  <div className="text-3xl font-extrabold">2€ <span className="text-base font-normal">/ mois</span></div>
+                  <ul className="mt-4 space-y-2 text-gray-700 text-sm">
+                    <li>✅ Tout du plan Gratuit</li>
+                    <li>🏢 Accès aux Partenaires & Recommandations</li>
+                  </ul>
+                </div>
+                <div className="mt-6">
+                  <button
+                    onClick={() => navigate('/auth')}
+                    className="w-full px-4 py-2 rounded-md bg-[#2BA84A] text-white font-medium hover:bg-[#24903f]"
+                  >
+                    Souscrire au forfait Standard
+                  </button>
                   <div className="mt-2 text-[11px] text-gray-500">
                     Abonnement mensuel sans engagement, résiliable à tout moment.
                     <br />
                     En poursuivant, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
                     <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* VIP */}
             <div className="relative rounded-xl border border-gray-200 bg-white p-6 flex flex-col h-full shadow-sm">
