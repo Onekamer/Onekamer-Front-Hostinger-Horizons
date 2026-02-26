@@ -17,6 +17,8 @@ import { NativePurchases } from '@capgo/native-purchases';
 import { differenceInDays } from 'date-fns';
 import OfficialBadge from '@/components/OfficialBadge';
 
+const SPONSORED_POSTS_ENABLED = false;
+
 const Compte = () => {
   const { user, profile, signOut, balance, loading, session, refreshProfile } = useAuth();
   const [isQrAdmin, setIsQrAdmin] = React.useState(false);
@@ -766,7 +768,9 @@ const Compte = () => {
               <MenuItem onClick={() => navigate('/compte/marketplace-admin')} title="Gestion Marketplace" />
             )}
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
-            <MenuItem onClick={() => navigate('/compte/mes-posts-sponsorises')} title="Mes posts sponsorisés" />
+            {SPONSORED_POSTS_ENABLED && (
+              <MenuItem onClick={() => navigate('/compte/mes-posts-sponsorises')} title="Mes posts sponsorisés" />
+            )}
             <MenuItem onClick={() => navigate('/compte/confidentialite')} title="Confidentialité" />
             <MenuItem onClick={() => navigate('/compte/comptes-bloques')} title="Comptes bloqués" />
             <MenuItem onClick={() => navigate('/compte/mes-signalements')} title="Mes signalements" />

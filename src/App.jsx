@@ -83,6 +83,8 @@ import MarketplaceOrderDetail from '@/pages/MarketplaceOrderDetail';
 import MarketplaceInvoices from '@/pages/MarketplaceInvoices';
 import { iosPush } from "@/lib/push/iosPush";
 
+const SPONSORED_POSTS_ENABLED = false;
+
 const AppLayout = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -293,7 +295,7 @@ const AppContent = () => {
           <Route path="/pay/market/:orderId" element={<PayMarket />} />
           <Route path="/forfaits" element={<Forfaits />} />
           <Route path="/compte" element={<Compte />} />
-          <Route path="/compte/mes-posts-sponsorises" element={<MesPostsSponsorises />} />
+          <Route path="/compte/mes-posts-sponsorises" element={SPONSORED_POSTS_ENABLED ? <MesPostsSponsorises /> : <Navigate to="/compte" replace />} />
           <Route path="/compte/emails-admin" element={<EmailsAdmin />} />
           <Route path="/compte/admin-utilisateurs" element={<AdminUsers />} />
           <Route path="/compte/admin-invitations" element={<AdminInvitations />} />

@@ -13,6 +13,8 @@ import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
 
+const SPONSORED_POSTS_ENABLED = false;
+
 const getApiPrefix = () => (import.meta.env.VITE_API_URL || '/api');
 const importToBunnyStream = async (cdnUrl, title = 'OneKamer Video') => {
   try {
@@ -797,7 +799,7 @@ const CreatePost = ({ onCreateSponsored }) => {
                     <Mic className="h-4 w-4" />
                   </Button>
                 )}
-                {!recording && (
+                {!recording && SPONSORED_POSTS_ENABLED && (
                   <Button
                     type="button"
                     variant="ghost"
