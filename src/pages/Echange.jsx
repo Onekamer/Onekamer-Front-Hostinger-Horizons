@@ -2333,7 +2333,18 @@ const Echange = () => {
 
   const getScrollAnchor = useCallback(() => {
     try {
-      const nodes = Array.from(document.querySelectorAll('[id^="feed-item-"]'));
+      const nodes = Array.from(document.querySelectorAll('[id^="feed-item-"]')).filter((el) => {
+        try {
+          if (!el) return false;
+          const style = window.getComputedStyle(el);
+          if (style && (style.display === 'none' || style.visibility === 'hidden')) return false;
+          if (el.offsetParent === null && style.position !== 'fixed') return false;
+          const r = el.getBoundingClientRect();
+          return r && r.height > 0 && r.width > 0;
+        } catch {
+          return false;
+        }
+      });
       let anchor = null;
       let minTop = Number.POSITIVE_INFINITY;
       for (const el of nodes) {
@@ -2355,6 +2366,12 @@ const Echange = () => {
   const restoreScrollAnchor = useCallback((anchor) => {
     if (!anchor || !anchor.id) return;
     try {
+      const ae = document.activeElement;
+      if (ae) {
+        const tn = (ae.tagName || '').toLowerCase();
+        const editing = tn === 'input' || tn === 'textarea' || ae.isContentEditable === true;
+        if (editing) return;
+      }
       const el = document.getElementById(anchor.id);
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -2453,7 +2470,8 @@ const Echange = () => {
     });
 
     setFeedItems(filtered);
-    setVisibleFeedCount(FEED_PAGE_SIZE);
+    // Ne pas réduire le nombre d'items visibles lors d'un refresh pour éviter les sauts de scroll
+    setVisibleFeedCount((c) => Math.max(c, FEED_PAGE_SIZE));
     setLoadingPosts(false);
   }, [profile?.blocked_user_ids]);
   
@@ -2705,7 +2723,7 @@ const Echange = () => {
           <TabsContent value="recent" className="space-y-4 mt-4">
             {loadingPosts ? <div className="flex justify-center py-6"><DotsLoader centered size={12} /></div> : 
               feedItems.slice(0, visibleFeedCount).map((item, index) => (
-                <motion.div key={`${item.feed_type}-${item.id}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                <motion.div id={`feed-item-${item.feed_type}-${item.id}`} key={`${item.feed_type}-${item.id}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
                   {item.feed_type === 'post' ? (
                     <PostCard 
                       post={item} 
@@ -2754,7 +2772,7 @@ const Echange = () => {
                   return last7
                     .sort((a, b) => (Number(b.likes_count || 0) - Number(a.likes_count || 0)) || (new Date(b.created_at) - new Date(a.created_at)))
                     .map((item, index) => (
-                <motion.div key={`${item.feed_type}-${item.id}-trending`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                <motion.div id={`feed-item-${item.feed_type}-${item.id}-trending`} key={`${item.feed_type}-${item.id}-trending`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
                   {item.feed_type === 'post' ? (
                     <PostCard 
                       post={item} 
@@ -2787,7 +2805,7 @@ const Echange = () => {
                 return [...feedItems]
                   .sort((a, b) => (new Date(b.created_at) - new Date(a.created_at)))
                   .map((item, index) => (
-                <motion.div key={`${item.feed_type}-${item.id}-trending`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                <motion.div id={`feed-item-${item.feed_type}-${item.id}-trending`} key={`${item.feed_type}-${item.id}-trending`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
                   {item.feed_type === 'post' ? (
                     <PostCard 
                       post={item} 
