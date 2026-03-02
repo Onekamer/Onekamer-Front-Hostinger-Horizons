@@ -1404,6 +1404,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
     profile?.is_admin === 'true' ||
     String(profile?.role || '').toLowerCase() === 'admin';
   const isDeletedAuthor = post?.profiles?.is_deleted === true;
+  const isAndroidNativeApp = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() === 'android';
   const [warnOpen, setWarnOpen] = useState(false);
   const [warnReason, setWarnReason] = useState('Contenu inapproprié');
   const [warnMessage, setWarnMessage] = useState('');
@@ -1651,10 +1652,48 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                     </DialogContent>
                   </Dialog>
                 )}
+                {isAndroidNativeApp && isAdmin && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onClick={() => hidePostLocal(post.id)}>
+                        <EyeOff className="mr-2 h-4 w-4" />
+                        <span>Masquer</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={openReportForPost} className="text-red-600 focus:text-red-600">
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>Signaler</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 {(isMyPost || isAdmin) && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => onDelete(post.id, post.image_url, post.video_url)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                )}
+                {isAndroidNativeApp && !isAdmin && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onClick={() => hidePostLocal(post.id)}>
+                        <EyeOff className="mr-2 h-4 w-4" />
+                        <span>Masquer</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={openReportForPost} className="text-red-600 focus:text-red-600">
+                        <Flag className="mr-2 h-4 w-4" />
+                        <span>Signaler</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
             </div>
@@ -1705,23 +1744,25 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             <Share2 className="h-5 w-5" />
             <span>Partager</span>
           </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => hidePostLocal(post.id)}>
-                <EyeOff className="mr-2 h-4 w-4" />
-                <span>Masquer</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={openReportForPost} className="text-red-600 focus:text-red-600">
-                <Flag className="mr-2 h-4 w-4" />
-                <span>Signaler</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isAndroidNativeApp && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={() => hidePostLocal(post.id)}>
+                  <EyeOff className="mr-2 h-4 w-4" />
+                  <span>Masquer</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={openReportForPost} className="text-red-600 focus:text-red-600">
+                  <Flag className="mr-2 h-4 w-4" />
+                  <span>Signaler</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {user && !isMyPost && (
             <DonationDialog post={post} user={user} profile={profile} refreshBalance={refreshBalance}>
               <button className="flex items-center gap-2 hover:text-[#F5C300] transition-colors ml-auto">
@@ -1784,6 +1825,7 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
     profile?.is_admin === 'true' ||
     String(profile?.role || '').toLowerCase() === 'admin';
   const isDeletedAuthor = post?.author?.is_deleted === true;
+  const isAndroidNativeApp = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() === 'android';
 
   const canWarn = isAdmin && user && !isMyPost && typeof onWarn === 'function';
 
@@ -2060,6 +2102,25 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                   </DialogContent>
                 </Dialog>
               )}
+              {isAndroidNativeApp && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={() => hideAudioLocal(post.id)}>
+                      <EyeOff className="mr-2 h-4 w-4" />
+                      <span>Masquer</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openReportForAudio} className="text-red-600 focus:text-red-600">
+                      <Flag className="mr-2 h-4 w-4" />
+                      <span>Signaler</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
             {post.content && post.content !== "Message vocal" && <p className="mt-2 text-sm text-gray-700">{parseMentions(post.content)}</p>}
             <AudioPlayer src={post.audio_url} initialDuration={post.audio_duration} />
@@ -2082,23 +2143,25 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                 <Share2 className="h-5 w-5" />
                 <span>Partager</span>
               </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem onClick={() => hideAudioLocal(post.id)}>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    <span>Masquer</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={openReportForAudio} className="text-red-600 focus:text-red-600">
-                    <Flag className="mr-2 h-4 w-4" />
-                    <span>Signaler</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {!isAndroidNativeApp && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-1 rounded hover:bg-gray-100" aria-label="Options">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={() => hideAudioLocal(post.id)}>
+                      <EyeOff className="mr-2 h-4 w-4" />
+                      <span>Masquer</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openReportForAudio} className="text-red-600 focus:text-red-600">
+                      <Flag className="mr-2 h-4 w-4" />
+                      <span>Signaler</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               {user && !isMyPost && (
                 <DonationDialog
                   post={{ user_id: post.user_id, profiles: { username: post.author?.username } }}
