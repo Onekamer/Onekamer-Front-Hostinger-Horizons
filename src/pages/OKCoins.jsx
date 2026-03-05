@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -49,7 +49,28 @@ const OKCoins = () => {
   const [isSearchingReceiver, setIsSearchingReceiver] = useState(false);
   const debounceTimeout = useRef(null);
   const IOS_OKC_COINS = 1000;
-  const isIosPack = useCallback((pack) => isIOS && Number(pack?.coins) === IOS_OKC_COINS, [isIOS]);
+  const IOS_PACK_ID_BY_COINS = useMemo(() => ({
+    1000: ['co.onekamer.okcoins.pack10', 'onekamer_okcoins_pack_10'],
+    2000: ['co.onekamer.okcoins.pack20'],
+    5000: ['co.onekamer.okcoins.pack50'],
+    10000: ['co.onekamer.okcoins.pack100'],
+    15000: ['co.onekamer.okcoins.pack150'],
+  }), []);
+  const getProductIdsForCoins = useCallback((coins) => IOS_PACK_ID_BY_COINS[Number(coins)] || [], [IOS_PACK_ID_BY_COINS]);
+  const [okcIosPriceMap, setOkcIosPriceMap] = useState({}); // { productId: localizedPrice }
+  const [okcIosReadyMap, setOkcIosReadyMap] = useState({}); // { productId: true }
+  const getIosPriceForPack = useCallback((pack) => {
+    const ids = getProductIdsForCoins(pack?.coins);
+    for (const id of ids) {
+      const price = okcIosPriceMap[id];
+      if (price) return price;
+    }
+    return null;
+  }, [getProductIdsForCoins, okcIosPriceMap]);
+  const isPackReadyOnIOS = useCallback((pack) => {
+    const ids = getProductIdsForCoins(pack?.coins);
+    return ids.some((id) => okcIosReadyMap[id]);
+  }, [getProductIdsForCoins, okcIosReadyMap]);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'https://onekamer-server.onrender.com';
   const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
@@ -138,18 +159,25 @@ const OKCoins = () => {
 
   useEffect(() => {
     let mounted = true;
-    const preload = async () => {
+    const preloadAll = async () => {
       try {
         if (!isIOS) { if (mounted) setIapOkcChecked(true); return; }
         const hasFn = typeof NativePurchases?.getProducts === 'function';
         if (!hasFn) { if (mounted) setIapOkcChecked(true); return; }
+        const productIdentifiers = [
+          'co.onekamer.okcoins.pack10',
+          'onekamer_okcoins_pack_10',
+          'co.onekamer.okcoins.pack20',
+          'co.onekamer.okcoins.pack50',
+          'co.onekamer.okcoins.pack100',
+          'co.onekamer.okcoins.pack150',
+        ];
         const res = await NativePurchases.getProducts({
-          productIdentifiers: ['co.onekamer.okcoins.pack10'],
+          productIdentifiers,
           productType: PURCHASE_TYPE.INAPP,
         });
         const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
-        const ok = (list || []).some((p) => String(p?.productId || p?.productIdentifier) === 'co.onekamer.okcoins.pack10');
-        let priceLabel = null;
+        const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
         const pickPrice = (p) => {
           if (!p) return null;
           const s = p.localizedPrice || p.priceString || p.price_formatted || p.priceFormatted || p.formattedPrice;
@@ -162,14 +190,28 @@ const OKCoins = () => {
           }
           return null;
         };
-        const found = (list || []).find((p) => String(p?.productId || p?.productIdentifier) === 'co.onekamer.okcoins.pack10');
-        priceLabel = pickPrice(found) || pickPrice(list?.[0]);
-        if (mounted) { setIapOkcReady(!!ok); setIapOkcChecked(true); setOkcIosPrice(priceLabel || null); }
+        const priceMap = {};
+        const readyMap = {};
+        for (const p of (list || [])) {
+          const id = getId(p);
+          const price = pickPrice(p);
+          if (id) readyMap[id] = true;
+          if (id && price) priceMap[id] = price;
+        }
+        if (mounted) {
+          setOkcIosReadyMap(readyMap);
+          setOkcIosPriceMap(priceMap);
+          setIapOkcReady((list || []).length > 0);
+          // Conserver un prix par défaut pour l’ancien affichage si besoin
+          const price10 = priceMap['co.onekamer.okcoins.pack10'] || priceMap['onekamer_okcoins_pack_10'] || null;
+          setOkcIosPrice(price10);
+          setIapOkcChecked(true);
+        }
       } catch {
         if (mounted) setIapOkcChecked(true);
       }
     };
-    preload();
+    preloadAll();
     return () => { mounted = false; };
   }, [isIOS]);
 
@@ -289,11 +331,26 @@ const OKCoins = () => {
   const handleBuyPack = async (pack) => {
     if (!user) return toast({ title: "Veuillez vous connecter", variant: "destructive" });
 
-    if (isIosPack(pack)) {
+    if (isIOS) {
       setBuyingPackId(pack.id);
       try {
+        const candidates = getProductIdsForCoins(pack?.coins);
+        if (!candidates.length) throw new Error('Produit iOS non configuré pour ce pack.');
+        let productToBuy = candidates[0];
+        try {
+          const res = await NativePurchases.getProducts({
+            productIdentifiers: candidates,
+            productType: PURCHASE_TYPE.INAPP,
+          });
+          const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+          const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+          for (const id of candidates) {
+            const found = (list || []).find((p) => getId(p) === id);
+            if (found) { productToBuy = id; break; }
+          }
+        } catch {}
         const result = await NativePurchases.purchaseProduct({
-          productIdentifier: 'co.onekamer.okcoins.pack10',
+          productIdentifier: productToBuy,
           productType: PURCHASE_TYPE.INAPP,
           quantity: 1
         });
@@ -512,7 +569,7 @@ const OKCoins = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {(isIOS ? packs.filter((p) => isIosPack(p)) : packs).map((pack) => {
+              {packs.map((pack) => {
                 let coinColorClass = 'text-[#6B6B6B]';
                 if (pack.price_eur <= 25) {
                   coinColorClass = 'text-amber-700';
@@ -532,27 +589,23 @@ const OKCoins = () => {
                         <div className={`text-3xl mb-2 ${coinColorClass}`}>
                            🪙
                         </div>
-                        <div className="font-bold text-lg">{isIosPack(pack)
-                          ? (okcIosPrice || '—')
-                          : (!isIOS && Number(pack?.coins) === IOS_OKC_COINS ? '11,99€' : `${pack.price_eur}€`)}</div>
+                        <div className="font-bold text-lg">{isIOS
+                          ? (getIosPriceForPack(pack) || '—')
+                          : (Number(pack?.coins) === IOS_OKC_COINS ? '11,99€' : `${pack.price_eur}€`)}</div>
                         <div className="text-sm text-[#6B6B6B] mb-2">{pack.coins.toLocaleString()} pièces</div>
                         <div className="text-xs text-[#2BA84A] font-semibold">+{pack.points} points</div>
                       </div>
-                      {/* iOS natif (App Review): désactiver tous les packs sauf 1000 coins (IAP) */}
                       <Button
                         className="w-full mt-4 bg-[#2BA84A]"
                         onClick={() => handleBuyPack(pack)}
                         disabled={
                           buyingPackId === pack.id ||
-                          (isIOS && !isIosPack(pack)) ||
-                          (isIOS && isIosPack(pack) && (!okcIosPrice || !iapOkcReady))
+                          (isIOS && !isPackReadyOnIOS(pack))
                         }
                       >
                         {buyingPackId === pack.id
                           ? <Loader2 className="h-4 w-4 animate-spin"/>
-                          : (isIOS && !isIosPack(pack))
-                            ? 'Bientôt disponible'
-                            : 'Acheter'}
+                          : 'Acheter'}
                       </Button>
                     </CardContent>
                   </Card>

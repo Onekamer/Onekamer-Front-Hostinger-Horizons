@@ -22,6 +22,9 @@ const Forfaits = () => {
   const [iapVipReady, setIapVipReady] = useState(false);
   const [iapVipChecked, setIapVipChecked] = useState(false);
   const [vipIosPrice, setVipIosPrice] = useState(null);
+  const [iapStdReady, setIapStdReady] = useState(false);
+  const [iapStdChecked, setIapStdChecked] = useState(false);
+  const [stdIosPrice, setStdIosPrice] = useState(null);
 
   useEffect(() => {
     const run = async () => {
@@ -91,6 +94,47 @@ const Forfaits = () => {
     return () => { mounted = false; };
   }, [isIOS]);
 
+  useEffect(() => {
+    let mounted = true;
+    const preloadStd = async () => {
+      try {
+        if (!isIOS) { if (mounted) setIapStdChecked(true); return; }
+        const hasFn = typeof NativePurchases?.getProducts === 'function';
+        if (!hasFn) { if (mounted) setIapStdChecked(true); return; }
+        const res = await NativePurchases.getProducts({
+          productIdentifiers: ['co.onekamer.standard.monthly'],
+          productType: PURCHASE_TYPE.SUBS,
+        });
+        const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+        const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+        const foundItem = (list || []).find((p) => getId(p) === 'co.onekamer.standard.monthly');
+        let priceLabel = null;
+        const pickPrice = (p) => {
+          if (!p) return null;
+          const s = p.localizedPrice || p.priceString || p.price_formatted || p.priceFormatted || p.formattedPrice;
+          if (s) return String(s);
+          const val = Number(p.price);
+          const cur = p.currency || p.currencyCode;
+          if (Number.isFinite(val) && cur) {
+            try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: String(cur) }).format(val); } catch {}
+            return `${val} ${cur}`;
+          }
+          return null;
+        };
+        priceLabel = pickPrice(foundItem) || pickPrice(list?.[0]);
+        if (mounted) {
+          setIapStdReady((Array.isArray(list) && list.length > 0) || !!foundItem);
+          setIapStdChecked(true);
+          setStdIosPrice(priceLabel || null);
+        }
+      } catch {
+        if (mounted) setIapStdChecked(true);
+      }
+    };
+    preloadStd();
+    return () => { mounted = false; };
+  }, [isIOS]);
+
   const handleChoosePlan = async (plan) => {
     if (!user) {
       toast({ title: "Connexion requise", description: "Veuillez vous connecter pour choisir un forfait.", variant: "destructive" });
@@ -98,11 +142,7 @@ const Forfaits = () => {
       return;
     }
 
-    // iOS natif: désactivation temporaire du plan Standard (App Review)
-    if (isIOS && plan.key === 'standard') {
-      toast({ title: "Bientôt disponible", description: "Le forfait Standard sera disponible prochainement sur iOS.", variant: "default" });
-      return;
-    }
+    
 
     setLoadingPlan(plan.key);
 
@@ -146,6 +186,71 @@ const Forfaits = () => {
             txId = String(manual).trim();
           }
 
+          const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || API_URL;
+          const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+          const res = await fetch(`${API_PREFIX}/iap/verify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+            },
+            body: JSON.stringify({
+              platform: 'ios',
+              provider: 'apple',
+              userId: user.id,
+              transactionId: txId
+            })
+          });
+          const dataVerify = await res.json().catch(() => ({}));
+          if (!res.ok || !dataVerify?.ok) {
+            throw new Error(dataVerify?.error || 'Échec vérification IAP');
+          }
+          await refreshProfile();
+          toast({ title: "Abonnement activé", description: "Votre plan a été mis à jour." });
+        } catch (e) {
+          toast({ title: "Erreur", description: e?.message || "Achat in-app échoué", variant: "destructive" });
+        } finally {
+          setLoadingPlan(null);
+        }
+        return;
+      }
+      if (isIOS && plan.key === 'standard') {
+        try {
+          const candidates = ['co.onekamer.standard.monthly'];
+          let productToBuy = candidates[0];
+          try {
+            const res = await NativePurchases.getProducts({
+              productIdentifiers: candidates,
+              productType: PURCHASE_TYPE.SUBS,
+            });
+            const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+            const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+            for (const id of candidates) {
+              const found = (list || []).find((p) => getId(p) === id);
+              if (found) { productToBuy = id; break; }
+            }
+          } catch {}
+          const result = await NativePurchases.purchaseProduct({
+            productIdentifier: productToBuy,
+            productType: PURCHASE_TYPE.SUBS,
+            quantity: 1
+          });
+          let txId = String(result?.transactionId || '').trim();
+          if (!txId) {
+            try {
+              const got = await NativePurchases.getPurchases();
+              const purchases = Array.isArray(got?.purchases) ? got.purchases : [];
+              const wanted = new Set(candidates);
+              const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim();
+              const match = purchases.find((it) => wanted.has(getId(it)) && it?.transactionId);
+              if (match?.transactionId) txId = String(match.transactionId);
+            } catch {}
+          }
+          if (!txId) {
+            const manual = window.prompt("Entrez l'identifiant de transaction Apple (transactionId)");
+            if (!manual) throw new Error("Achat confirmé mais identifiant de transaction introuvable");
+            txId = String(manual).trim();
+          }
           const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || API_URL;
           const API_PREFIX = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
           const res = await fetch(`${API_PREFIX}/iap/verify`, {
@@ -282,7 +387,7 @@ const Forfaits = () => {
         )}
 
         <div className="grid md:grid-cols-3 gap-8">
-          {(isIOS ? plans.filter((p) => p.key !== 'standard') : plans).map((plan) => {
+          {plans.map((plan) => {
             const vipActiveNow = subInfo && subInfo.plan_name === 'vip' && subInfo.end_date && (new Date(subInfo.end_date).getTime() > Date.now());
             const vipInactiveNow = subInfo && subInfo.plan_name === 'vip' && subInfo.end_date && (new Date(subInfo.end_date).getTime() <= Date.now());
             const isCurrentPlan = (
@@ -303,7 +408,7 @@ const Forfaits = () => {
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-between space-y-4">
                 <div>
-                  <p className="text-3xl font-bold">{isIOS && plan.key === 'vip' ? (vipIosPrice || '—') : plan.price} <span className="text-sm font-normal">/ mois</span></p>
+                  <p className="text-3xl font-bold">{isIOS ? (plan.key === 'vip' ? (vipIosPrice || '—') : (plan.key === 'standard' ? (stdIosPrice || '—') : plan.price)) : plan.price} <span className="text-sm font-normal">/ mois</span></p>
                   <ul className="space-y-2 text-sm mt-4">
                     {plan.features?.map(feat => <li key={feat} className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500" /> {feat}</li>)}
                     {plan.nonFeatures?.map(feat => <li key={feat} className="flex items-center"><XCircle className="h-4 w-4 mr-2 text-red-500" /> {feat}</li>)}
@@ -324,16 +429,14 @@ const Forfaits = () => {
                   disabled={
                     loadingPlan === plan.key ||
                     isCurrentPlan ||
-                    (isIOS && plan.key === 'standard') ||
-                    (isIOS && plan.key === 'vip' && (!vipIosPrice || !iapVipReady))
+                    (isIOS && plan.key === 'vip' && (!vipIosPrice || !iapVipReady)) ||
+                    (isIOS && plan.key === 'standard' && (!stdIosPrice || !iapStdReady))
                   }
                 >
                   {loadingPlan === plan.key ? <Loader2 className="h-4 w-4 animate-spin" /> :
                    isCurrentPlan ? 'Votre plan actuel' :
-                   (isIOS && plan.key === 'standard') ? 'Bientôt disponible' :
-                   plan.key === 'free' ? 'Gratuit' :
-                   plan.key === 'standard' ? 'Souscrire au forfait Standard' :
-                   'Devenir membre VIP'}
+                   (plan.key === 'free' ? 'Gratuit' :
+                   (plan.key === 'standard' ? 'Souscrire au forfait Standard' : 'Devenir membre VIP'))}
                 </Button>
                 {isIOS && plan.key === 'vip' && (
                   <div className="mt-2 text-[11px] text-gray-500">
