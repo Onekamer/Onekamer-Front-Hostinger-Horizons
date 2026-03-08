@@ -54,6 +54,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
   const [loading, setLoading] = useState(true);
   const [errorState, setErrorState] = useState(false);
   const [backupUrl, setBackupUrl] = useState(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     const loadMedia = async () => {
@@ -271,22 +272,41 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
   }
 
   return (
-    <img
-      src={mediaUrl}
-      alt={alt || 'Image'}
-      className={className}
-      onError={(e) => {
-        console.warn('⚠️ Erreur de chargement image → tentative backup ou fallback');
-        if (backupUrl) {
-          const next = backupUrl;
-          setBackupUrl(null);
-          e.target.src = next;
-          return;
-        }
-        e.target.onerror = null;
-        e.target.src = defaultImages[bucket] || defaultImages.annonces;
-      }}
-    />
+    <>
+      <img
+        src={mediaUrl}
+        alt={alt || 'Image'}
+        className={className}
+        onClick={() => setLightboxOpen(true)}
+        onError={(e) => {
+          if (backupUrl) {
+            const next = backupUrl;
+            setBackupUrl(null);
+            e.target.src = next;
+            return;
+          }
+          e.target.onerror = null;
+          e.target.src = defaultImages[bucket] || defaultImages.annonces;
+        }}
+      />
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <div
+            className="max-w-[95vw] max-h-[95vh] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={mediaUrl}
+              alt={alt || 'Image'}
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
