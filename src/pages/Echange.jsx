@@ -898,7 +898,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     formData.append("folder", folder);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
+    const timer = setTimeout(() => controller.abort(), 180000);
     const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
       method: "POST",
       body: formData,
@@ -2248,7 +2248,7 @@ const Echange = () => {
     formData.append('folder', folder);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
+    const timer = setTimeout(() => controller.abort(), 180000);
     const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
       method: 'POST',
       body: formData,

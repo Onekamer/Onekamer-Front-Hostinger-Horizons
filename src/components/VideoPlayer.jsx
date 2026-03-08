@@ -41,12 +41,18 @@ const VideoPlayer = ({
   }, [embedUrl]);
 
   useEffect(() => {
-    // Auto-retry loading the Bunny iframe a couple of times to bypass early 404/caching
-    if (!useEmbed || embedLoaded) return;
-    const t1 = setTimeout(() => setRetry((r) => r + 1), 6000);
-    const t2 = setTimeout(() => setRetry((r) => r + 1), 14000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [useEmbed, embedLoaded, retry]);
+    if (!useEmbed) return;
+    let tries = 0;
+    const maxTries = 24; // ~2 minutes à 5s l’intervalle
+    const iv = setInterval(() => {
+      tries += 1;
+      setRetry((r) => r + 1);
+      if (tries >= maxTries) {
+        clearInterval(iv);
+      }
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [useEmbed, embedUrl]);
 
   useEffect(() => {
     if (!autoPlayOnView || useEmbed) return;
