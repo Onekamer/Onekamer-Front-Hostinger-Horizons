@@ -13,6 +13,9 @@ const Landing = () => {
   const [vipIosPrice, setVipIosPrice] = useState(null)
   const [iapVipReady, setIapVipReady] = useState(false)
   const [iapVipChecked, setIapVipChecked] = useState(false)
+  const [stdIosPrice, setStdIosPrice] = useState(null)
+  const [iapStdReady, setIapStdReady] = useState(false)
+  const [iapStdChecked, setIapStdChecked] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -49,6 +52,42 @@ const Landing = () => {
       }
     }
     preload()
+    return () => { mounted = false }
+  }, [isIOS])
+
+  useEffect(() => {
+    let mounted = true
+    const preloadStd = async () => {
+      try {
+        if (!isIOS) { if (mounted) setIapStdChecked(true); return }
+        const hasFn = typeof NativePurchases?.getProducts === 'function'
+        if (!hasFn) { if (mounted) setIapStdChecked(true); return }
+        const res = await NativePurchases.getProducts({
+          productIdentifiers: ['co.onekamer.standard.monthly'],
+          productType: PURCHASE_TYPE.SUBS,
+        })
+        const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : [])
+        const getId = (p) => String(p?.productId || p?.productIdentifier || p?.identifier || p?.id || p?.sku || '').trim()
+        const foundItem = (list || []).find((p) => getId(p) === 'co.onekamer.standard.monthly')
+        const pickPrice = (p) => {
+          if (!p) return null
+          const s = p.localizedPrice || p.priceString || p.price_formatted || p.priceFormatted || p.formattedPrice
+          if (s) return String(s)
+          const val = Number(p.price)
+          const cur = p.currency || p.currencyCode
+          if (Number.isFinite(val) && cur) {
+            try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: String(cur) }).format(val) } catch {}
+            return `${val} ${cur}`
+          }
+          return null
+        }
+        const priceLabel = pickPrice(foundItem) || pickPrice(list?.[0])
+        if (mounted) { setIapStdReady((Array.isArray(list) && list.length > 0) || !!foundItem); setIapStdChecked(true); setStdIosPrice(priceLabel || null) }
+      } catch (_) {
+        if (mounted) setIapStdChecked(true)
+      }
+    }
+    preloadStd()
     return () => { mounted = false }
   }, [isIOS])
 
@@ -171,13 +210,12 @@ const Landing = () => {
             </div>
 
             {/* Standard (masqué sur iOS pendant la review) */}
-            {!isIOS && (
-              <div className="relative rounded-xl border-2 border-[#2BA84A] bg-white p-6 flex flex-col h-full shadow-sm">
+            <div className="relative rounded-xl border-2 border-[#2BA84A] bg-white p-6 flex flex-col h-full shadow-sm">
                 <div className="absolute top-0 right-4 -mt-3 bg-[#2BA84A] text-white text-xs font-bold px-3 py-1 rounded-full">POPULAIRE</div>
                 <h3 className="text-lg font-semibold">Standard</h3>
                 <p className="text-sm italic text-gray-600 mt-1">Moins cher qu’une portion de soya bien pimenté.</p>
                 <div className="mt-3 flex-1">
-                  <div className="text-3xl font-extrabold">2€ <span className="text-base font-normal">/ mois</span></div>
+                  <div className="text-3xl font-extrabold">{isIOS ? (stdIosPrice || '—') : '2€'} <span className="text-base font-normal">/ mois</span></div>
                   <ul className="mt-4 space-y-2 text-gray-700 text-sm">
                     <li>✅ Tout du plan Gratuit</li>
                     <li>🏢 Accès aux Partenaires & Recommandations</li>
@@ -190,15 +228,25 @@ const Landing = () => {
                   >
                     Souscrire au forfait Standard
                   </button>
-                  <div className="mt-2 text-[11px] text-gray-500">
-                    Abonnement mensuel sans engagement, résiliable à tout moment.
-                    <br />
-                    En poursuivant, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
-                    <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
-                  </div>
+                  {isIOS ? (
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      Abonnement auto-renouvelable, sans engagement, résiliable à tout moment.
+                      <br />
+                      En appuyant sur le bouton, vous acceptez
+                      <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noreferrer" className="underline"> l'EULA d'Apple</a>,
+                      nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                      <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      Abonnement mensuel sans engagement, résiliable à tout moment.
+                      <br />
+                      En poursuivant, vous acceptez nos <a href="/cgu" className="underline">Conditions d'utilisation</a> et notre
+                      <a href="/rgpd" className="underline"> Politique de confidentialité</a>.
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
 
             {/* VIP */}
             <div className="relative rounded-xl border border-gray-200 bg-white p-6 flex flex-col h-full shadow-sm">
