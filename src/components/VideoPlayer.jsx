@@ -9,7 +9,7 @@ const buildEmbedUrl = (url, { muted = true } = {}) => {
     // Append autoplay params if not present
     const qp = u.search ? `${u.search}&` : '?';
     const mutedVal = muted ? 'true' : 'false';
-    return `${u.origin}${u.pathname}${qp}autoplay=true&muted=${mutedVal}&loop=true&preload=metadata`;
+    return `${u.origin}${u.pathname}${qp}autoplay=true&muted=${mutedVal}&loop=true`;
   } catch {
     return url;
   }
