@@ -273,22 +273,30 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
 
   return (
     <>
-      <img
-        src={mediaUrl}
-        alt={alt || 'Image'}
-        className={className}
+      <button
+        type="button"
+        className="p-0 m-0 bg-transparent border-0 cursor-zoom-in"
+        style={{ touchAction: 'manipulation' }}
+        draggable={false}
         onClick={() => setLightboxOpen(true)}
-        onError={(e) => {
-          if (backupUrl) {
-            const next = backupUrl;
-            setBackupUrl(null);
-            e.target.src = next;
-            return;
-          }
-          e.target.onerror = null;
-          e.target.src = defaultImages[bucket] || defaultImages.annonces;
-        }}
-      />
+      >
+        <img
+          src={mediaUrl}
+          alt={alt || 'Image'}
+          className={className}
+          draggable={false}
+          onError={(e) => {
+            if (backupUrl) {
+              const next = backupUrl;
+              setBackupUrl(null);
+              e.target.src = next;
+              return;
+            }
+            e.target.onerror = null;
+            e.target.src = defaultImages[bucket] || defaultImages.annonces;
+          }}
+        />
+      </button>
       {lightboxOpen && (
         <div
           className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
