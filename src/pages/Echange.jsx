@@ -1028,13 +1028,14 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             finalAudioBlob = await recorderPromiseRef.current;
         }
 
+        let pending_embed = null;
         if (mediaFile) {
             media_url = await uploadToBunny(mediaFile, "comments");
             media_type = mediaFile.type;
             type = mediaFile.type.startsWith('image') ? 'image' : 'video';
             if (mediaFile.type.startsWith('video')) {
               const embed = await importToBunnyStream(media_url, `Comment ${user?.id || ''} ${Date.now()}`);
-              if (embed) media_url = embed;
+              pending_embed = embed || null;
             }
         } else if (finalAudioBlob) {
             const { type: mimeType, ext } = mimeRef.current || { type: finalAudioBlob.type || 'audio/webm', ext: 'webm' };
@@ -1085,6 +1086,22 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           .single();
 
         if (insertError) throw insertError;
+        if (pending_embed && insertedComment?.id) {
+          const delays = [20000, 90000];
+          (async () => {
+            for (const d of delays) {
+              await new Promise((r) => setTimeout(r, d));
+              try {
+                await supabase
+                  .from('comments')
+                  .update({ media_url: pending_embed })
+                  .eq('id', insertedComment.id)
+                  .eq('user_id', user.id);
+                break;
+              } catch (_) {}
+            }
+          })();
+        }
         try {
           if (postOwnerId && user?.id !== postOwnerId) {
             await notifyPostCommented({

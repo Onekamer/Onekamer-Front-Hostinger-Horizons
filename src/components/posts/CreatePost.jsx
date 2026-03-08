@@ -631,9 +631,9 @@ const CreatePost = ({ onCreateSponsored }) => {
             if (mediaType === 'image') {
               postData.image_url = mediaUrl;
             } else {
-              // Tentative d’ingestion Bunny Stream pour lecture HLS/ABR
               const embed = await importToBunnyStream(mediaUrl, `Post ${user?.id || ''} ${Date.now()}`);
-              postData.video_url = embed || mediaUrl;
+              postData.video_url = mediaUrl;
+              postData._pending_embed = embed || null;
             }
           }
           
