@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const OK_LOGO_URL = 'https://onekamer-media-cdn.b-cdn.net/logo/IMG_0885%202.PNG';
 
@@ -31,6 +31,22 @@ const VideoPlayer = ({
   const videoRef = useRef(null);
   const useEmbed = useMemo(() => isBunnyEmbed(src), [src]);
   const embedUrl = useMemo(() => (useEmbed ? buildEmbedUrl(src, { muted: !allowSoundAutoplay }) : null), [useEmbed, src, allowSoundAutoplay]);
+  const [embedLoaded, setEmbedLoaded] = useState(false);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    // Reset load state when source changes
+    setEmbedLoaded(false);
+    setRetry(0);
+  }, [embedUrl]);
+
+  useEffect(() => {
+    // Auto-retry loading the Bunny iframe a couple of times to bypass early 404/caching
+    if (!useEmbed || embedLoaded) return;
+    const t1 = setTimeout(() => setRetry((r) => r + 1), 6000);
+    const t2 = setTimeout(() => setRetry((r) => r + 1), 14000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [useEmbed, embedLoaded, retry]);
 
   useEffect(() => {
     if (!autoPlayOnView || useEmbed) return;
@@ -80,11 +96,12 @@ const VideoPlayer = ({
     <div className={wrapperClass} onClick={handleWrapperClick}>
       {useEmbed ? (
         <iframe
-          src={embedUrl}
+          src={`${embedUrl}${embedUrl && embedUrl.includes('?') ? '&' : '?'}r=${retry}`}
           title="video"
-          loading="lazy"
+          loading="eager"
           allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowFullScreen
+          onLoad={() => setEmbedLoaded(true)}
           className={`w-full h-full rounded-lg`}
           style={{ border: '0' }}
         />
