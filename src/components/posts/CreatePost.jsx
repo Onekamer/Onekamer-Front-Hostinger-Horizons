@@ -625,6 +625,7 @@ const CreatePost = ({ onCreateSponsored }) => {
             comments_count: 0,
           };
           
+          let pendingEmbed = null;
           if (mediaFile) {
             const mediaUrl = await uploadToBunny(mediaFile, "posts");
             const mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
@@ -633,7 +634,7 @@ const CreatePost = ({ onCreateSponsored }) => {
             } else {
               const embed = await importToBunnyStream(mediaUrl, `Post ${user?.id || ''} ${Date.now()}`);
               postData.video_url = mediaUrl;
-              postData._pending_embed = embed || null;
+              pendingEmbed = embed || null;
             }
           }
           
