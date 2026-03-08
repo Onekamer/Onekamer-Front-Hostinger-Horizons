@@ -41,7 +41,7 @@ const VideoPlayer = ({
   }, [embedUrl]);
 
   useEffect(() => {
-    if (!useEmbed) return;
+    if (!useEmbed || embedLoaded) return;
     let tries = 0;
     const maxTries = 24; // ~2 minutes à 5s l’intervalle
     const iv = setInterval(() => {
@@ -52,7 +52,7 @@ const VideoPlayer = ({
       }
     }, 5000);
     return () => clearInterval(iv);
-  }, [useEmbed, embedUrl]);
+  }, [useEmbed, embedUrl, embedLoaded]);
 
   useEffect(() => {
     if (!autoPlayOnView || useEmbed) return;
@@ -90,7 +90,7 @@ const VideoPlayer = ({
 
   // Pas de boutons overlay; l'ouverture plein écran se fait au clic global si onOpenLightbox est fourni
 
-  const wrapperClass = `relative ${className} ${fitContain ? 'aspect-video overflow-hidden bg-black/5' : ''} ${onOpenLightbox ? 'cursor-zoom-in' : ''}`;
+  const wrapperClass = `relative ${className} ${fitContain && !useEmbed ? 'aspect-video overflow-hidden bg-black/5' : ''} ${onOpenLightbox ? 'cursor-zoom-in' : ''}`;
   const videoClass = `rounded-lg ${fitContain ? 'w-full h-full object-contain' : 'w-full h-auto'}`;
   const handleWrapperClick = (e) => {
     if (!onOpenLightbox) return;
@@ -102,13 +102,14 @@ const VideoPlayer = ({
     <div className={wrapperClass} onClick={handleWrapperClick}>
       {useEmbed ? (
         <iframe
-          src={`${embedUrl}${embedUrl && embedUrl.includes('?') ? '&' : '?'}r=${retry}`}
+          key={retry}
+          src={embedUrl}
           title="video"
           loading="eager"
           allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowFullScreen
           onLoad={() => setEmbedLoaded(true)}
-          className={`w-full h-full rounded-lg`}
+          className={`w-full rounded-lg`}
           style={{ border: '0' }}
         />
       ) : (
