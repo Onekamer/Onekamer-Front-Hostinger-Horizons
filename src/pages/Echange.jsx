@@ -322,9 +322,10 @@ const CommentMedia = ({ url, type }) => {
                 <button
                     type="button"
                     className="rounded-lg mt-2 p-0 m-0 bg-transparent border-0 cursor-zoom-in"
-                    style={{ touchAction: 'manipulation' }}
+                    style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                     draggable={false}
                     onClick={() => setOpen(true)}
+                    onContextMenu={(e) => { e.preventDefault(); return false; }}
                 >
                     <img
                         src={url}

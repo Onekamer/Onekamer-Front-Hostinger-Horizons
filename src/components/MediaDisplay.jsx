@@ -276,9 +276,10 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
       <button
         type="button"
         className="p-0 m-0 bg-transparent border-0 cursor-zoom-in"
-        style={{ touchAction: 'manipulation' }}
+        style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
         draggable={false}
         onClick={() => setLightboxOpen(true)}
+        onContextMenu={(e) => { e.preventDefault(); return false; }}
       >
         <img
           src={mediaUrl}
