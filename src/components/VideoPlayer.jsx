@@ -29,8 +29,9 @@ const VideoPlayer = ({
   onOpenLightbox = null,
 }) => {
   const videoRef = useRef(null);
-  const useEmbed = useMemo(() => isBunnyEmbed(src), [src]);
-  const embedUrl = useMemo(() => (useEmbed ? buildEmbedUrl(src, { muted: !allowSoundAutoplay }) : null), [useEmbed, src, allowSoundAutoplay]);
+  // Désactivation de l'embed Bunny : forcer la lecture native CDN
+  const useEmbed = false;
+  const embedUrl = null;
   const [embedLoaded, setEmbedLoaded] = useState(false);
   const [retry, setRetry] = useState(0);
 
@@ -100,30 +101,16 @@ const VideoPlayer = ({
   const mutedAttr = allowSoundAutoplay ? false : muted;
   return (
     <div className={wrapperClass} onClick={handleWrapperClick}>
-      {useEmbed ? (
-        <iframe
-          key={retry}
-          src={embedUrl}
-          title="video"
-          loading="eager"
-          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-          allowFullScreen
-          onLoad={() => setEmbedLoaded(true)}
-          className={`w-full rounded-lg`}
-          style={{ border: '0' }}
-        />
-      ) : (
-        <video
-          ref={videoRef}
-          src={src}
-          controls={controls}
-          muted={mutedAttr}
-          loop={loop}
-          playsInline
-          preload="metadata"
-          className={videoClass}
-        />
-      )}
+      <video
+        ref={videoRef}
+        src={src}
+        controls={controls}
+        muted={mutedAttr}
+        loop={loop}
+        playsInline
+        preload="metadata"
+        className={videoClass}
+      />
       {/* Watermark OneKamer (overlay non bloquant) */}
       <img
         src={OK_LOGO_URL}

@@ -279,6 +279,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
         draggable={false}
         onClick={() => setLightboxOpen(true)}
+        onTouchStart={(e) => { e.preventDefault(); setLightboxOpen(true); }}
         onContextMenu={(e) => { e.preventDefault(); return false; }}
       >
         <img
@@ -286,6 +287,8 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
           alt={alt || 'Image'}
           className={className}
           draggable={false}
+          style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', pointerEvents: 'none', WebkitUserDrag: 'none' }}
+          onContextMenu={(e) => { e.preventDefault(); return false; }}
           onError={(e) => {
             if (backupUrl) {
               const next = backupUrl;

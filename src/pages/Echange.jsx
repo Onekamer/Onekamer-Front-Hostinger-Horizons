@@ -325,6 +325,7 @@ const CommentMedia = ({ url, type }) => {
                     style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                     draggable={false}
                     onClick={() => setOpen(true)}
+                    onTouchStart={(e) => { e.preventDefault(); setOpen(true); }}
                     onContextMenu={(e) => { e.preventDefault(); return false; }}
                 >
                     <img
@@ -332,6 +333,8 @@ const CommentMedia = ({ url, type }) => {
                         alt="Comment media"
                         className="rounded-lg max-h-40"
                         draggable={false}
+                        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', pointerEvents: 'none', WebkitUserDrag: 'none' }}
+                        onContextMenu={(e) => { e.preventDefault(); return false; }}
                         onError={(e) => {
                             e.currentTarget.onerror = null;
                             e.currentTarget.src = "https://onekamer-media-cdn.b-cdn.net/posts/default_post_image.png";
