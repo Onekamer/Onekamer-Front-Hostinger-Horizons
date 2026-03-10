@@ -1062,10 +1062,6 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             media_url = await uploadToBunny(mediaFile, "comments");
             media_type = mediaFile.type;
             type = mediaFile.type.startsWith('image') ? 'image' : 'video';
-            if (mediaFile.type.startsWith('video')) {
-              const embed = await importToBunnyStream(media_url, `Comment ${user?.id || ''} ${Date.now()}`);
-              pending_embed = embed || null;
-            }
         } else if (finalAudioBlob) {
             const { type: mimeType, ext } = mimeRef.current || { type: finalAudioBlob.type || 'audio/webm', ext: 'webm' };
             const normalizedType = mimeType.split(";")[0];
@@ -1115,22 +1111,6 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
           .single();
 
         if (insertError) throw insertError;
-        if (pending_embed && insertedComment?.id) {
-          const delays = [20000, 90000];
-          (async () => {
-            for (const d of delays) {
-              await new Promise((r) => setTimeout(r, d));
-              try {
-                await supabase
-                  .from('comments')
-                  .update({ media_url: pending_embed })
-                  .eq('id', insertedComment.id)
-                  .eq('user_id', user.id);
-                break;
-              } catch (_) {}
-            }
-          })();
-        }
         try {
           if (postOwnerId && user?.id !== postOwnerId) {
             await notifyPostCommented({
@@ -1747,16 +1727,28 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
         </div>
         <p className="mb-4 whitespace-pre-wrap">{parseMentions(post.content)}</p>
         {imageUrl && (
-          <img 
-            src={imageUrl} 
-            alt="Post media" 
-            className="rounded-lg w-full max-h-64 md:max-h-80 object-contain bg-black/5 mb-4 cursor-zoom-in" 
+          <button
+            type="button"
+            className="rounded-lg w-full mb-4 p-0 m-0 bg-transparent border-0 cursor-zoom-in"
+            style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+            draggable={false}
             onClick={() => setLightboxUrl(imageUrl)}
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src="https://onekamer-media-cdn.b-cdn.net/posts/default_post_image.png";
-            }}
-          />
+            onTouchStart={(e) => { e.preventDefault(); setLightboxUrl(imageUrl); }}
+            onContextMenu={(e) => { e.preventDefault(); return false; }}
+          >
+            <img 
+              src={imageUrl} 
+              alt="Post media" 
+              className="rounded-lg w-full max-h-64 md:max-h-80 object-contain bg-black/5" 
+              draggable={false}
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', pointerEvents: 'none', WebkitUserDrag: 'none' }}
+              onContextMenu={(e) => { e.preventDefault(); return false; }}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src="https://onekamer-media-cdn.b-cdn.net/posts/default_post_image.png";
+              }}
+            />
+          </button>
         )}
         {videoUrl && (
           <VideoPlayer
