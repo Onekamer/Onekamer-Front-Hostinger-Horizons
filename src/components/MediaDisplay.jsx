@@ -279,7 +279,8 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
         draggable={false}
         onClick={() => setLightboxOpen(true)}
-        onTouchStart={(e) => { e.preventDefault(); setLightboxOpen(true); }}
+        onPointerDown={(e) => { if (e.pointerType === 'touch') setLightboxOpen(true); }}
+        onTouchStart={() => { setLightboxOpen(true); }}
         onContextMenu={(e) => { e.preventDefault(); return false; }}
       >
         <img

@@ -501,7 +501,7 @@ const CreatePost = ({ onCreateSponsored }) => {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 600000);
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+    const response = await fetch(`${getApiPrefix()}/upload`, {
       method: "POST",
       body: formData,
       signal: controller.signal,

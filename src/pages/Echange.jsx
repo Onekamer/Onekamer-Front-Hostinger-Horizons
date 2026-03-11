@@ -928,7 +928,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 600000);
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+    const response = await fetch(`${getApiPrefix()}/upload`, {
       method: "POST",
       body: formData,
       signal: controller.signal,
@@ -1733,7 +1733,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
             draggable={false}
             onClick={() => setLightboxUrl(imageUrl)}
-            onTouchStart={(e) => { e.preventDefault(); setLightboxUrl(imageUrl); }}
+            onPointerDown={(e) => { if (e.pointerType === 'touch') setLightboxUrl(imageUrl); }}
+            onTouchStart={() => { setLightboxUrl(imageUrl); }}
             onContextMenu={(e) => { e.preventDefault(); return false; }}
           >
             <img 
@@ -2287,7 +2288,7 @@ const Echange = () => {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 600000);
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+    const response = await fetch(`${API_PREFIX}/upload`, {
       method: 'POST',
       body: formData,
       signal: controller.signal,
