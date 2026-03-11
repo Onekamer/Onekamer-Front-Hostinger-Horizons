@@ -968,11 +968,11 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     }
   };
   
-  const getApiPrefix = () => {
+  function getApiPrefix() {
     const isNative = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
     if (isNative) return import.meta.env.VITE_API_URL;
     return (import.meta.env.VITE_API_URL || '/api');
-  };
+  }
 
   const isIOSWebView = () => {
     try { return /iphone|ipad|ipod/i.test(navigator.userAgent || ''); } catch (_) { return false; }
@@ -1007,10 +1007,12 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     const abs = import.meta.env.VITE_API_URL;
     if (isNative) {
       if (abs) c.push(abs);
+      c.push('https://onekamer.co/api');
       c.push('/api');
     } else {
       c.push('/api');
       if (abs) c.push(abs);
+      c.push('https://onekamer.co/api');
     }
     return Array.from(new Set(c.filter(Boolean)));
   };
@@ -1784,7 +1786,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
             draggable={false}
             onClick={() => setLightboxUrl(imageUrl)}
-            onTouchStart={() => { /* no preventDefault to keep click */ }}
+            onTouchStart={() => {}}
             onTouchEnd={() => { setLightboxUrl(imageUrl); }}
             onContextMenu={(e) => { e.preventDefault(); return false; }}
           >
