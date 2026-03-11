@@ -7,6 +7,18 @@ import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import '@/index.css';
 
+if (typeof window !== 'undefined' && !window.getApiPrefix) {
+  window.getApiPrefix = function () {
+    try {
+      const isNative = window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
+      if (isNative) return import.meta.env.VITE_API_URL;
+      return (import.meta.env.VITE_API_URL || '/api');
+    } catch (_) {
+      return '/api';
+    }
+  };
+}
+
 // 🔍 Détection de l'app native iOS (Capacitor + WKWebView)
 const isIOSNativeApp =
   typeof window !== 'undefined' &&

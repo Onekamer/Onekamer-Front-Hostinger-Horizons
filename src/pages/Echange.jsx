@@ -36,6 +36,18 @@ import { extractUniqueMentions } from '@/utils/mentions';
 import VideoPlayer from '@/components/VideoPlayer';
 import DotsLoader from '@/components/ui/DotsLoader';
 
+if (typeof window !== 'undefined' && !window.getApiPrefix) {
+  window.getApiPrefix = function() {
+    try {
+      const isNative = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
+      if (isNative) return import.meta.env.VITE_API_URL;
+      return (import.meta.env.VITE_API_URL || '/api');
+    } catch (_) {
+      return '/api';
+    }
+  };
+}
+
 const normalizeAudioEntry = (entry) => {
   if (!entry || !entry.audio_url) return entry;
   return { ...entry, audio_url: ensurePublicAudioUrl(entry.audio_url) };
@@ -1019,7 +1031,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
   
   const importToBunnyStream = async (cdnUrl, title = 'OneKamer Video') => {
     try {
-      const res = await fetch(`${getApiPrefix()}/stream/import`, {
+      const res = await fetch(`${API_PREFIX}/stream/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceUrl: cdnUrl, title }),
@@ -2319,7 +2331,11 @@ const Echange = () => {
   const [deeplinkTarget, setDeeplinkTarget] = useState({ feedType: null, id: null, commentId: null });
   const location = useLocation();
 
-  const API_PREFIX = getApiPrefix();
+  const API_PREFIX = (
+    (typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web')
+      ? import.meta.env.VITE_API_URL
+      : (import.meta.env.VITE_API_URL || '/api')
+  );
   
   // Sponsorisé — état du Dialog et formulaire
   const [sponsorOpen, setSponsorOpen] = useState(false);

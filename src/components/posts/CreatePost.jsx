@@ -21,6 +21,12 @@ const getApiPrefix = () => {
   return (import.meta.env.VITE_API_URL || '/api');
 };
 
+const API_PREFIX = (
+  (typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web')
+    ? import.meta.env.VITE_API_URL
+    : (import.meta.env.VITE_API_URL || '/api')
+);
+
 const getApiBaseCandidates = () => {
   const c = [];
   const isNative = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
@@ -38,7 +44,7 @@ const getApiBaseCandidates = () => {
 };
 const importToBunnyStream = async (cdnUrl, title = 'OneKamer Video') => {
   try {
-    const res = await fetch(`${getApiPrefix()}/stream/import`, {
+    const res = await fetch(`${API_PREFIX}/stream/import`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceUrl: cdnUrl, title }),
