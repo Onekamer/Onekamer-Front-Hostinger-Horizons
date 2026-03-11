@@ -337,7 +337,8 @@ const CommentMedia = ({ url, type }) => {
                     style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                     draggable={false}
                     onClick={() => setOpen(true)}
-                    onTouchStart={(e) => { e.preventDefault(); setOpen(true); }}
+                    onTouchStart={() => { /* keep default to allow click */ }}
+                    onTouchEnd={() => { setOpen(true); }}
                     onContextMenu={(e) => { e.preventDefault(); return false; }}
                 >
                     <img
@@ -355,15 +356,17 @@ const CommentMedia = ({ url, type }) => {
                 </button>
                 {open && (
                     <div
-                        className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+                        className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
                         onClick={() => setOpen(false)}
                     >
+                      <div className="max-w-[95vw] max-h-[95vh] p-2" onClick={(e) => e.stopPropagation()}>
                         <img
                             src={url}
                             alt="Aperçu"
-                            className="max-w-[95vw] max-h-[95vh] object-contain select-none"
+                            className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
                             draggable={false}
                         />
+                      </div>
                     </div>
                 )}
             </>
@@ -3125,11 +3128,14 @@ const Echange = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Lightbox image/vidéo */}
-        <Dialog open={!!lightboxUrl} onOpenChange={(o) => { if (!o) setLightboxUrl(null); }}>
-          <DialogContent className="sm:max-w-[90vw] p-0 bg-transparent border-0 shadow-none">
-            {lightboxUrl ? (
-              /iframe\.mediadelivery\.net\/embed\//i.test(lightboxUrl) ? (
+        {/* Lightbox image/vidéo (style Marketplace) */}
+        {lightboxUrl && (
+          <div
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <div className="max-w-[95vw] max-h-[95vh] p-2" onClick={(e) => e.stopPropagation()}>
+              {/iframe\.mediadelivery\.net\/embed\//i.test(lightboxUrl) ? (
                 <iframe
                   src={lightboxUrl}
                   title="video"
@@ -3141,11 +3147,11 @@ const Echange = () => {
               ) : /\.(mp4|webm|ogg|m4v)(\?|$)/i.test(lightboxUrl) ? (
                 <video src={lightboxUrl} className="w-auto max-w-[90vw] max-h-[85vh] mx-auto rounded-lg" controls autoPlay playsInline />
               ) : (
-                <img src={lightboxUrl} alt="" className="max-h-[85vh] w-auto mx-auto rounded-lg" />
-              )
-            ) : null}
-          </DialogContent>
-        </Dialog>
+                <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg" />
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
