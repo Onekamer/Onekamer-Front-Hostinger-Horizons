@@ -928,41 +928,92 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 600000);
-    const response = await fetch(`${getApiPrefix()}/upload`, {
-      method: "POST",
-      body: formData,
-      signal: controller.signal,
-    }).catch((e) => {
+    try {
+      const bases = getApiBaseCandidates();
+      let lastErr = null;
+      for (const base of bases) {
+        try {
+          if (isIOSWebView()) {
+            const data = await uploadFormDataXHR(`${base}/upload`, formData, 600000);
+            console.log('[Echange] uploadToBunny XHR success', data?.url);
+            clearTimeout(timer);
+            return data.url;
+          } else {
+            const response = await fetch(`${base}/upload`, { method: 'POST', body: formData, signal: controller.signal });
+            console.log('[Echange] uploadToBunny response status', response?.status, 'via', base);
+            const text = await response.text();
+            let data = null;
+            if (text) {
+              try { data = JSON.parse(text); } catch (_) { throw new Error("Réponse inattendue du serveur d'upload"); }
+            }
+            if (!response.ok || !data?.success) {
+              throw new Error(data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`);
+            }
+            console.log('[Echange] uploadToBunny success', data?.url);
+            clearTimeout(timer);
+            return data.url;
+          }
+        } catch (e) { lastErr = e; continue; }
+      }
+      if (lastErr) throw lastErr;
+      throw new Error('Aucun endpoint upload disponible');
+    } catch (e) {
       if (e.name === 'AbortError') {
         console.warn('[Echange] uploadToBunny aborted by timeout');
         throw new Error("Délai dépassé lors de l’upload (timeout)");
       }
       throw e;
-    }).finally(() => clearTimeout(timer));
-
-    console.log('[Echange] uploadToBunny response status', response?.status);
-    const text = await response.text();
-    console.log('[Echange] uploadToBunny body length', text?.length || 0);
-    let data = null;
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch (error) {
-        console.error("Réponse upload invalide:", text);
-        throw new Error("Réponse inattendue du serveur d'upload");
-      }
+    } finally {
+      clearTimeout(timer);
     }
-
-    if (!response.ok || !data?.success) {
-      const message = data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`;
-      throw new Error(message);
-    }
-
-    console.log('[Echange] uploadToBunny success', data?.url);
-    return data.url;
   };
   
-  const getApiPrefix = () => (import.meta.env.VITE_API_URL || '/api');
+  const getApiPrefix = () => {
+    const isNative = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
+    if (isNative) return import.meta.env.VITE_API_URL;
+    return (import.meta.env.VITE_API_URL || '/api');
+  };
+
+  const isIOSWebView = () => {
+    try { return /iphone|ipad|ipod/i.test(navigator.userAgent || ''); } catch (_) { return false; }
+  };
+
+  const uploadFormDataXHR = (url, formData, timeoutMs = 600000) => new Promise((resolve, reject) => {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.timeout = timeoutMs;
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === 4) {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            let data = null;
+            try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) { reject(new Error("Réponse inattendue du serveur d'upload")); return; }
+            if (!data?.success) { reject(new Error(data?.message || `Erreur d’upload BunnyCDN (code ${xhr.status})`)); return; }
+            resolve(data);
+          } else {
+            reject(new Error(`Erreur d’upload BunnyCDN (code ${xhr.status})`));
+          }
+        }
+      };
+      xhr.onerror = () => reject(new Error('Erreur réseau pendant l’upload'));
+      xhr.ontimeout = () => reject(new Error('Délai dépassé lors de l’upload (timeout)'));
+      xhr.send(formData);
+    } catch (e) { reject(e); }
+  });
+
+  const getApiBaseCandidates = () => {
+    const c = [];
+    const isNative = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
+    const abs = import.meta.env.VITE_API_URL;
+    if (isNative) {
+      if (abs) c.push(abs);
+      c.push('/api');
+    } else {
+      c.push('/api');
+      if (abs) c.push(abs);
+    }
+    return Array.from(new Set(c.filter(Boolean)));
+  };
   
   const importToBunnyStream = async (cdnUrl, title = 'OneKamer Video') => {
     try {
@@ -1733,8 +1784,8 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
             draggable={false}
             onClick={() => setLightboxUrl(imageUrl)}
-            onPointerDown={(e) => { if (e.pointerType === 'touch') setLightboxUrl(imageUrl); }}
-            onTouchStart={() => { setLightboxUrl(imageUrl); }}
+            onTouchStart={() => { /* no preventDefault to keep click */ }}
+            onTouchEnd={() => { setLightboxUrl(imageUrl); }}
             onContextMenu={(e) => { e.preventDefault(); return false; }}
           >
             <img 
@@ -2266,7 +2317,7 @@ const Echange = () => {
   const [deeplinkTarget, setDeeplinkTarget] = useState({ feedType: null, id: null, commentId: null });
   const location = useLocation();
 
-  const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
+  const API_PREFIX = getApiPrefix();
   
   // Sponsorisé — état du Dialog et formulaire
   const [sponsorOpen, setSponsorOpen] = useState(false);
@@ -2288,36 +2339,43 @@ const Echange = () => {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 600000);
-    const response = await fetch(`${API_PREFIX}/upload`, {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal,
-    }).catch((e) => {
+    try {
+      const bases = getApiBaseCandidates();
+      let lastErr = null;
+      for (const base of bases) {
+        try {
+          if (isIOSWebView()) {
+            const data = await uploadFormDataXHR(`${base}/upload`, formData, 600000);
+            console.log('[Echange] uploadToBunny(sponsored) XHR success', data?.url);
+            clearTimeout(timer);
+            return data.url;
+          } else {
+            const response = await fetch(`${base}/upload`, { method: 'POST', body: formData, signal: controller.signal });
+            const text = await response.text();
+            let data = null;
+            if (text) {
+              try { data = JSON.parse(text); } catch (_) { throw new Error("Réponse inattendue du serveur d'upload"); }
+            }
+            if (!response.ok || !data?.success) {
+              throw new Error(data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`);
+            }
+            console.log('[Echange] uploadToBunny(sponsored) success', data?.url);
+            clearTimeout(timer);
+            return data.url;
+          }
+        } catch (e) { lastErr = e; continue; }
+      }
+      if (lastErr) throw lastErr;
+      throw new Error('Aucun endpoint upload disponible');
+    } catch (e) {
       if (e.name === 'AbortError') {
         console.warn('[Echange] uploadToBunny(sponsored) aborted by timeout');
         throw new Error("Délai dépassé lors de l’upload (timeout)");
       }
       throw e;
-    }).finally(() => clearTimeout(timer));
-
-    const text = await response.text();
-    let data = null;
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch (error) {
-        console.error("Réponse upload invalide:", text);
-        throw new Error("Réponse inattendue du serveur d'upload");
-      }
+    } finally {
+      clearTimeout(timer);
     }
-
-    if (!response.ok || !data?.success) {
-      const message = data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`;
-      throw new Error(message);
-    }
-
-    console.log('[Echange] uploadToBunny(sponsored) success', data?.url);
-    return data.url;
   };
 
   useEffect(() => {
@@ -3006,7 +3064,7 @@ const Echange = () => {
                       ) : null}
                       {spMediaFile ? (
                         spMediaFile.type?.startsWith('image') ? (
-                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-48 md:max-h-64 rounded-md object-contain cursor-zoom-in bg-black/5" onClick={() => setLightboxUrl(spMediaPreviewUrl || '')} />
+                          <img src={spMediaPreviewUrl || ''} alt="aperçu media" className="w-full max-h-48 md:max-h-64 rounded-md object-contain cursor-zoom-in bg-black/5" onClick={() => setLightboxUrl(spMediaPreviewUrl || '')} onTouchEnd={() => setLightboxUrl(spMediaPreviewUrl || '')} />
                         ) : (
                           <VideoPlayer
                             src={spMediaPreviewUrl || ''}

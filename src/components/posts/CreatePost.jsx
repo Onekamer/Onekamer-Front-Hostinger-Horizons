@@ -15,7 +15,25 @@ import { extractUniqueMentions } from '@/utils/mentions';
 
 const SPONSORED_POSTS_ENABLED = false;
 
-const getApiPrefix = () => (import.meta.env.VITE_API_URL || '/api');
+const getApiPrefix = () => {
+  const isNative = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
+  if (isNative) return import.meta.env.VITE_API_URL;
+  return (import.meta.env.VITE_API_URL || '/api');
+};
+
+const getApiBaseCandidates = () => {
+  const c = [];
+  const isNative = typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() !== 'web';
+  const abs = import.meta.env.VITE_API_URL;
+  if (isNative) {
+    if (abs) c.push(abs);
+    c.push('/api');
+  } else {
+    c.push('/api');
+    if (abs) c.push(abs);
+  }
+  return Array.from(new Set(c.filter(Boolean)));
+};
 const importToBunnyStream = async (cdnUrl, title = 'OneKamer Video') => {
   try {
     const res = await fetch(`${getApiPrefix()}/stream/import`, {
@@ -493,6 +511,36 @@ const CreatePost = ({ onCreateSponsored }) => {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+  const isIOSWebView = () => {
+    try {
+      const ua = navigator.userAgent || '';
+      return /iphone|ipad|ipod/i.test(ua);
+    } catch (_) { return false; }
+  };
+
+  const uploadFormDataXHR = (url, formData, timeoutMs = 600000) => new Promise((resolve, reject) => {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.timeout = timeoutMs;
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === 4) {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            let data = null;
+            try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) { reject(new Error("Réponse inattendue du serveur d'upload")); return; }
+            if (!data?.success) { reject(new Error(data?.message || `Erreur d’upload BunnyCDN (code ${xhr.status})`)); return; }
+            resolve(data);
+          } else {
+            reject(new Error(`Erreur d’upload BunnyCDN (code ${xhr.status})`));
+          }
+        }
+      };
+      xhr.onerror = () => reject(new Error('Erreur réseau pendant l’upload'));
+      xhr.ontimeout = () => reject(new Error('Délai dépassé lors de l’upload (timeout)'));
+      xhr.send(formData);
+    } catch (e) { reject(e); }
+  });
+
   const uploadToBunny = async (file, folder) => {
     console.log('[CreatePost] uploadToBunny start', { name: file?.name, type: file?.type, folder });
     const formData = new FormData();
@@ -501,37 +549,47 @@ const CreatePost = ({ onCreateSponsored }) => {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 600000);
-    const response = await fetch(`${getApiPrefix()}/upload`, {
-      method: "POST",
-      body: formData,
-      signal: controller.signal,
-    }).catch((e) => {
+    try {
+      const bases = getApiBaseCandidates();
+      let lastErr = null;
+      for (const base of bases) {
+        try {
+          if (isIOSWebView()) {
+            const data = await uploadFormDataXHR(`${base}/upload`, formData, 600000);
+            console.log('[CreatePost] uploadToBunny XHR success', data?.url);
+            clearTimeout(timer);
+            return data.url;
+          } else {
+            const response = await fetch(`${base}/upload`, { method: 'POST', body: formData, signal: controller.signal });
+            console.log('[CreatePost] uploadToBunny response status', response?.status, 'via', base);
+            const text = await response.text();
+            let data = null;
+            if (text) {
+              try { data = JSON.parse(text); } catch (_) { throw new Error("Réponse inattendue du serveur d'upload"); }
+            }
+            if (!response.ok || !data?.success) {
+              throw new Error(data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`);
+            }
+            console.log('[CreatePost] uploadToBunny success', data?.url);
+            clearTimeout(timer);
+            return data.url;
+          }
+        } catch (e) {
+          lastErr = e;
+          continue;
+        }
+      }
+      if (lastErr) throw lastErr;
+      throw new Error('Aucun endpoint upload disponible');
+    } catch (e) {
       if (e.name === 'AbortError') {
         console.warn('[CreatePost] uploadToBunny aborted by timeout');
         throw new Error("Délai dépassé lors de l’upload (timeout)");
       }
       throw e;
-    }).finally(() => clearTimeout(timer));
-
-    console.log('[CreatePost] uploadToBunny response status', response?.status);
-    const text = await response.text();
-    console.log('[CreatePost] uploadToBunny body length', text?.length || 0);
-    let data = null;
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch (error) {
-        console.error("Réponse upload invalide:", text);
-        throw new Error("Réponse inattendue du serveur d'upload");
-      }
+    } finally {
+      clearTimeout(timer);
     }
-
-    if (!response.ok || !data?.success) {
-      const message = data?.message || `Erreur d’upload BunnyCDN (code ${response.status})`;
-      throw new Error(message);
-    }
-    console.log('[CreatePost] uploadToBunny success', data?.url);
-    return data.url;
   };
 
   const handlePublish = async () => {
