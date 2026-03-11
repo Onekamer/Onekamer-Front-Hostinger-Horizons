@@ -27,10 +27,12 @@ const getApiBaseCandidates = () => {
   const abs = import.meta.env.VITE_API_URL;
   if (isNative) {
     if (abs) c.push(abs);
+    c.push('https://onekamer.co/api');
     c.push('/api');
   } else {
     c.push('/api');
     if (abs) c.push(abs);
+    c.push('https://onekamer.co/api');
   }
   return Array.from(new Set(c.filter(Boolean)));
 };
@@ -690,9 +692,8 @@ const CreatePost = ({ onCreateSponsored }) => {
             if (mediaType === 'image') {
               postData.image_url = mediaUrl;
             } else {
-              const embed = await importToBunnyStream(mediaUrl, `Post ${user?.id || ''} ${Date.now()}`);
               postData.video_url = mediaUrl;
-              pendingEmbed = embed || null;
+              pendingEmbed = null;
             }
           }
           
