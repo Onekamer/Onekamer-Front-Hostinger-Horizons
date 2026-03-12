@@ -561,29 +561,49 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         formData.append('file', file);
         formData.append('folder', folder);
         const controller = new AbortController();
-        const timeoutMs = 60000; // 60s pour cold start/connexion mobile
+        const timeoutMs = 600000; // 10min pour vidéos longues / réseaux lents
         const timer = setTimeout(() => controller.abort(), timeoutMs);
-        let response;
+        const base = (typeof window !== 'undefined' && typeof window.getApiPrefix === 'function') ? window.getApiPrefix() : (import.meta.env.VITE_API_URL || '/api');
+        const isIOSWebView = () => { try { const ua = navigator.userAgent || ''; return /iphone|ipad|ipod/i.test(ua); } catch (_) { return false; } };
+        const uploadFormDataXHR = (url, fd, t = 600000) => new Promise((resolve, reject) => {
+          try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.timeout = t;
+            xhr.onreadystatechange = () => {
+              if (xhr.readyState === 4) {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  let data = null;
+                  try { data = JSON.parse(xhr.responseText || '{}'); } catch { reject(new Error("Réponse inattendue du serveur d'upload")); return; }
+                  if (!data?.success) { reject(new Error(data?.message || `Erreur d’upload BunnyCDN (code ${xhr.status})`)); return; }
+                  resolve(data);
+                } else {
+                  reject(new Error(`Erreur d’upload BunnyCDN (code ${xhr.status})`));
+                }
+              }
+            };
+            xhr.onerror = () => reject(new Error('Erreur réseau pendant l’upload'));
+            xhr.ontimeout = () => reject(new Error('Délai dépassé lors de l’upload (timeout)'));
+            xhr.send(fd);
+          } catch (e) { reject(e); }
+        });
         try {
-          response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, { method: 'POST', body: formData, signal: controller.signal });
-        } catch (e) {
-          if (e.name === 'AbortError') {
-            throw new Error(`Délai dépassé lors de l’upload (${Math.floor(timeoutMs/1000)}s). Réessaie dans quelques secondes.`);
+          if (isIOSWebView()) {
+            const data = await uploadFormDataXHR(`${base}/upload`, formData, timeoutMs);
+            clearTimeout(timer);
+            return data.url;
+          } else {
+            const response = await fetch(`${base}/upload`, { method: 'POST', body: formData, signal: controller.signal });
+            const text = await response.text();
+            let data = null;
+            if (text) { try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); } }
+            if (!response.ok || !data?.success) { throw new Error(data?.message || data?.error || `Erreur d’upload BunnyCDN (code ${response.status})`); }
+            clearTimeout(timer);
+            return data.url;
           }
-          throw new Error(`Échec réseau vers le serveur d’upload (${import.meta.env.VITE_API_URL}). ${e.message || ''}`.trim());
         } finally {
           clearTimeout(timer);
         }
-        const text = await response.text();
-        let data = null;
-        if (text) {
-          try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); }
-        }
-        if (!response.ok || !data?.success) {
-          const message = data?.message || data?.error || `Erreur d’upload BunnyCDN (code ${response.status})`;
-          throw new Error(message);
-        }
-        return data.url;
       };
 
       const startRecording = async () => {

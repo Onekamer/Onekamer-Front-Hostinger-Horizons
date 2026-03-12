@@ -423,8 +423,8 @@ const RencontreProfil = () => {
         formData.append("file", safeFile);
         formData.append("type", "rencontres");
         formData.append("user_id", user.id); // ✅ sous-dossier utilisateur
-
-        const res = await fetch("https://onekamer-server.onrender.com/api/upload", {
+        const base = (typeof window !== 'undefined' && typeof window.getApiPrefix === 'function') ? window.getApiPrefix() : (import.meta.env.VITE_API_URL || '/api');
+        const res = await fetch(`${base}/upload`, {
           method: "POST",
           body: formData,
         });
@@ -462,8 +462,8 @@ const RencontreProfil = () => {
         formData.append("file", safeFile);
         formData.append("type", "rencontres");
         formData.append("user_id", user.id);
-
-        const res = await fetch("https://onekamer-server.onrender.com/api/upload", {
+        const base = (typeof window !== 'undefined' && typeof window.getApiPrefix === 'function') ? window.getApiPrefix() : (import.meta.env.VITE_API_URL || '/api');
+        const res = await fetch(`${base}/upload`, {
           method: "POST",
           body: formData,
         });

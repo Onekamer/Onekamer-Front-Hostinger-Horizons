@@ -7,7 +7,7 @@
 // ============================================================
 
 // 2️⃣ Gestion du cache PWA
-const CACHE_NAME = 'onekamer-cache-v4';
+const CACHE_NAME = 'onekamer-cache-v5';
 const urlsToCache = ['/', '/index.html', '/offline.html', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {
