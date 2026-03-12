@@ -1829,7 +1829,6 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             controls={true}
             muted={true}
             allowSoundAutoplay={true}
-            onOpenLightbox={() => openLightbox && openLightbox(videoUrl)}
           />
         )}
         {post.audio_url && (
@@ -3098,7 +3097,6 @@ const Echange = () => {
                             autoPlayOnView={false}
                             muted={true}
                             allowSoundAutoplay={false}
-                            onOpenLightbox={() => setLightboxUrl(spMediaPreviewUrl || '')}
                           />
                         )
                       ) : null}
