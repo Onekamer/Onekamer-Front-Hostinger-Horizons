@@ -199,7 +199,7 @@ const Home = () => {
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                          <MediaDisplay bucket="avatars" path={item.profiles?.avatar_url} alt={item.profiles?.username} className="w-full h-full object-cover" forceImage={true} fallback={
+                          <MediaDisplay bucket="avatars" path={item.profiles?.avatar_url} alt={item.profiles?.username} className="w-full h-full object-cover" forceImage={true} disableLightbox={true} fallback={
                             <div className="w-10 h-10 bg-gray-200 flex items-center justify-center text-gray-500 font-bold">
                               {item.profiles?.username?.charAt(0).toUpperCase() || '?'}
                             </div>
@@ -230,7 +230,7 @@ const Home = () => {
               <div className="space-y-4">
                 {events.map(event => (
                   <Card key={event.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/evenements')}>
-                    <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="w-full h-32 object-cover" forceImage={true} />
+                    <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="w-full h-32 object-cover" forceImage={true} disableLightbox={true} />
                     <CardContent className="p-4">
                       <h3 className="font-bold text-md mb-2 truncate">{event.title}</h3>
                       <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
@@ -253,7 +253,7 @@ const Home = () => {
               <div className="grid grid-cols-1 gap-4"> {/* Changed grid layout to 1 column for article format */}
                 {faitsDivers.map(fait => ( // Changed from partners to faitsDivers
                   <Card key={fait.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/faits-divers')}>
-                    <MediaDisplay bucket="faits_divers" path={fait.image_url} alt={fait.title} className="w-full h-40 object-cover" forceImage={true} /> {/* Updated image display */}
+                    <MediaDisplay bucket="faits_divers" path={fait.image_url} alt={fait.title} className="w-full h-40 object-cover" forceImage={true} disableLightbox={true} /> {/* Updated image display */}
                     <CardContent className="p-4">
                       <h3 className="font-bold text-md mb-2 truncate">{fait.title}</h3> {/* Display title */}
                       <p className="text-xs text-gray-500 line-clamp-2">{fait.excerpt}</p> {/* Display excerpt */}
@@ -268,7 +268,7 @@ const Home = () => {
               <div className="space-y-4">
                 {annonces.map(annonce => (
                   <Card key={annonce.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/annonces')}>
-                    <MediaDisplay bucket="annonces" path={annonce.media_url} alt={annonce.titre} className="w-full h-32 object-cover" forceImage={true} />
+                    <MediaDisplay bucket="annonces" path={annonce.media_url} alt={annonce.titre} className="w-full h-32 object-cover" forceImage={true} disableLightbox={true} />
                     <CardContent className="p-4">
                       <h3 className="font-bold text-md truncate">{annonce.titre}</h3>
                       <p className="text-lg font-semibold text-[#2BA84A]">{formatPrice(annonce.prix, annonce.devises)}</p>

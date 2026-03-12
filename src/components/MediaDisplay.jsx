@@ -48,7 +48,7 @@ const defaultImages = {
   rencontres: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
 };
 
-const MediaDisplay = ({ bucket, path, alt, className, forceImage = false }) => {
+const MediaDisplay = ({ bucket, path, alt, className, forceImage = false, disableLightbox = false }) => {
   const [mediaUrl, setMediaUrl] = useState(null);
   const [mediaType, setMediaType] = useState('image');
   const [loading, setLoading] = useState(true);
@@ -267,6 +267,29 @@ const MediaDisplay = ({ bucket, path, alt, className, forceImage = false }) => {
         loop={true}
         controls={true}
         muted={true}
+      />
+    );
+  }
+
+  if (disableLightbox) {
+    return (
+      <img
+        src={mediaUrl}
+        alt={alt || 'Image'}
+        className={className}
+        draggable={false}
+        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', pointerEvents: 'none', WebkitUserDrag: 'none' }}
+        onContextMenu={(e) => { e.preventDefault(); return false; }}
+        onError={(e) => {
+          if (backupUrl) {
+            const next = backupUrl;
+            setBackupUrl(null);
+            e.target.src = next;
+            return;
+          }
+          e.target.onerror = null;
+          e.target.src = defaultImages[bucket] || defaultImages.annonces;
+        }}
       />
     );
   }

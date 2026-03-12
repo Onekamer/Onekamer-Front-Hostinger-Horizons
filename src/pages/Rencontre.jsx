@@ -680,8 +680,8 @@ if (!myProfile && !searchParams.get('rid')) {
                  </div>
               ) : (
                 <Card className="overflow-hidden shadow-lg rounded-2xl">
-                  <div className="relative h-[55vh] max-h-[450px]" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}>
-                    <MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" forceImage={true} />
+                  <div className="relative h-[55vh] max-h-[450px]">
+                    <MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" forceImage={true} disableLightbox={true} />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
                       <div className="flex items-center gap-2">
                         <span className={`inline-block h-2.5 w-2.5 rounded-full ${currentIsOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
