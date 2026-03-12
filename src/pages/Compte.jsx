@@ -548,12 +548,14 @@ const Compte = () => {
         <div className="flex flex-col items-center space-y-4">
           <Avatar className="relative w-24 h-24 border-4 border-[#2BA84A]">
             {profile.avatar_url ? (
-              <MediaDisplay
-                bucket="avatars"
-                path={profile.avatar_url}
-                alt={profile.username}
-                className="rounded-full w-full h-full object-cover"
-              />
+              <div className="pointer-events-none">
+                <MediaDisplay
+                  bucket="avatars"
+                  path={profile.avatar_url}
+                  alt={profile.username}
+                  className="rounded-full w-full h-full object-cover"
+                />
+              </div>
             ) : (
               <AvatarFallback className="text-3xl bg-gray-200">{profile.username?.charAt(0).toUpperCase()}</AvatarFallback>
             )}

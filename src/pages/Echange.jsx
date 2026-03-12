@@ -1484,7 +1484,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
 };
 
 
-const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments, onToggleComments, refreshBalance, highlightCommentId }) => {
+const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments, onToggleComments, refreshBalance, highlightCommentId, openLightbox }) => {
   const navigate = useNavigate();
   const { onlineUserIds } = useAuth();
   const viewerBlockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
@@ -1800,9 +1800,9 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             className="rounded-lg w-full mb-4 p-0 m-0 bg-transparent border-0 cursor-zoom-in"
             style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
             draggable={false}
-            onClick={() => setLightboxUrl(imageUrl)}
+            onClick={() => openLightbox && openLightbox(imageUrl)}
             onTouchStart={() => {}}
-            onTouchEnd={() => { setLightboxUrl(imageUrl); }}
+            onTouchEnd={() => { openLightbox && openLightbox(imageUrl); }}
             onContextMenu={(e) => { e.preventDefault(); return false; }}
           >
             <img 
@@ -1829,7 +1829,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
             controls={true}
             muted={true}
             allowSoundAutoplay={true}
-            onOpenLightbox={() => setLightboxUrl(videoUrl)}
+            onOpenLightbox={() => openLightbox && openLightbox(videoUrl)}
           />
         )}
         {post.audio_url && (
@@ -2917,6 +2917,7 @@ const Echange = () => {
                       onToggleComments={() => handleToggleComments(item.id)}
                       refreshBalance={refreshBalance}
                       highlightCommentId={deeplinkTarget.feedType === 'post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
+                      openLightbox={setLightboxUrl}
                     />
                   ) : (
                     <AudioPostCard
@@ -2966,6 +2967,7 @@ const Echange = () => {
                       onToggleComments={() => handleToggleComments(item.id)}
                       refreshBalance={refreshBalance}
                       highlightCommentId={deeplinkTarget.feedType === 'post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
+                      openLightbox={setLightboxUrl}
                     />
                   ) : (
                      <AudioPostCard
@@ -2999,6 +3001,7 @@ const Echange = () => {
                       onToggleComments={() => handleToggleComments(item.id)}
                       refreshBalance={refreshBalance}
                       highlightCommentId={deeplinkTarget.feedType === 'post' && deeplinkTarget.id === item.id ? deeplinkTarget.commentId : null}
+                      openLightbox={setLightboxUrl}
                     />
                   ) : (
                      <AudioPostCard
