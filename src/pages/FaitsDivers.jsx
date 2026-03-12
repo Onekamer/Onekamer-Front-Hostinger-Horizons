@@ -530,7 +530,7 @@ const NewsDetail = ({ news, onBack, onLikeToggle, isLiked, canManage, onEdit, on
         <Card className="shadow-xl rounded-2xl">
           {news.image_url && (
             <div className="h-64 w-full">
-              <MediaDisplay bucket="faits_divers" path={news.image_url} alt={news.title} className="w-full h-full object-cover rounded-t-2xl" />
+              <MediaDisplay bucket="faits_divers" path={news.image_url} alt={news.title} className="w-full h-full object-cover rounded-t-2xl" forceImage={true} />
             </div>
           )}
           <CardHeader>
@@ -980,7 +980,7 @@ const FaitsDivers = () => {
                 {editImagePreview ? (
                   <img src={editImagePreview} alt="Aperçu" className="rounded-lg mt-2 w-full max-h-40 object-cover" />
                 ) : (
-                  <MediaDisplay bucket="faits_divers" path={editFormData.image_url} alt="Aperçu" className="rounded-lg mt-2 w-full max-h-40 object-cover" />
+                  <MediaDisplay bucket="faits_divers" path={editFormData.image_url} alt="Aperçu" className="rounded-lg mt-2 w-full max-h-40 object-cover" forceImage={true} />
                 )}
               </div>
             )}
@@ -1047,7 +1047,7 @@ const FaitsDivers = () => {
                 <div className="md:flex">
                   {news.image_url && (
                     <div className="md:w-1/3 h-48 md:h-auto">
-                      <MediaDisplay bucket="faits_divers" path={news.image_url} alt={news.title} className="w-full h-full object-cover" />
+                      <MediaDisplay bucket="faits_divers" path={news.image_url} alt={news.title} className="w-full h-full object-cover" forceImage={true} />
                     </div>
                   )}
                   <div className={news.image_url ? "md:w-2/3" : "w-full"}>

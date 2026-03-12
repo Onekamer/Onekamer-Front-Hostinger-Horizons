@@ -48,7 +48,7 @@ const defaultImages = {
   rencontres: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
 };
 
-const MediaDisplay = ({ bucket, path, alt, className }) => {
+const MediaDisplay = ({ bucket, path, alt, className, forceImage = false }) => {
   const [mediaUrl, setMediaUrl] = useState(null);
   const [mediaType, setMediaType] = useState('image');
   const [loading, setLoading] = useState(true);
@@ -111,7 +111,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
               const { data, error } = await supabase.storage.from(bkt).createSignedUrl(rel, 3600);
               if (!error && data?.signedUrl) {
                 setMediaUrl(data.signedUrl);
-                const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
+                const isVideo = !forceImage && /\.(mp4|webm|ogg|mov)$/i.test(rel);
                 setMediaType(isVideo ? 'video' : 'image');
                 const cacheKey = getCacheKey(bucket, path);
                 if (cacheKey) {
@@ -123,7 +123,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
 
               const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${bkt}/${rel}`;
               setMediaUrl(cdnUrl);
-              const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
+              const isVideo = !forceImage && /\.(mp4|webm|ogg|mov)$/i.test(rel);
               setMediaType(isVideo ? 'video' : 'image');
               const cacheKey = getCacheKey(bucket, path);
               if (cacheKey) {
@@ -134,7 +134,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
             } catch (e) {
               const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${bkt}/${rel}`;
               setMediaUrl(cdnUrl);
-              const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(rel);
+              const isVideo = !forceImage && /\.(mp4|webm|ogg|mov)$/i.test(rel);
               setMediaType(isVideo ? 'video' : 'image');
               const cacheKey = getCacheKey(bucket, path);
               if (cacheKey) {
@@ -147,7 +147,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         } catch {}
         setBackupUrl(null);
         setMediaUrl(normalized);
-        const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(normalized);
+        const isVideo = !forceImage && /\.(mp4|webm|ogg|mov)$/i.test(normalized);
         setMediaType(isVideo ? 'video' : 'image');
         {
           const cacheKey = getCacheKey(bucket, path);
@@ -192,7 +192,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
         if (!signed) throw new Error('sign_failed');
         setBackupUrl(null);
         setMediaUrl(signed);
-        const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(signPath);
+        const isVideo = !forceImage && /\.(mp4|webm|ogg|mov)$/i.test(signPath);
         setMediaType(isVideo ? 'video' : 'image');
         {
           const cacheKey = getCacheKey(bucket, path);
@@ -216,7 +216,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
           if (cdnRel) {
             const cdnUrl = `https://onekamer-media-cdn.b-cdn.net/${bucket}/${cdnRel}`.replace(/(?<!:)\/\/+/, '/');
             setMediaUrl(cdnUrl);
-            const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(cdnRel);
+            const isVideo = !forceImage && /\.(mp4|webm|ogg|mov)$/i.test(cdnRel);
             setMediaType(isVideo ? 'video' : 'image');
             setErrorState(false);
             {
@@ -239,7 +239,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
     };
 
     loadMedia();
-  }, [bucket, path]);
+  }, [bucket, path, forceImage]);
 
   if (loading) {
     return (
@@ -258,7 +258,7 @@ const MediaDisplay = ({ bucket, path, alt, className }) => {
     );
   }
 
-  if (mediaType === 'video') {
+  if (!forceImage && mediaType === 'video') {
     return (
       <VideoPlayer
         src={mediaUrl}

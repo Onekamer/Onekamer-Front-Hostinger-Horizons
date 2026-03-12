@@ -681,7 +681,7 @@ if (!myProfile && !searchParams.get('rid')) {
               ) : (
                 <Card className="overflow-hidden shadow-lg rounded-2xl">
                   <div className="relative h-[55vh] max-h-[450px]" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}>
-                    <MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" />
+                    <MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" forceImage={true} />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 text-white">
                       <div className="flex items-center gap-2">
                         <span className={`inline-block h-2.5 w-2.5 rounded-full ${currentIsOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
@@ -712,7 +712,7 @@ if (!myProfile && !searchParams.get('rid')) {
             >
               <button onClick={() => setView('card')} className="flex items-center gap-2 text-green-600 font-semibold"><ArrowLeft className="h-5 w-5" />Retour</button>
               <div className="text-center">
-                <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-green-200 cursor-pointer" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}><MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" /></div>
+                <div className="w-32 h-32 rounded-full mx-auto mb-4 overflow-hidden border-4 border-green-200 cursor-pointer" onClick={() => { if (mainPhoto) { setLightboxPath(mainPhoto); setLightboxOpen(true); } }}><MediaDisplay bucket="rencontres" path={mainPhoto} alt={currentProfile.name} className="w-full h-full object-cover" forceImage={true} /></div>
                 <div className="flex items-center justify-center gap-2">
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${currentIsOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
                   <h2 className="text-3xl font-bold text-gray-800">{currentProfile.name?.split(' ')[0]}, {currentProfile.age}</h2>
@@ -729,7 +729,7 @@ if (!myProfile && !searchParams.get('rid')) {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {galleryPhotos.slice(0, 6).map((photo, index) => (
                       <div key={`${photo}-${index}`} className="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer" onClick={() => { setLightboxPath(photo); setLightboxOpen(true); }}>
-                        <MediaDisplay bucket="rencontres" path={photo} alt={`${currentProfile.name} - Photo ${index + 1}`} className="w-full h-full object-cover" />
+                        <MediaDisplay bucket="rencontres" path={photo} alt={`${currentProfile.name} - Photo ${index + 1}`} className="w-full h-full object-cover" forceImage={true} />
                       </div>
                     ))}
                   </div>
@@ -780,7 +780,7 @@ if (!myProfile && !searchParams.get('rid')) {
       {lightboxOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={() => setLightboxOpen(false)}>
           <div className="max-w-[95vw] max-h-[95vh] p-2" onClick={(e) => e.stopPropagation()}>
-            <MediaDisplay bucket="rencontres" path={lightboxPath} alt="media" className="max-h-[90vh] max-w-[90vw] object-contain" />
+            <MediaDisplay bucket="rencontres" path={lightboxPath} alt="media" className="max-h-[90vh] max-w-[90vw] object-contain" forceImage={true} />
           </div>
         </div>
       )}
