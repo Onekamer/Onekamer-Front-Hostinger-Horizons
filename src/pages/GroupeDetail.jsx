@@ -273,6 +273,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       // Media attach state
       const [mediaFile, setMediaFile] = useState(null);
       const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
+      const [uploadProgress, setUploadProgress] = useState(0);
       const mediaInputRef = useRef(null);
       // Audio recording state
       const [isRecording, setIsRecording] = useState(false);
@@ -554,6 +555,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         setMediaFile(null);
         setMediaPreviewUrl(null);
         if (mediaInputRef.current) mediaInputRef.current.value = '';
+        setUploadProgress(0);
       };
 
       const uploadToBunny = async (file, folder) => {
@@ -570,12 +572,23 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             const xhr = new XMLHttpRequest();
             xhr.open('POST', url, true);
             xhr.timeout = t;
+            try {
+              xhr.upload.onprogress = (e) => {
+                try {
+                  if (e && e.lengthComputable) {
+                    const p = Math.max(0, Math.min(100, Math.round((e.loaded * 100) / (e.total || 1))));
+                    setUploadProgress(p);
+                  }
+                } catch (_) {}
+              };
+            } catch (_) {}
             xhr.onreadystatechange = () => {
               if (xhr.readyState === 4) {
                 if (xhr.status >= 200 && xhr.status < 300) {
                   let data = null;
                   try { data = JSON.parse(xhr.responseText || '{}'); } catch { reject(new Error("Réponse inattendue du serveur d'upload")); return; }
                   if (!data?.success) { reject(new Error(data?.message || `Erreur d’upload BunnyCDN (code ${xhr.status})`)); return; }
+                  setUploadProgress(100);
                   resolve(data);
                 } else {
                   reject(new Error(`Erreur d’upload BunnyCDN (code ${xhr.status})`));
@@ -599,10 +612,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             if (text) { try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); } }
             if (!response.ok || !data?.success) { throw new Error(data?.message || data?.error || `Erreur d’upload BunnyCDN (code ${response.status})`); }
             clearTimeout(timer);
+            setUploadProgress(100);
             return data.url;
           }
         } finally {
           clearTimeout(timer);
+          setTimeout(() => setUploadProgress(0), 1000);
         }
       };
 
@@ -1210,6 +1225,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                             <AudioPlayer src={URL.createObjectURL(audioBlob)} mimeType={(mimeRef.current?.type || audioBlob.type || 'audio/mp4').split(';')[0]} />
                           ) : null}
                           <Button size="icon" variant="destructive" onClick={mediaPreviewUrl ? handleRemoveMedia : handleRemoveAudio} className="absolute -top-1 -right-1 h-5 w-5 rounded-full"><X className="h-3 w-3" /></Button>
+                          {mediaPreviewUrl && uploadProgress > 0 && uploadProgress < 100 ? (
+                            <div className="text-xs text-gray-600 mt-1">Envoi… {uploadProgress}%</div>
+                          ) : null}
                         </div>
                       )}
                       <div className="flex gap-2 mt-2">

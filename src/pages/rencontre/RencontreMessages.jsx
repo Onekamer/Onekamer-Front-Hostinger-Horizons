@@ -40,6 +40,7 @@ const MessagesPrives = () => {
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
   const mimeRef = useRef(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const LIMIT = 30;
   const [olderLoading, setOlderLoading] = useState(false);
@@ -196,6 +197,7 @@ const MessagesPrives = () => {
     setMediaFile(null);
     setMediaPreviewUrl(null);
     if (mediaInputRef.current) mediaInputRef.current.value = '';
+    setUploadProgress(0);
   };
 
   const uploadToBunny = async (file, folder) => {
@@ -214,12 +216,23 @@ const MessagesPrives = () => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', url, true);
         xhr.timeout = t;
+        try {
+          xhr.upload.onprogress = (e) => {
+            try {
+              if (e && e.lengthComputable) {
+                const p = Math.max(0, Math.min(100, Math.round((e.loaded * 100) / (e.total || 1))));
+                setUploadProgress(p);
+              }
+            } catch (_) {}
+          };
+        } catch (_) {}
         xhr.onreadystatechange = () => {
           if (xhr.readyState === 4) {
             if (xhr.status >= 200 && xhr.status < 300) {
               let data = null;
               try { data = JSON.parse(xhr.responseText || '{}'); } catch { reject(new Error("Réponse inattendue du serveur d'upload")); return; }
               if (!data?.success) { reject(new Error(data?.message || `Erreur d’upload BunnyCDN (code ${xhr.status})`)); return; }
+              setUploadProgress(100);
               resolve(data);
             } else {
               reject(new Error(`Erreur d’upload BunnyCDN (code ${xhr.status})`));
@@ -243,10 +256,12 @@ const MessagesPrives = () => {
         if (text) { try { data = JSON.parse(text); } catch { throw new Error("Réponse inattendue du serveur d'upload"); } }
         if (!response.ok || !data?.success) { throw new Error(data?.message || data?.error || `Erreur d’upload (${response.status})`); }
         clearTimeout(timer);
+        setUploadProgress(100);
         return data.url;
       }
     } finally {
       clearTimeout(timer);
+      setTimeout(() => setUploadProgress(0), 1000);
     }
   };
 
@@ -643,6 +658,9 @@ const MessagesPrives = () => {
                           <img src={mediaPreviewUrl} alt="preview" className="w-40 rounded" />
                         )}
                         <Button type="button" variant="ghost" size="sm" onClick={handleRemoveMedia} className="mt-1" disabled={isBlocked}><X className="h-4 w-4 mr-1" /> Retirer</Button>
+                        {uploadProgress > 0 && uploadProgress < 100 ? (
+                          <div className="text-xs text-gray-600 mt-1">Envoi… {uploadProgress}%</div>
+                        ) : null}
                       </div>
                     ) : null}
                     {audioBlob ? (

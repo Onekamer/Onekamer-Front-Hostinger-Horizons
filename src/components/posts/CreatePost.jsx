@@ -147,6 +147,7 @@ const CreatePost = ({ onCreateSponsored }) => {
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const mediaInputRef = useRef(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   const [recording, setRecording] = useState(false);
   const [recorder, setRecorder] = useState(null);
@@ -505,6 +506,7 @@ const CreatePost = ({ onCreateSponsored }) => {
     if (mediaInputRef.current) {
       mediaInputRef.current.value = '';
     }
+    setUploadProgress(0);
   };
   
     const handleRemoveAudio = () => {
@@ -531,12 +533,23 @@ const CreatePost = ({ onCreateSponsored }) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', url, true);
       xhr.timeout = timeoutMs;
+      try {
+        xhr.upload.onprogress = (e) => {
+          try {
+            if (e && e.lengthComputable) {
+              const p = Math.max(0, Math.min(100, Math.round((e.loaded * 100) / (e.total || 1))));
+              setUploadProgress(p);
+            }
+          } catch (_) {}
+        };
+      } catch (_) {}
       xhr.onreadystatechange = () => {
         if (xhr.readyState === 4) {
           if (xhr.status >= 200 && xhr.status < 300) {
             let data = null;
             try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) { reject(new Error("Réponse inattendue du serveur d'upload")); return; }
             if (!data?.success) { reject(new Error(data?.message || `Erreur d’upload BunnyCDN (code ${xhr.status})`)); return; }
+            setUploadProgress(100);
             resolve(data);
           } else {
             reject(new Error(`Erreur d’upload BunnyCDN (code ${xhr.status})`));
@@ -566,6 +579,7 @@ const CreatePost = ({ onCreateSponsored }) => {
             const data = await uploadFormDataXHR(`${base}/upload`, formData, 600000);
             console.log('[CreatePost] uploadToBunny XHR success', data?.url);
             clearTimeout(timer);
+            setUploadProgress(100);
             return data.url;
           } else {
             const response = await fetch(`${base}/upload`, { method: 'POST', body: formData, signal: controller.signal });
@@ -580,6 +594,7 @@ const CreatePost = ({ onCreateSponsored }) => {
             }
             console.log('[CreatePost] uploadToBunny success', data?.url);
             clearTimeout(timer);
+            setUploadProgress(100);
             return data.url;
           }
         } catch (e) {
@@ -597,6 +612,7 @@ const CreatePost = ({ onCreateSponsored }) => {
       throw e;
     } finally {
       clearTimeout(timer);
+      setTimeout(() => setUploadProgress(0), 1000);
     }
   };
 
@@ -812,6 +828,9 @@ const CreatePost = ({ onCreateSponsored }) => {
             >
               <X className="h-4 w-4" />
             </Button>
+            {uploadProgress > 0 && uploadProgress < 100 ? (
+              <div className="absolute left-0 right-0 -bottom-5 text-xs text-gray-600">Envoi… {uploadProgress}%</div>
+            ) : null}
           </div>
         )}
         
