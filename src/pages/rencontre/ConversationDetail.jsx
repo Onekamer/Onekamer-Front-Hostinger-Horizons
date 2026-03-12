@@ -12,6 +12,7 @@ import MediaDisplay from '@/components/MediaDisplay';
 import { useToast } from '@/components/ui/use-toast';
 import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyRencontreMessage } from '@/services/oneSignalNotifications';
+import { compressVideoIfIOS } from '@/lib/iosVideoCompression';
 
 const ConversationDetail = () => {
   const { conversationId: matchId } = useParams();
@@ -303,7 +304,11 @@ const ConversationDetail = () => {
       }
 
       if (mediaFile) {
-        const url = await uploadToBunny(mediaFile, 'comments');
+        let fileToUpload = mediaFile;
+        if (String(mediaFile?.type || '').startsWith('video/')) {
+          try { fileToUpload = await compressVideoIfIOS(mediaFile, '720p'); } catch {}
+        }
+        const url = await uploadToBunny(fileToUpload, 'comments');
         const insert = { match_id: matchId, sender_id: myRencontreId, receiver_id: otherUser.id, content: url };
         const { error } = await supabase.from('messages_rencontres').insert(insert);
         if (error) throw error;

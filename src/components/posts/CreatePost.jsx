@@ -12,6 +12,7 @@ import { getInitials } from '@/lib/utils';
 import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
+import { compressVideoIfIOS } from '@/lib/iosVideoCompression';
 
 const SPONSORED_POSTS_ENABLED = false;
 
@@ -709,7 +710,11 @@ const CreatePost = ({ onCreateSponsored }) => {
           
           let pendingEmbed = null;
           if (mediaFile) {
-            const mediaUrl = await uploadToBunny(mediaFile, "posts");
+            let fileToUpload = mediaFile;
+            if (String(mediaFile?.type || '').startsWith('video/')) {
+              try { fileToUpload = await compressVideoIfIOS(mediaFile, '720p'); } catch (_) {}
+            }
+            const mediaUrl = await uploadToBunny(fileToUpload, "posts");
             const mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
             if (mediaType === 'image') {
               postData.image_url = mediaUrl;

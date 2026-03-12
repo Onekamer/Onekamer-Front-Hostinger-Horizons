@@ -15,6 +15,7 @@ import { Send } from 'lucide-react';
 import { uploadAudioFile } from '@/utils/audioStorage';
 import { notifyRencontreMessage } from '@/services/oneSignalNotifications';
 import DotsLoader from '@/components/ui/DotsLoader';
+import { compressVideoIfIOS } from '@/lib/iosVideoCompression';
 
 const MessagesPrives = () => {
   const { user, onlineUserIds } = useAuth();
@@ -396,7 +397,11 @@ const MessagesPrives = () => {
         return;
       }
       if (mediaFile) {
-        const url = await uploadToBunny(mediaFile, 'comments');
+        let fileToUpload = mediaFile;
+        if (String(mediaFile?.type || '').startsWith('video/')) {
+          try { fileToUpload = await compressVideoIfIOS(mediaFile, '720p'); } catch (_) {}
+        }
+        const url = await uploadToBunny(fileToUpload, 'comments');
         const { error } = await supabase.from("messages_rencontres").insert({
           match_id: selectedMatch,
           sender_id: myRencontreId,

@@ -24,6 +24,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import VideoPlayer from '@/components/VideoPlayer';
     import OfficialBadge from '@/components/OfficialBadge';
     import DotsLoader from '@/components/ui/DotsLoader';
+    import { compressVideoIfIOS } from '@/lib/iosVideoCompression';
 
     const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
       const audioRef = useRef(null);
@@ -731,7 +732,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         // Media file (image/video)
         if (mediaFile) {
           try {
-            const url = await uploadToBunny(mediaFile, 'comments');
+            let fileToUpload = mediaFile;
+            if (String(mediaFile?.type || '').startsWith('video/')) {
+              try { fileToUpload = await compressVideoIfIOS(mediaFile, '720p'); } catch (_) {}
+            }
+            const url = await uploadToBunny(fileToUpload, 'comments');
             const { data: inserted, error } = await supabase
               .from('messages_groupes')
               .insert({ groupe_id: groupId, sender_id: user.id, contenu: url })
