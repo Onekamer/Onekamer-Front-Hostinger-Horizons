@@ -302,10 +302,10 @@ const getDefaultAnnonceImage = (categorieNom) => {
                 <div className="relative h-48 bg-gray-200">
                     <MediaDisplay bucket="annonces" path={mediaPath} alt={annonce.titre} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                    <div className="relative px-2 pt-0 pb-4 h-full flex flex-col justify-between">
+                    <div className="relative px-2 pt-0 pb-6 h-full flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-[#E0222A] text-white px-3 py-1 rounded-full text-xs font-semibold">{annonce.annonces_categories?.nom || 'Catégorie'}</div>
-                            <div className="flex items-center gap-2 mt-0">
+                            <div className="flex items-center gap-2 -mt-0.5">
                                 <FavoriteButton contentType="annonce" contentId={annonce.id} />
                                 <Button variant="ghost" size="icon" onClick={handleShare} className="text-white bg-black/20 hover:bg-black/40 rounded-full h-8 w-8">
                                     <Share2 className="h-4 w-4" />
