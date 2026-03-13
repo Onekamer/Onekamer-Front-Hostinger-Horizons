@@ -191,11 +191,11 @@ import React, { useState, useEffect, useCallback } from 'react';
                <SwipeCarousel
                  images={event.image_urls}
                  zoomable={true}
-                 className="w-full h-64"
-                 imgClassName="h-64 w-full object-cover"
+                 className="w-screen h-64"
+                 imgClassName="h-64 w-screen object-cover"
                />
              ) : (
-               <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="w-full h-64 object-cover" />
+               <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="w-screen h-64 object-cover" />
              )}
              <div className="absolute left-4 z-20 top-4 top-safe-4">
               <button onClick={onBack} className="bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-md">
@@ -259,18 +259,18 @@ import React, { useState, useEffect, useCallback } from 'react';
                   <h2 className="font-semibold text-gray-800 mb-1">Description</h2>
                   <p className="text-gray-600 text-sm">{event.description}</p>
                 </div>
-                
-                <OuvrirGoogleMaps
-                  latitude={event.latitude}
-                  longitude={event.longitude}
-                  location={event.location}
-                />
 
                 <div className="pt-2">
                   <Button variant="outline" className="w-full sm:flex-1" onClick={handleToggleInterest} disabled={interestLoading}>
                     {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
                   </Button>
                 </div>
+
+                <OuvrirGoogleMaps
+                  latitude={event.latitude}
+                  longitude={event.longitude}
+                  location={event.location}
+                />
 
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button
@@ -382,7 +382,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                 <div className="relative h-48 bg-gray-200">
                     <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                    <div className="relative p-2 h-full flex flex-col justify-between">
+                    <div className="relative px-2 pt-0 pb-6 h-full flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-[#E0222A] text-white px-3 py-1 rounded-full text-xs font-semibold">{event.evenements_types?.nom || 'Catégorie'}</div>
                             <div className="flex items-center gap-2 mt-0">
@@ -395,7 +395,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 </Button>
                             </div>
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-0.5">
                             <h3 className="text-white font-bold text-lg truncate">{event.title}</h3>
                             <div className="flex items-center gap-2 text-sm text-gray-200"><MapPin className="h-4 w-4" />{event.location}</div>
                         </div>

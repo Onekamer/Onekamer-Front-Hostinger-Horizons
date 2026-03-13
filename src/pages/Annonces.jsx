@@ -129,11 +129,11 @@ const getDefaultAnnonceImage = (categorieNom) => {
               <SwipeCarousel
                 images={annonce.image_urls}
                 zoomable={true}
-                className="w-full h-64"
-                imgClassName="h-64 w-full object-cover"
+                className="w-screen h-64"
+                imgClassName="h-64 w-screen object-cover"
               />
             ) : (
-              <MediaDisplay bucket="annonces" path={annonce.media_url} alt={annonce.titre} className="w-full h-64 object-cover" />
+              <MediaDisplay bucket="annonces" path={annonce.media_url} alt={annonce.titre} className="w-screen h-64 object-cover" />
             )}
             <div className="absolute left-4 z-20 top-4 top-safe-4">
               <button onClick={onBack} className="bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-md">
@@ -192,22 +192,21 @@ const getDefaultAnnonceImage = (categorieNom) => {
                     <MapPin className="h-4 w-4" />
                     <span>{annonce.villes?.nom}, {annonce.pays?.nom}</span>
                   </div>
-                  <div className="pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleToggleInterest}
-                      disabled={interestLoading}
-                      className="w-full"
-                    >
-                      {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
-                    </Button>
-                  </div>
                 </div>
 
                 <div>
                   <h2 className="font-semibold text-gray-800 mb-1">Description</h2>
                   <p className="text-gray-600 text-sm">{annonce.description}</p>
+                </div>
+                <div className="pt-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleToggleInterest}
+                    disabled={interestLoading}
+                    className="w-full"
+                  >
+                    {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
@@ -303,7 +302,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
                 <div className="relative h-48 bg-gray-200">
                     <MediaDisplay bucket="annonces" path={mediaPath} alt={annonce.titre} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                    <div className="relative p-2 h-full flex flex-col justify-between">
+                    <div className="relative px-2 pt-0 pb-4 h-full flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-[#E0222A] text-white px-3 py-1 rounded-full text-xs font-semibold">{annonce.annonces_categories?.nom || 'Catégorie'}</div>
                             <div className="flex items-center gap-2 mt-0">
@@ -316,7 +315,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
                                 </Button>
                             </div>
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-0">
                             <h3 className="text-white font-bold text-lg truncate">{annonce.titre}</h3>
                             <div className="flex items-center gap-2 text-sm text-gray-200"><MapPin className="h-4 w-4" />{annonce.villes?.nom || 'Lieu non spécifié'}</div>
                         </div>
