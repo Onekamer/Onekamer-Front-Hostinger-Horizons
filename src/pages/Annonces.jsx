@@ -142,9 +142,6 @@ const getDefaultAnnonceImage = (categorieNom) => {
             </div>
              <div className="absolute right-4 flex items-center gap-2 z-20 top-4 top-safe-4">
                 <FavoriteButton contentType="annonce" contentId={annonce.id} />
-                <Button variant="outline" size="sm" onClick={handleToggleInterest} disabled={interestLoading} className="bg-white/80 backdrop-blur-sm">
-                  {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
-                </Button>
                 {(isOwner || isAdmin) && (
                   <Button
                     variant="ghost"
@@ -194,6 +191,17 @@ const getDefaultAnnonceImage = (categorieNom) => {
                   <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                     <MapPin className="h-4 w-4" />
                     <span>{annonce.villes?.nom}, {annonce.pays?.nom}</span>
+                  </div>
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleToggleInterest}
+                      disabled={interestLoading}
+                      className="w-full"
+                    >
+                      {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
+                    </Button>
                   </div>
                 </div>
 

@@ -204,9 +204,6 @@ import React, { useState, useEffect, useCallback } from 'react';
             </div>
             <div className="absolute right-4 flex items-center gap-2 z-20 top-4 top-safe-4">
                 <FavoriteButton contentType="evenement" contentId={event.id} />
-                <Button variant="outline" size="sm" onClick={handleToggleInterest} disabled={interestLoading} className="bg-white/80 backdrop-blur-sm">
-                  {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
-                </Button>
                 {(isOwner || isAdmin) && (
                   <Button
                     variant="ghost"
@@ -268,6 +265,12 @@ import React, { useState, useEffect, useCallback } from 'react';
                   longitude={event.longitude}
                   location={event.location}
                 />
+
+                <div className="pt-2">
+                  <Button variant="outline" className="w-full sm:flex-1" onClick={handleToggleInterest} disabled={interestLoading}>
+                    {interested ? 'Je ne suis plus intéressé(e)' : 'Je suis intéressé(e)'}{!interestLoading ? ` (${interestCount})` : ''}
+                  </Button>
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button
