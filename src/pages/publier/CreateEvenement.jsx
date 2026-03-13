@@ -41,6 +41,8 @@ const CreateEvenement = () => {
   const [devises, setDevises] = useState([]);
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [mediaPreviews, setMediaPreviews] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [existingEvent, setExistingEvent] = useState(null);
 
@@ -147,15 +149,30 @@ const CreateEvenement = () => {
   };
 
   const handleMediaChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setMediaFile(file);
-      setMediaPreview(URL.createObjectURL(file));
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const firstVideo = files.find((f) => String(f.type || '').startsWith('video/'));
+    if (firstVideo) {
+      setMediaFile(firstVideo);
+      setMediaPreview(URL.createObjectURL(firstVideo));
+      setMediaFiles([]);
+      setMediaPreviews([]);
+      return;
+    }
+    const images = files.filter((f) => String(f.type || '').startsWith('image/')).slice(0, 5);
+    if (images.length) {
+      setMediaFile(null);
+      setMediaFiles(images);
+      const previews = images.map((f) => URL.createObjectURL(f));
+      setMediaPreviews(previews);
+      setMediaPreview(previews[0] || null);
     }
   };
 
   const removeMedia = () => {
     setMediaFile(null);
+    setMediaFiles([]);
+    setMediaPreviews([]);
     setMediaPreview(null);
   };
 
@@ -188,9 +205,34 @@ const CreateEvenement = () => {
     setIsUploading(true);
     let mediaUrl = existingEvent?.media_url || null;
     let mediaType = existingEvent?.media_type || null;
+    let imageUrls = null;
 
     try {
-      if (mediaFile) {
+      if (mediaFiles && mediaFiles.length > 0) {
+        imageUrls = [];
+        for (const img of mediaFiles) {
+          let finalImg = img;
+          if (img.type.startsWith('image')) {
+            try { finalImg = await imageCompression(img, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }); } catch (_) {}
+          }
+          const fd = new FormData();
+          const safe = new File(
+            [finalImg],
+            finalImg.name || `upload_${Date.now()}.${(finalImg.type || 'image/jpeg').split('/')[1]}`,
+            { type: finalImg.type || 'image/jpeg' }
+          );
+          fd.append('file', safe);
+          fd.append('type', 'evenements');
+          fd.append('recordId', user.id);
+          const r = await fetch(`${API_PREFIX}/upload`, { method: 'POST', body: fd });
+          if (!r.ok) throw new Error('La mise à jour du fichier a échoué');
+          const out = await r.json().catch(() => ({}));
+          if (!out?.url && out?.success === false) throw new Error('Réponse upload invalide');
+          imageUrls.push(out.url || out.path || out.cdnUrl);
+        }
+        mediaUrl = imageUrls[0];
+        mediaType = 'image';
+      } else if (mediaFile) {
         let finalFile = mediaFile;
         if (mediaFile.type.startsWith('image')) {
           const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
@@ -200,18 +242,14 @@ const CreateEvenement = () => {
         const uploadFormData = new FormData();
         const safeFile = new File(
           [finalFile],
-          finalFile.name || `upload_${Date.now()}.${finalFile.type.split('/')[1]}`,
-          { type: finalFile.type || "application/octet-stream" }
+          finalFile.name || `upload_${Date.now()}.${(finalFile.type || 'application/octet-stream').split('/')[1]}`,
+          { type: finalFile.type || 'application/octet-stream' }
         );
-        uploadFormData.append("file", safeFile);
-        uploadFormData.append("type", "evenements");
-        uploadFormData.append("recordId", user.id);
+        uploadFormData.append('file', safeFile);
+        uploadFormData.append('type', 'evenements');
+        uploadFormData.append('recordId', user.id);
 
-        const res = await fetch(`${API_PREFIX}/upload`, {
-          method: "POST",
-          body: uploadFormData,
-        });
-
+        const res = await fetch(`${API_PREFIX}/upload`, { method: 'POST', body: uploadFormData });
         if (!res.ok) {
           throw new Error('La mise à jour du fichier a échoué');
         }
@@ -221,6 +259,7 @@ const CreateEvenement = () => {
       }
 
       const payload = { ...formData, media_url: mediaUrl, media_type: mediaType, price: parseFloat(formData.price) || 0 };
+      if (imageUrls && imageUrls.length) payload.image_urls = imageUrls;
 
       if (isEditMode) {
         const isAdmin =
@@ -376,12 +415,16 @@ const CreateEvenement = () => {
                   <Card className="p-4 border-dashed"><CardContent className="flex flex-col items-center justify-center text-center p-0">
                       {mediaPreview ? (
                         <div className="relative">
-                          {(mediaFile ? mediaFile.type.startsWith('image') : existingEvent?.media_type === 'image') ? <img alt="Aperçu" src={mediaPreview} className="max-h-48 rounded-md mb-4" /> : <video src={mediaPreview} className="max-h-48 rounded-md mb-4" controls />}
+                          {(mediaFile ? mediaFile.type.startsWith('image') : (mediaFiles && mediaFiles.length > 0) ? true : existingEvent?.media_type === 'image') ? (
+                            <img alt="Aperçu" src={mediaPreview} className="max-h-48 rounded-md mb-4" />
+                          ) : (
+                            <video src={mediaPreview} className="max-h-48 rounded-md mb-4" controls />
+                          )}
                           <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia}><X className="h-4 w-4" /></Button>
                         </div>
                       ) : (<ImageIcon className="h-12 w-12 text-gray-400 mb-2" />)}
                       <Label htmlFor="media-upload" className="text-[#2BA84A] font-semibold cursor-pointer">{mediaPreview ? "Changer le média" : "Choisir une image ou vidéo"}</Label>
-                      <Input id="media-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaChange} />
+                      <Input id="media-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaChange} multiple />
                   </CardContent></Card>
                 </div>
                 <div className="space-y-2"><Label htmlFor="description">Description *</Label><Textarea id="description" placeholder="Décrivez l'événement..." rows={4} required value={formData.description} onChange={handleInputChange} /></div>

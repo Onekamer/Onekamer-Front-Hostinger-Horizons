@@ -146,6 +146,8 @@ const CreatePost = ({ onCreateSponsored }) => {
   const [postText, setPostText] = useState('');
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [mediaPreviews, setMediaPreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const mediaInputRef = useRef(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -482,13 +484,30 @@ const CreatePost = ({ onCreateSponsored }) => {
   };
 
   const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setMediaFile(file);
-      setMediaPreviewUrl(URL.createObjectURL(file));
-      setAudioBlob(null);
-      setAudioDuration(0);
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    // Réinitialiser audio si présent
+    setAudioBlob(null);
+    setAudioDuration(0);
+
+    // Si une vidéo est sélectionnée, on force en média unique (pas de multi-images)
+    const video = files.find((f) => String(f.type || '').startsWith('video/'));
+    if (video) {
+      setMediaFiles([]);
+      setMediaPreviews([]);
+      setMediaFile(video);
+      setMediaPreviewUrl(URL.createObjectURL(video));
+      return;
     }
+
+    // Sinon, ne garder que des images (max 5)
+    const imgs = files.filter((f) => String(f.type || '').startsWith('image/')).slice(0, 5);
+    if (!imgs.length) return;
+    setMediaFile(null);
+    setMediaFiles(imgs);
+    const previews = imgs.map((f) => URL.createObjectURL(f));
+    setMediaPreviews(previews);
+    setMediaPreviewUrl(previews[0] || null);
   };
 
   const handleSponsorClick = () => {
@@ -508,6 +527,8 @@ const CreatePost = ({ onCreateSponsored }) => {
       mediaInputRef.current.value = '';
     }
     setUploadProgress(0);
+    setMediaFiles([]);
+    setMediaPreviews([]);
   };
   
     const handleRemoveAudio = () => {
@@ -709,7 +730,18 @@ const CreatePost = ({ onCreateSponsored }) => {
           };
           
           let pendingEmbed = null;
-          if (mediaFile) {
+          if (mediaFiles && mediaFiles.length > 0) {
+            const imageUrls = [];
+            for (const img of mediaFiles) {
+              // Upload séquentiel
+              const url = await uploadToBunny(img, "posts");
+              imageUrls.push(url);
+            }
+            if (imageUrls.length) {
+              postData.image_url = imageUrls[0];
+              postData.image_urls = imageUrls;
+            }
+          } else if (mediaFile) {
             let fileToUpload = mediaFile;
             if (String(mediaFile?.type || '').startsWith('video/')) {
               try { fileToUpload = await compressVideoIfIOS(mediaFile, '720p'); } catch (_) {}
@@ -812,7 +844,7 @@ const CreatePost = ({ onCreateSponsored }) => {
 
         {mediaPreviewUrl && (
           <div className="relative mb-3 w-40 h-40">
-            {mediaFile.type.startsWith('image') ? (
+            {(mediaFiles && mediaFiles.length > 0) || (mediaFile && mediaFile.type.startsWith('image')) ? (
               <img
                 src={mediaPreviewUrl}
                 alt="Aperçu"
@@ -875,6 +907,7 @@ const CreatePost = ({ onCreateSponsored }) => {
                     accept="image/*,video/*"
                     className="hidden"
                     onChange={handleFileChange}
+                    multiple
                     disabled={recording || !!audioBlob}
                 />
                 {!recording && !audioBlob && isAudioRecordingSupported && (
