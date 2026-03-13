@@ -56,7 +56,9 @@ const normalizeAudioEntry = (entry) => {
 
 const parseMentions = (text) => {
   if (!text) return '';
-  const re = /(\[\[m:([A-Za-z0-9][A-Za-z0-9._-]{0,30})\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g;
+  // 1) Token [[m:...]] avec espaces autorisés jusqu'à avant ']]'
+  // 2) Mention tapée: '@' ou variante @ pleine largeur, suivie de groupes de mots (lettres/chiffres/diacritiques/apostrophes/._-), séparés par des espaces simples
+  const re = /(\[\[m:([^\]]{1,60})\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g;
   const out = [];
   let lastIndex = 0;
   let m;
@@ -64,7 +66,7 @@ const parseMentions = (text) => {
     const start = m.index;
     const full = m[0];
     const isToken = !!m[1];
-    const username = isToken ? m[2] : m[4];
+    const username = (isToken ? m[2] : m[4]) || '';
     const before = isToken ? '' : (m[3] || '');
     if (start > lastIndex) out.push(text.slice(lastIndex, start));
     if (before) out.push(before);
@@ -1152,8 +1154,8 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             type = 'audio';
         }
 
-        // Remplacer les mentions par un token sans '@' pour éviter tout trigger, puis neutraliser les '@' restants
-        let safeContent = (newComment || '').replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g, '$1[[m:$2]]');
+        // Remplacer les mentions (y compris pseudos avec espaces) par un token [[m:...]], puis neutraliser les '@' restants
+        let safeContent = (newComment || '').replace(/(^|\s)@([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g, '$1[[m:$2]]');
         safeContent = safeContent.replace(/@/g, '\uFF20');
 
         const payload = {

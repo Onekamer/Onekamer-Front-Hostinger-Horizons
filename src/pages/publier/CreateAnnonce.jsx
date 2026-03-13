@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -44,6 +44,7 @@ const CreateAnnonce = () => {
   const [mediaPreviews, setMediaPreviews] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [existingAnnonce, setExistingAnnonce] = useState(null);
+  const mediaInputRef = useRef(null);
 
   const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
   const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
@@ -435,7 +436,7 @@ const CreateAnnonce = () => {
                 <div className="space-y-2">
                   <Label>Image / Vidéo</Label>
                   <Card className="p-4 border-dashed"><CardContent className="flex flex-col items-center justify-center text-center p-0">
-                      {mediaPreview ? (
+                      {(mediaPreview || (mediaFiles && mediaFiles.length > 0)) ? (
                         <div className="relative">
                           {mediaFile && mediaFile.type.startsWith('video') ? (
                             <video src={mediaPreview} className="max-h-48 rounded-md mb-4" controls />
@@ -459,8 +460,10 @@ const CreateAnnonce = () => {
                           <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia}><X className="h-4 w-4" /></Button>
                         </div>
                       ) : (<ImageIcon className="h-12 w-12 text-gray-400 mb-2" />)}
-                      <Label htmlFor="media-upload" className="text-[#2BA84A] font-semibold cursor-pointer">{mediaPreview ? "Changer le média" : "Choisir une image ou vidéo"}</Label>
-                      <Input id="media-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaChange} multiple />
+                      <Button type="button" onClick={() => mediaInputRef.current?.click()} className="text-[#2BA84A] font-semibold" variant="link">
+                        {mediaPreview || (mediaFiles && mediaFiles.length > 0) ? 'Changer le média' : 'Choisir une image ou vidéo'}
+                      </Button>
+                      <Input ref={mediaInputRef} id="media-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaChange} multiple />
                   </CardContent></Card>
                 </div>
                 <div className="space-y-2"><Label htmlFor="description">Description</Label><Textarea id="description" placeholder="Décrivez votre article ou service en détail..." rows={5} required value={formData.description} onChange={handleInputChange} /></div>
