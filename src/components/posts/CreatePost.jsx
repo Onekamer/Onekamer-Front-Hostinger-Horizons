@@ -7,6 +7,7 @@ import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { Loader2, X, Mic, Square, Play, Pause, Image as ImageIcon, Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import SwipeCarousel from '@/components/SwipeCarousel';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { uploadAudioFile } from '@/utils/audioStorage';
@@ -856,16 +857,23 @@ const CreatePost = ({ onCreateSponsored }) => {
 
         {mediaPreviewUrl && (
           <div className="relative mb-3 w-40 h-40">
-            {(mediaFiles && mediaFiles.length > 0) || (mediaFile && mediaFile.type.startsWith('image')) ? (
-              <img
-                src={mediaPreviewUrl}
-                alt="Aperçu"
-                className="w-full h-full rounded-md object-cover"
-              />
-            ) : (
+            {mediaFile && mediaFile.type?.startsWith('video') ? (
               <video
                 src={mediaPreviewUrl}
                 controls
+                className="w-full h-full rounded-md object-cover"
+              />
+            ) : (mediaFiles && mediaFiles.length > 1) ? (
+              <SwipeCarousel
+                images={mediaPreviews}
+                zoomable={false}
+                className="w-full h-full"
+                imgClassName="w-full h-full object-cover rounded-md"
+              />
+            ) : (
+              <img
+                src={mediaPreviewUrl}
+                alt="Aperçu"
                 className="w-full h-full rounded-md object-cover"
               />
             )}

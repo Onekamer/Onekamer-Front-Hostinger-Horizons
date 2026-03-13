@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { notifyNewEvenement } from '@/services/oneSignalNotifications';
 import imageCompression from 'browser-image-compression';
 import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
+import SwipeCarousel from '@/components/SwipeCarousel';
 
 const mapContainerStyle = {
   width: '100%',
@@ -425,11 +426,13 @@ const CreateEvenement = () => {
                   <Label>Image / Vidéo</Label>
                   <Card className="p-4 border-dashed"><CardContent className="flex flex-col items-center justify-center text-center p-0">
                       {mediaPreview ? (
-                        <div className="relative">
-                          {(mediaFile ? mediaFile.type.startsWith('image') : (mediaFiles && mediaFiles.length > 0) ? true : existingEvent?.media_type === 'image') ? (
-                            <img alt="Aperçu" src={mediaPreview} className="max-h-48 rounded-md mb-4" />
-                          ) : (
+                        <div className="relative w-full">
+                          {mediaFile && mediaFile.type.startsWith('video') ? (
                             <video src={mediaPreview} className="max-h-48 rounded-md mb-4" controls />
+                          ) : mediaFiles && mediaFiles.length > 1 ? (
+                            <SwipeCarousel images={mediaPreviews} zoomable={false} className="w-full max-h-48" imgClassName="max-h-48 w-full object-cover rounded-md" />
+                          ) : (
+                            <img alt="Aperçu" src={mediaPreview} className="max-h-48 rounded-md mb-4" />
                           )}
                           <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia}><X className="h-4 w-4" /></Button>
                         </div>

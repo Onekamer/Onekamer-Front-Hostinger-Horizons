@@ -382,7 +382,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     <div className="relative p-2 h-full flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-[#E0222A] text-white px-3 py-1 rounded-full text-xs font-semibold">{event.evenements_types?.nom || 'Catégorie'}</div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 -mt-1">
                                 <FavoriteButton contentType="evenement" contentId={event.id} />
                                 <Button variant="ghost" size="icon" onClick={handleShare} className="text-white bg-black/20 hover:bg-black/40 rounded-full h-8 w-8">
                                     <Share2 className="h-4 w-4" />
@@ -392,7 +392,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 </Button>
                             </div>
                         </div>
-                        <div>
+                        <div className="mt-1">
                             <h3 className="text-white font-bold text-lg truncate">{event.title}</h3>
                             <div className="flex items-center gap-2 text-sm text-gray-200"><MapPin className="h-4 w-4" />{event.location}</div>
                         </div>
