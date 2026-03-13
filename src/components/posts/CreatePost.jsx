@@ -496,18 +496,28 @@ const CreatePost = ({ onCreateSponsored }) => {
       setMediaFiles([]);
       setMediaPreviews([]);
       setMediaFile(video);
-      setMediaPreviewUrl(URL.createObjectURL(video));
+      setMediaPreviewUrl((prev) => prev || URL.createObjectURL(video));
       return;
     }
 
-    // Sinon, ne garder que des images (max 5)
-    const imgs = files.filter((f) => String(f.type || '').startsWith('image/')).slice(0, 5);
+    // Sinon, ne garder que des images et accumuler (max 5)
+    const imgs = files.filter((f) => String(f.type || '').startsWith('image/'));
     if (!imgs.length) return;
     setMediaFile(null);
-    setMediaFiles(imgs);
-    const previews = imgs.map((f) => URL.createObjectURL(f));
-    setMediaPreviews(previews);
-    setMediaPreviewUrl(previews[0] || null);
+
+    let mergedRef = [];
+    setMediaFiles((prev) => {
+      const seen = new Set(prev.map((p) => `${p.name}:${p.size}`));
+      const merged = [...prev];
+      for (const img of imgs) {
+        const key = `${img.name}:${img.size}`;
+        if (!seen.has(key)) { merged.push(img); seen.add(key); }
+      }
+      mergedRef = merged.slice(0, 5);
+      return mergedRef;
+    });
+    setMediaPreviews(() => mergedRef.map((f) => URL.createObjectURL(f)));
+    setMediaPreviewUrl((prev) => prev || (mergedRef[0] ? URL.createObjectURL(mergedRef[0]) : null));
   };
 
   const handleSponsorClick = () => {

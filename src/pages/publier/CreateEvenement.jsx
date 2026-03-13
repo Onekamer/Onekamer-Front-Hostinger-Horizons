@@ -154,18 +154,27 @@ const CreateEvenement = () => {
     const firstVideo = files.find((f) => String(f.type || '').startsWith('video/'));
     if (firstVideo) {
       setMediaFile(firstVideo);
-      setMediaPreview(URL.createObjectURL(firstVideo));
+      setMediaPreview((prev) => prev || URL.createObjectURL(firstVideo));
       setMediaFiles([]);
       setMediaPreviews([]);
       return;
     }
-    const images = files.filter((f) => String(f.type || '').startsWith('image/')).slice(0, 5);
+    const images = files.filter((f) => String(f.type || '').startsWith('image/'));
     if (images.length) {
       setMediaFile(null);
-      setMediaFiles(images);
-      const previews = images.map((f) => URL.createObjectURL(f));
-      setMediaPreviews(previews);
-      setMediaPreview(previews[0] || null);
+      let mergedRef = [];
+      setMediaFiles((prev) => {
+        const seen = new Set(prev.map((p) => `${p.name}:${p.size}`));
+        const merged = [...prev];
+        for (const img of images) {
+          const key = `${img.name}:${img.size}`;
+          if (!seen.has(key)) { merged.push(img); seen.add(key); }
+        }
+        mergedRef = merged.slice(0, 5);
+        return mergedRef;
+      });
+      setMediaPreviews(() => mergedRef.map((f) => URL.createObjectURL(f)));
+      setMediaPreview((prev) => prev || (mergedRef[0] ? URL.createObjectURL(mergedRef[0]) : null));
     }
   };
 

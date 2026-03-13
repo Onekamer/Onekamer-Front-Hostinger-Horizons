@@ -158,21 +158,25 @@ const CreateAnnonce = () => {
       setMediaFiles([]);
       setMediaPreviews([]);
       setMediaFile(firstVideo);
-      setMediaPreview(URL.createObjectURL(firstVideo));
+      setMediaPreview((prev) => prev || URL.createObjectURL(firstVideo));
       return;
     }
-    const images = files.filter((f) => String(f.type || '').startsWith('image/')).slice(0, 5);
+    const images = files.filter((f) => String(f.type || '').startsWith('image/'));
     if (!images.length) return;
-    try {
-      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
-      const first = await imageCompression(images[0], options).catch(() => images[0]);
-      setMediaPreview(URL.createObjectURL(first));
-    } catch (_) {
-      setMediaPreview(URL.createObjectURL(images[0]));
-    }
     setMediaFile(null);
-    setMediaFiles(images);
-    setMediaPreviews(images.map((f) => URL.createObjectURL(f)));
+    let mergedRef = [];
+    setMediaFiles((prev) => {
+      const seen = new Set(prev.map((p) => `${p.name}:${p.size}`));
+      const merged = [...prev];
+      for (const img of images) {
+        const key = `${img.name}:${img.size}`;
+        if (!seen.has(key)) { merged.push(img); seen.add(key); }
+      }
+      mergedRef = merged.slice(0, 5);
+      return mergedRef;
+    });
+    setMediaPreviews(() => mergedRef.map((f) => URL.createObjectURL(f)));
+    setMediaPreview((prev) => prev || (mergedRef[0] ? URL.createObjectURL(mergedRef[0]) : null));
   };
 
   const removeMedia = () => {
