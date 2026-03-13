@@ -298,7 +298,7 @@ const getDefaultAnnonceImage = (categorieNom) => {
                     <div className="relative p-2 h-full flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-[#E0222A] text-white px-3 py-1 rounded-full text-xs font-semibold">{annonce.annonces_categories?.nom || 'Catégorie'}</div>
-                            <div className="flex items-center gap-2 -mt-1">
+                            <div className="flex items-center gap-2 mt-0">
                                 <FavoriteButton contentType="annonce" contentId={annonce.id} />
                                 <Button variant="ghost" size="icon" onClick={handleShare} className="text-white bg-black/20 hover:bg-black/40 rounded-full h-8 w-8">
                                     <Share2 className="h-4 w-4" />

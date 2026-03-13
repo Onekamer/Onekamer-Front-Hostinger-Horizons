@@ -14,7 +14,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { notifyNewAnnonce } from '@/services/oneSignalNotifications';
 import imageCompression from 'browser-image-compression';
-import SwipeCarousel from '@/components/SwipeCarousel';
+ 
 
 const CreateAnnonce = () => {
   const navigate = useNavigate();
@@ -436,13 +436,25 @@ const CreateAnnonce = () => {
                   <Label>Image / Vidéo</Label>
                   <Card className="p-4 border-dashed"><CardContent className="flex flex-col items-center justify-center text-center p-0">
                       {mediaPreview ? (
-                        <div className="relative w-full">
+                        <div className="relative">
                           {mediaFile && mediaFile.type.startsWith('video') ? (
                             <video src={mediaPreview} className="max-h-48 rounded-md mb-4" controls />
                           ) : mediaFiles && mediaFiles.length > 1 ? (
-                            <SwipeCarousel images={mediaPreviews} zoomable={false} className="w-full max-h-48" imgClassName="max-h-48 w-full object-cover rounded-md" />
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                              {mediaPreviews.map((src, idx) => (
+                                <img
+                                  key={idx}
+                                  src={src}
+                                  alt={`Aperçu ${idx + 1}`}
+                                  className="w-16 h-16 rounded-md object-cover flex-none"
+                                  draggable={false}
+                                />
+                              ))}
+                            </div>
                           ) : (
-                            <img alt="Aperçu" src={mediaPreview} className="max-h-48 rounded-md mb-4"/>
+                            <div className="w-40 h-40">
+                              <img alt="Aperçu" src={mediaPreview} className="w-full h-full rounded-md object-cover" />
+                            </div>
                           )}
                           <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeMedia}><X className="h-4 w-4" /></Button>
                         </div>

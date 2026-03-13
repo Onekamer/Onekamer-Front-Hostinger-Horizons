@@ -7,7 +7,7 @@ import { toast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { Loader2, X, Mic, Square, Play, Pause, Image as ImageIcon, Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import SwipeCarousel from '@/components/SwipeCarousel';
+ 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { uploadAudioFile } from '@/utils/audioStorage';
@@ -856,26 +856,35 @@ const CreatePost = ({ onCreateSponsored }) => {
         </div>
 
         {mediaPreviewUrl && (
-          <div className="relative mb-3 w-40 h-40">
+          <div className="relative mb-3">
             {mediaFile && mediaFile.type?.startsWith('video') ? (
-              <video
-                src={mediaPreviewUrl}
-                controls
-                className="w-full h-full rounded-md object-cover"
-              />
+              <div className="w-40 h-40">
+                <video
+                  src={mediaPreviewUrl}
+                  controls
+                  className="w-full h-full rounded-md object-cover"
+                />
+              </div>
             ) : (mediaFiles && mediaFiles.length > 1) ? (
-              <SwipeCarousel
-                images={mediaPreviews}
-                zoomable={false}
-                className="w-full h-full"
-                imgClassName="w-full h-full object-cover rounded-md"
-              />
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                {mediaPreviews.map((src, idx) => (
+                  <img
+                    key={idx}
+                    src={src}
+                    alt={`Aperçu ${idx + 1}`}
+                    className="w-16 h-16 rounded-md object-cover flex-none"
+                    draggable={false}
+                  />
+                ))}
+              </div>
             ) : (
-              <img
-                src={mediaPreviewUrl}
-                alt="Aperçu"
-                className="w-full h-full rounded-md object-cover"
-              />
+              <div className="w-40 h-40">
+                <img
+                  src={mediaPreviewUrl}
+                  alt="Aperçu"
+                  className="w-full h-full rounded-md object-cover"
+                />
+              </div>
             )}
             <Button
               size="icon"
