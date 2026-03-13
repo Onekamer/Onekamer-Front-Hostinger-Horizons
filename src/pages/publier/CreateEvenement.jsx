@@ -154,9 +154,10 @@ const CreateEvenement = () => {
     const firstVideo = files.find((f) => String(f.type || '').startsWith('video/'));
     if (firstVideo) {
       setMediaFile(firstVideo);
-      setMediaPreview((prev) => prev || URL.createObjectURL(firstVideo));
+      setMediaPreview(URL.createObjectURL(firstVideo));
       setMediaFiles([]);
       setMediaPreviews([]);
+      try { e.target.value = ''; } catch (_) {}
       return;
     }
     const images = files.filter((f) => String(f.type || '').startsWith('image/'));
@@ -175,6 +176,7 @@ const CreateEvenement = () => {
       });
       setMediaPreviews(() => mergedRef.map((f) => URL.createObjectURL(f)));
       setMediaPreview((prev) => prev || (mergedRef[0] ? URL.createObjectURL(mergedRef[0]) : null));
+      try { e.target.value = ''; } catch (_) {}
     }
   };
 

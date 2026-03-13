@@ -496,7 +496,8 @@ const CreatePost = ({ onCreateSponsored }) => {
       setMediaFiles([]);
       setMediaPreviews([]);
       setMediaFile(video);
-      setMediaPreviewUrl((prev) => prev || URL.createObjectURL(video));
+      setMediaPreviewUrl(URL.createObjectURL(video));
+      try { event.target.value = ''; } catch (_) {}
       return;
     }
 
@@ -518,6 +519,7 @@ const CreatePost = ({ onCreateSponsored }) => {
     });
     setMediaPreviews(() => mergedRef.map((f) => URL.createObjectURL(f)));
     setMediaPreviewUrl((prev) => prev || (mergedRef[0] ? URL.createObjectURL(mergedRef[0]) : null));
+    try { event.target.value = ''; } catch (_) {}
   };
 
   const handleSponsorClick = () => {

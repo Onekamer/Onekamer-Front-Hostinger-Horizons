@@ -158,7 +158,8 @@ const CreateAnnonce = () => {
       setMediaFiles([]);
       setMediaPreviews([]);
       setMediaFile(firstVideo);
-      setMediaPreview((prev) => prev || URL.createObjectURL(firstVideo));
+      setMediaPreview(URL.createObjectURL(firstVideo));
+      try { e.target.value = ''; } catch (_) {}
       return;
     }
     const images = files.filter((f) => String(f.type || '').startsWith('image/'));
@@ -177,6 +178,7 @@ const CreateAnnonce = () => {
     });
     setMediaPreviews(() => mergedRef.map((f) => URL.createObjectURL(f)));
     setMediaPreview((prev) => prev || (mergedRef[0] ? URL.createObjectURL(mergedRef[0]) : null));
+    try { e.target.value = ''; } catch (_) {}
   };
 
   const removeMedia = () => {
