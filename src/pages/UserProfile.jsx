@@ -480,23 +480,25 @@ const UserProfile = () => {
             </CardContent>
           </Card>
         </div>
-        <div>
-          <Card className="mt-6 text-center">
-            <CardHeader>
-              <CardTitle className="text-lg">Forfait</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-[#2BA84A]">{displayPlan}</p>
-              {subInfo && subInfo.plan_name && subInfo.end_date && (effectivePlan !== 'free') && (new Date(subInfo.end_date).getTime() > Date.now()) && (
-                <div className="text-xs text-gray-500 mt-1">
-                  {subInfo.auto_renew === false
-                    ? `L’abonnement sera résilié le ${new Date(subInfo.end_date).toLocaleString()}`
-                    : `Se renouvelle le ${new Date(subInfo.end_date).toLocaleString()}`}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {authUser?.id && String(authUser.id) === String(userId) && (
+          <div>
+            <Card className="mt-6 text-center">
+              <CardHeader>
+                <CardTitle className="text-lg">Forfait</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-[#2BA84A]">{displayPlan}</p>
+                {subInfo && subInfo.plan_name && subInfo.end_date && (effectivePlan !== 'free') && (new Date(subInfo.end_date).getTime() > Date.now()) && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {subInfo.auto_renew === false
+                      ? `L’abonnement sera résilié le ${new Date(subInfo.end_date).toLocaleString()}`
+                      : `Se renouvelle le ${new Date(subInfo.end_date).toLocaleString()}`}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
         <div>
           <Card className="mt-6">
             <CardContent className="pt-6">

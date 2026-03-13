@@ -1,8 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
   const s = String(status || 'pending').toLowerCase();
@@ -16,6 +17,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const ReportsHistory = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [items, setItems] = React.useState([]);
@@ -42,6 +44,11 @@ const ReportsHistory = () => {
 
   return (
     <div className="space-y-4">
+      <div>
+        <button type="button" className="mb-2 inline-flex items-center text-sm text-gray-700" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+        </button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Mes signalements</CardTitle>

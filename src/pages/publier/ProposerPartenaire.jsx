@@ -340,6 +340,14 @@ const ProposerPartenaire = () => {
           </form>
         </motion.div>
       </div>
+      {isUploading && (
+        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-md px-4 py-3 flex items-center gap-2">
+            <Loader2 className="h-5 w-5 text-gray-700 animate-spin" />
+            <span className="text-sm font-medium text-gray-800">Envoi en cours…</span>
+          </div>
+        </div>
+      )}
     </>
   );
 };

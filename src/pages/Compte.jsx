@@ -554,6 +554,7 @@ const Compte = () => {
                   path={profile.avatar_url}
                   alt={profile.username}
                   className="rounded-full w-full h-full object-cover"
+                  disableLightbox={true}
                 />
               </div>
             ) : (

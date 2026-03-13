@@ -1,12 +1,14 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 const BlockedAccounts = () => {
+  const navigate = useNavigate();
   const { user, profile, unblockUser, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
@@ -51,6 +53,11 @@ const BlockedAccounts = () => {
 
   return (
     <div className="space-y-4">
+      <div>
+        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">
+          <ArrowLeft className="h-4 w-4 mr-2" />Retour
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Comptes bloqués</CardTitle>
