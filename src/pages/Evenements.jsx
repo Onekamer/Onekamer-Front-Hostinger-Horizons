@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import MediaDisplay from '@/components/MediaDisplay';
+    import SwipeCarousel from '@/components/SwipeCarousel';
     import FavoriteButton from '@/components/FavoriteButton';
     import { canUserAccess } from '@/lib/accessControl';
     import { applyAutoAccessProtection } from "@/lib/autoAccessWrapper";
@@ -186,7 +187,16 @@ import React, { useState, useEffect, useCallback } from 'react';
           className="fixed inset-0 z-50 bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5] overflow-y-auto"
         >
           <div className="relative pt-safe">
-             <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="w-full h-64 object-cover" />
+             {Array.isArray(event.image_urls) && (event.image_urls || []).length > 0 ? (
+               <SwipeCarousel
+                 images={event.image_urls}
+                 zoomable={true}
+                 className="w-full h-64"
+                 imgClassName="h-64 w-full object-cover"
+               />
+             ) : (
+               <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="w-full h-64 object-cover" />
+             )}
              <div className="absolute left-4 z-20 top-4 top-safe-4">
               <button onClick={onBack} className="bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-md">
                 <ArrowLeft className="h-6 w-6 text-gray-800" />

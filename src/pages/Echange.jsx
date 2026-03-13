@@ -34,6 +34,7 @@ import { uploadAudioFile, ensurePublicAudioUrl } from '@/utils/audioStorage';
 import { notifyDonationReceived, notifyPostLiked, notifyPostCommented, notifyMentions } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
 import VideoPlayer from '@/components/VideoPlayer';
+import SwipeCarousel from '@/components/SwipeCarousel';
 import DotsLoader from '@/components/ui/DotsLoader';
 
 if (typeof window !== 'undefined' && !window.getApiPrefix) {
@@ -1794,31 +1795,21 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
           </div>
         </div>
         <p className="mb-4 whitespace-pre-wrap">{parseMentions(post.content)}</p>
-        {imageUrl && (
-          <button
-            type="button"
-            className="rounded-lg w-full mb-4 p-0 m-0 bg-transparent border-0 cursor-zoom-in"
-            style={{ touchAction: 'manipulation', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-            draggable={false}
-            onClick={() => openLightbox && openLightbox(imageUrl)}
-            onTouchStart={() => {}}
-            onTouchEnd={() => { openLightbox && openLightbox(imageUrl); }}
-            onContextMenu={(e) => { e.preventDefault(); return false; }}
-          >
-            <img 
-              src={imageUrl} 
-              alt="Post media" 
-              className="rounded-lg w-full max-h-64 md:max-h-80 object-contain bg-black/5" 
-              draggable={false}
-              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none', pointerEvents: 'none', WebkitUserDrag: 'none' }}
-              onContextMenu={(e) => { e.preventDefault(); return false; }}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src="https://onekamer-media-cdn.b-cdn.net/posts/default_post_image.png";
-              }}
-            />
-          </button>
-        )}
+        {Array.isArray(post.image_urls) && post.image_urls.length > 0 ? (
+          <SwipeCarousel
+            images={post.image_urls}
+            zoomable={true}
+            className="rounded-lg w-full mb-4"
+            imgClassName="max-h-64 md:max-h-80 object-contain"
+          />
+        ) : (imageUrl ? (
+          <SwipeCarousel
+            images={[imageUrl]}
+            zoomable={true}
+            className="rounded-lg w-full mb-4"
+            imgClassName="max-h-64 md:max-h-80 object-contain"
+          />
+        ) : null)}
         {videoUrl && (
           <VideoPlayer
             src={videoUrl}
