@@ -75,14 +75,14 @@ const FiltersDialog = ({ filters, setFilters, onApply }) => {
       <div className="space-y-4 py-4">
         <div>
           <Label>Type de rencontre</Label>
-          <select value={localFilters.rencontreTypeId} onChange={e => setLocalFilters({...localFilters, rencontreTypeId: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <select value={localFilters.rencontreTypeId} onChange={e => setLocalFilters({...localFilters, rencontreTypeId: e.target.value})} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-background px-3 py-2 text-sm focus:ring-[#2BA84A] focus:border-[#2BA84A]">
             <option value="">Tous les types</option>
             {rencontreTypes.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
           </select>
         </div>
         <div>
           <Label>Sexe</Label>
-          <select value={localFilters.sexe} onChange={e => setLocalFilters({...localFilters, sexe: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <select value={localFilters.sexe} onChange={e => setLocalFilters({...localFilters, sexe: e.target.value})} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-background px-3 py-2 text-sm focus:ring-[#2BA84A] focus:border-[#2BA84A]">
             <option value="all">Tous</option>
             <option value="Homme">Homme</option>
             <option value="Femme">Femme</option>
@@ -90,14 +90,14 @@ const FiltersDialog = ({ filters, setFilters, onApply }) => {
         </div>
         <div>
           <Label>Pays</Label>
-           <select value={localFilters.countryId} onChange={e => setLocalFilters({...localFilters, countryId: e.target.value, cityId: ''})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+           <select value={localFilters.countryId} onChange={e => setLocalFilters({...localFilters, countryId: e.target.value, cityId: ''})} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-background px-3 py-2 text-sm focus:ring-[#2BA84A] focus:border-[#2BA84A]">
             <option value="">Tous les pays</option>
             {countries.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
         </div>
         <div>
           <Label>Ville</Label>
-          <select value={localFilters.cityId} disabled={!localFilters.countryId || cities.length === 0} onChange={e => setLocalFilters({...localFilters, cityId: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <select value={localFilters.cityId} disabled={!localFilters.countryId || cities.length === 0} onChange={e => setLocalFilters({...localFilters, cityId: e.target.value})} className="flex h-10 w-full rounded-md border border-[#2BA84A]/30 bg-background px-3 py-2 text-sm focus:ring-[#2BA84A] focus:border-[#2BA84A] disabled:opacity-50">
             <option value="">Toutes les villes</option>
             {cities.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>

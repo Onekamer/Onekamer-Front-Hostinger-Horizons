@@ -298,7 +298,7 @@ const CreateEvenement = () => {
         } else {
           const { error } = await supabase
             .from('evenements')
-            .update({ ...payload, updated_at: new Date().toISOString() })
+            .update({ ...payload })
             .eq('id', eventId);
           if (error) throw error;
         }
@@ -377,16 +377,26 @@ const CreateEvenement = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="location">Lieu *</Label>
-                  {isLoaded && (
-                    <Autocomplete
-                      onLoad={(ref) => autocompleteRef.current = ref}
-                      onPlaceChanged={onPlaceChanged}
-                    >
-                      <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><Input id="location" placeholder="Rechercher une adresse..." className="pl-10" required value={formData.location} onChange={handleInputChange} /></div>
+                  {isLoaded ? (
+                    <Autocomplete onLoad={(ref) => (autocompleteRef.current = ref)} onPlaceChanged={onPlaceChanged}>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <Input id="location" placeholder="Rechercher une adresse..." className="pl-10" required value={formData.location} onChange={handleInputChange} />
+                      </div>
                     </Autocomplete>
+                  ) : (
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input id="location" placeholder="Saisir l'adresse..." className="pl-10" required value={formData.location} onChange={handleInputChange} />
+                    </div>
                   )}
-                  {isLoaded && <GoogleMap mapContainerStyle={mapContainerStyle} center={coords || defaultCenter} zoom={coords ? 15 : 10}><>{coords && <Marker position={coords} />}</></GoogleMap>}
-                  {loadError && <div>Erreur de chargement de la carte.</div>}
+                  {isLoaded ? (
+                    <GoogleMap mapContainerStyle={mapContainerStyle} center={coords || defaultCenter} zoom={coords ? 15 : 10}>
+                      <>{coords && <Marker position={coords} />}</>
+                    </GoogleMap>
+                  ) : (
+                    loadError ? <div>Erreur de chargement de la carte.</div> : <div className="text-xs text-gray-500 mt-1">Carte indisponible pour le moment.</div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

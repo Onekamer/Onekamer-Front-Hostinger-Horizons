@@ -176,6 +176,9 @@ const CreatePost = ({ onCreateSponsored }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const editableDivRef = useRef(null);
+  const [tagQuery, setTagQuery] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [tagSuggestions, setTagSuggestions] = useState([]);
 
   const handleInput = (e) => {
     const div = e.currentTarget;
@@ -192,8 +195,16 @@ const CreatePost = ({ onCreateSponsored }) => {
         if (mentionMatch) {
             setMentionQuery(mentionMatch[1]);
             setShowSuggestions(true);
+            setShowTagSuggestions(false);
         } else {
             setShowSuggestions(false);
+            const tagMatch = textBeforeCursor.match(/#([^\s#\n]{1,30})$/);
+            if (tagMatch) {
+              setTagQuery(tagMatch[1]);
+              setShowTagSuggestions(true);
+            } else {
+              setShowTagSuggestions(false);
+            }
         }
     }
   };
@@ -263,6 +274,65 @@ const CreatePost = ({ onCreateSponsored }) => {
 
     return () => clearTimeout(debounceFetch);
   }, [mentionQuery, showSuggestions]);
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const [ev, an, bt, gr, fd] = await Promise.all([
+          supabase.from('evenements').select('id, title').ilike('title', `%${tagQuery}%`).limit(3),
+          supabase.from('annonces').select('id, titre').ilike('titre', `%${tagQuery}%`).limit(3),
+          supabase.from('partenaires').select('id, name').ilike('name', `%${tagQuery}%`).limit(3),
+          supabase.from('groupes').select('id, nom').ilike('nom', `%${tagQuery}%`).limit(3),
+          supabase.from('faits_divers').select('id, title').ilike('title', `%${tagQuery}%`).limit(3),
+        ]);
+        const out = [];
+        (ev.data || []).forEach((r) => out.push({ id: r.id, label: r.title, type: 'evenement', badge: 'Événement' }));
+        (an.data || []).forEach((r) => out.push({ id: r.id, label: r.titre, type: 'annonce', badge: 'Annonce' }));
+        (bt.data || []).forEach((r) => out.push({ id: r.id, label: r.name, type: 'partenaire', badge: 'Boutique' }));
+        (gr.data || []).forEach((r) => out.push({ id: r.id, label: r.nom, type: 'groupe', badge: 'Groupe' }));
+        (fd.data || []).forEach((r) => out.push({ id: r.id, label: r.title, type: 'faits_divers', badge: 'Actualité' }));
+        setTagSuggestions(out.slice(0, 12));
+      } catch (_) {}
+    };
+    const debounceFetch = setTimeout(() => {
+      if (showTagSuggestions && tagQuery.length >= 1) {
+        fetchTags();
+      }
+    }, 250);
+    return () => clearTimeout(debounceFetch);
+  }, [tagQuery, showTagSuggestions]);
+
+  const handleTagPick = (item) => {
+    try {
+      editableDivRef.current.focus();
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const node = range.startContainer;
+      const text = (node.textContent || '').substring(0, range.startOffset);
+      const m = text.match(/#([^\s#\n]{1,30})$/);
+      const token = `[[ref:${item.type}:${item.id}]]`;
+      if (m) {
+        const q = m[1] || '';
+        const start = text.lastIndexOf(`#${q}`);
+        const end = range.startOffset;
+        range.setStart(node, Math.max(0, start));
+        range.setEnd(node, end);
+        range.deleteContents();
+      }
+      const space = document.createTextNode(' ');
+      range.insertNode(document.createTextNode(token));
+      range.collapse(false);
+      range.insertNode(space);
+      range.setStartAfter(space);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      setShowTagSuggestions(false);
+      setTagQuery('');
+      setPostText(editableDivRef.current.innerText);
+    } catch (_) {}
+  };
 
   const handleMentionSelect = (username, isAuto) => {
     setShowSuggestions(false);
@@ -853,6 +923,16 @@ const CreatePost = ({ onCreateSponsored }) => {
             }`}
           />
           <MentionSuggestions />
+          {showTagSuggestions && tagSuggestions.length > 0 && (
+            <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-56 overflow-y-auto">
+              {tagSuggestions.map((it) => (
+                <div key={`${it.type}-${it.id}`} className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer" onClick={() => handleTagPick(it)}>
+                  <span className="text-sm truncate">{it.label}</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A]">#{it.badge}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {mediaPreviewUrl && (

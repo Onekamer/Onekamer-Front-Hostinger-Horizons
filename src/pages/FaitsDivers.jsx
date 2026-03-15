@@ -534,7 +534,7 @@ const NewsDetail = ({ news, onBack, onLikeToggle, isLiked, canManage, onEdit, on
             </div>
           )}
           <CardHeader>
-            <span className="bg-[#007AFF] text-white text-xs font-semibold px-2.5 py-1 rounded-full self-start">{news.category?.nom || 'Sans catégorie'}</span>
+            <span className="bg-[#2BA84A] text-white text-xs font-semibold px-2.5 py-1 rounded-full self-start">{news.category?.nom || 'Sans catégorie'}</span>
             <CardTitle className="text-2xl font-bold text-gray-800 mt-2">{news.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
