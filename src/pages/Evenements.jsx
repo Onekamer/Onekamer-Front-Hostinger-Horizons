@@ -282,7 +282,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     {reservationLink && (
                       <Button asChild variant="outline" className="w-full sm:flex-1">
                         <a href={reservationLink} target="_blank" rel="noopener noreferrer">
-                          <Ticket className="h-4 w-4 mr-2" /> Contacter
+                          <Ticket className="h-4 w-4 mr-2" /> Réserver mon billet
                         </a>
                       </Button>
                     )}

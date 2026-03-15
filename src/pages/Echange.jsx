@@ -54,6 +54,57 @@ const normalizeAudioEntry = (entry) => {
   return { ...entry, audio_url: ensurePublicAudioUrl(entry.audio_url) };
 };
 
+const toHashLabel = (name) => {
+  try {
+    const base = String(name || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_{2,}/g, '_');
+    return base ? `#${base}` : '#contenu';
+  } catch (_) {
+    return '#contenu';
+  }
+};
+
+const InlineRefTag = ({ typ, rid, href }) => {
+  const [label, setLabel] = React.useState('');
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        let out = '';
+        if (typ === 'evenement') {
+          const { data } = await supabase.from('evenements').select('title').eq('id', rid).maybeSingle();
+          out = data?.title || '';
+        } else if (typ === 'annonce') {
+          const { data } = await supabase.from('annonces').select('titre').eq('id', rid).maybeSingle();
+          out = data?.titre || '';
+        } else if (typ === 'partenaire') {
+          const { data } = await supabase.from('partenaires').select('name').eq('id', rid).maybeSingle();
+          out = data?.name || '';
+        } else if (typ === 'groupe') {
+          const { data } = await supabase.from('groupes').select('nom').eq('id', rid).maybeSingle();
+          out = data?.nom || '';
+        } else {
+          const { data } = await supabase.from('faits_divers').select('title').eq('id', rid).maybeSingle();
+          out = data?.title || '';
+        }
+        if (mounted) setLabel(out || '');
+      } catch (_) {}
+    };
+    load();
+    return () => { mounted = false; };
+  }, [typ, rid]);
+
+  const text = toHashLabel(label);
+  return (
+    <a href={href} className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A] text-xs font-medium">{text}</a>
+  );
+};
+
 const parseMentions = (text) => {
   if (!text) return '';
   const re = /(\[\[m:([^\]]{1,60})\]\])|(\[\[ref:([a-z_]+):([^\]]+)\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g;
@@ -72,13 +123,6 @@ const parseMentions = (text) => {
     if (isRef) {
       const typ = String(m[4] || '').toLowerCase();
       const rid = String(m[5] || '');
-      const label = (
-        typ === 'evenement' ? 'Événement' :
-        typ === 'annonce' ? 'Annonce' :
-        typ === 'partenaire' ? 'Boutique' :
-        typ === 'groupe' ? 'Groupe' :
-        typ === 'faits_divers' || typ === 'fait_divers' || typ === 'actualites' ? 'Actualité' : 'Contenu'
-      );
       const path = (
         typ === 'evenement' ? `/evenements?eventId=${encodeURIComponent(rid)}` :
         typ === 'annonce' ? `/annonces?annonceId=${encodeURIComponent(rid)}` :
@@ -86,13 +130,17 @@ const parseMentions = (text) => {
         typ === 'groupe' ? `/groupes/${encodeURIComponent(rid)}` :
         `/faits-divers?articleId=${encodeURIComponent(rid)}`
       );
-      out.push(
-        <a key={`ref-${start}-${typ}-${rid}`} href={path} className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A] text-xs font-medium">
-          #{label}
-        </a>
-      );
+      out.push(<InlineRefTag key={`ref-${start}-${typ}-${rid}`} typ={typ} rid={rid} href={path} />);
     } else {
-      out.push(<span key={`${start}-${username}`} className="mention text-[#2BA84A] font-semibold">@{username}</span>);
+      let u = username;
+      if (!u) {
+        try {
+          const afterAt = full.replace(/^[^@\uFF20]*[@\uFF20](?:\u200B)?/, '');
+          const m2 = afterAt.match(/^([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/);
+          if (m2 && m2[1]) u = m2[1];
+        } catch (_) {}
+      }
+      out.push(<span key={`${start}-${u}`} className="mention text-[#2BA84A] font-semibold">@{u}</span>);
     }
     lastIndex = start + full.length;
   }
