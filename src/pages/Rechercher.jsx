@@ -89,7 +89,7 @@ const ResultCard = ({ item, type }) => {
                         <MediaDisplay bucket="faits_divers" path={item.image_url} alt={item.title} className="w-full h-full object-cover" />
                     </div>
                     <div>
-                        <p className="text-xs text-gray-500">Fait Divers</p>
+                        <p className="text-xs text-gray-500">Actualité</p>
                         <h3 className="font-bold truncate">{item.title}</h3>
                         <p className="text-sm text-gray-600 line-clamp-2">{item.excerpt}</p>
                     </div>
@@ -203,7 +203,7 @@ const Rechercher = () => {
     { value: 'partenaires', label: 'Partenaires', icon: Users },
     { value: 'evenements', label: 'Événements', icon: Calendar },
     { value: 'posts', label: 'Posts', icon: TrendingUp },
-    { value: 'faits_divers', label: 'Faits Divers', icon: Newspaper },
+    { value: 'faits_divers', label: 'Actualités', icon: Newspaper },
     { value: 'groupes', label: 'Groupes', icon: Users },
     { value: 'marketplace', label: 'Marketplace', icon: ShoppingBag },
   ];
@@ -532,7 +532,7 @@ const Rechercher = () => {
                               </div>
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold truncate">{data.title}</div>
-                                <div className="text-xs text-gray-600 truncate">Fait Divers</div>
+                                <div className="text-xs text-gray-600 truncate">Actualité</div>
                               </div>
                             </div>
                           );

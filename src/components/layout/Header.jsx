@@ -136,6 +136,8 @@ const safeAreaStyle = isCapIOS ? { paddingTop: 'var(--safe-top)' } : undefined;
                         path={profile.avatar_url}
                         alt={profile.username || 'Avatar'}
                         className="rounded-full w-full h-full object-cover"
+                        forceImage={true}
+                        disableLightbox={true}
                       />
                     ) : (
                       <AvatarFallback className="text-sm bg-gray-200">

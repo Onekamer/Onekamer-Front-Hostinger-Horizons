@@ -247,9 +247,9 @@ const Home = () => {
               </div>
             </motion.section>
 
-            {/* Section for Faits Divers - Replaced Partners */}
+            {/* Section Actualités */}
             <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-              <SectionHeader title="Faits Divers" icon={FileText} path="/faits-divers" navigate={navigate} /> {/* Updated title, icon, and path */}
+              <SectionHeader title="Actualités" icon={FileText} path="/faits-divers" navigate={navigate} />
               <div className="grid grid-cols-1 gap-4"> {/* Changed grid layout to 1 column for article format */}
                 {faitsDivers.map(fait => ( // Changed from partners to faitsDivers
                   <Card key={fait.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/faits-divers')}>

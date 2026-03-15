@@ -377,11 +377,30 @@ import React, { useState, useEffect, useCallback } from 'react';
         };
         const { apple: apple2, google: google2 } = buildUrls2();
         
+        const isPast = (() => {
+          try {
+            const d = new Date(event?.date);
+            if (!d || isNaN(d)) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return d < today;
+          } catch {
+            return false;
+          }
+        })();
+
         return (
-            <Card onClick={() => onSelect(event)} className="cursor-pointer group overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 h-full flex flex-col rounded-lg">
+            <Card onClick={() => onSelect(event)} className={`cursor-pointer group overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 h-full flex flex-col rounded-lg ${isPast ? 'opacity-80' : ''}`}>
                 <div className="relative h-48 bg-gray-200">
-                    <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <MediaDisplay bucket="evenements" path={event.media_url} alt={event.title} className={`absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isPast ? 'grayscale' : ''}`} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    {isPast && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="rotate-[-20deg] bg-gray-100/80 text-gray-600 font-semibold uppercase tracking-wide px-6 py-1 rounded">
+                          Terminé
+                        </div>
+                      </div>
+                    )}
                     <div className="relative px-2 pt-0 pb-9 h-full flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <div className="bg-[#E0222A] text-white px-3 py-1 rounded-full text-xs font-semibold">{event.evenements_types?.nom || 'Catégorie'}</div>

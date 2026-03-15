@@ -60,7 +60,9 @@ const FavoriteItemCard = ({ item, type, onRemove }) => {
         <div className="w-2/3 p-3 flex flex-col justify-between">
           <div>
             <p className="font-semibold text-sm truncate">{details.title}</p>
-            <p className="text-xs text-gray-500 capitalize">{type.replace('_', ' ')}</p>
+            <p className="text-xs text-gray-500">
+              {type === 'fait_divers' ? 'Actualité' : (type.replace('_', ' ').charAt(0).toUpperCase() + type.replace('_', ' ').slice(1))}
+            </p>
           </div>
           <div className="flex justify-end gap-2 mt-2">
             <Button size="sm" variant="ghost" onClick={() => onRemove(item.id, type)}>
@@ -184,7 +186,7 @@ const Favoris = () => {
               {favoriteTypes.includes('annonce') && <TabsTrigger value="annonce">Annonces</TabsTrigger>}
               {favoriteTypes.includes('partenaire') && <TabsTrigger value="partenaire">Partenaires</TabsTrigger>}
               {favoriteTypes.includes('evenement') && <TabsTrigger value="evenement">Événements</TabsTrigger>}
-              {favoriteTypes.includes('fait_divers') && <TabsTrigger value="fait_divers">Faits Divers</TabsTrigger>}
+              {favoriteTypes.includes('fait_divers') && <TabsTrigger value="fait_divers">Actualités</TabsTrigger>}
             </TabsList>
             {Object.entries(favorites).map(([type, items]) => (
               items.length > 0 && (
