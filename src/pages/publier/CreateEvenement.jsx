@@ -36,7 +36,7 @@ const CreateEvenement = () => {
   const { user, profile, session } = useAuth();
   const eventId = searchParams.get('eventId');
   const isEditMode = !!eventId;
-  const [formData, setFormData] = useState({ title: '', date: '', time: '', location: '', price: '', description: '', type_id: '', telephone: '', email: '', site_web: '', organisateur: '', latitude: null, longitude: null, devise_id: '' });
+  const [formData, setFormData] = useState({ title: '', date: '', time: '', end_date: '', end_time: '', location: '', price: '', description: '', type_id: '', telephone: '', email: '', site_web: '', organisateur: '', latitude: null, longitude: null, devise_id: '' });
 
   const [types, setTypes] = useState([]);
   const [devises, setDevises] = useState([]);
@@ -88,7 +88,7 @@ const CreateEvenement = () => {
       try {
         const { data, error } = await supabase
           .from('evenements')
-          .select('id, user_id, title, date, time, location, price, description, type_id, telephone, email, site_web, organisateur, latitude, longitude, devise_id, media_url, media_type')
+          .select('id, user_id, title, date, time, end_date, end_time, location, price, description, type_id, telephone, email, site_web, organisateur, latitude, longitude, devise_id, media_url, media_type')
           .eq('id', eventId)
           .maybeSingle();
         if (error) throw error;
@@ -115,6 +115,8 @@ const CreateEvenement = () => {
           title: data.title || '',
           date: data.date || '',
           time: data.time || '',
+          end_date: data.end_date || '',
+          end_time: data.end_time || '',
           location: data.location || '',
           price: data.price ?? '',
           description: data.description || '',
@@ -374,6 +376,10 @@ const CreateEvenement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label htmlFor="date">Date *</Label><Input id="date" type="date" required value={formData.date} onChange={handleInputChange} /></div>
                   <div className="space-y-2"><Label htmlFor="time">Heure *</Label><div className="relative"><Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><Input id="time" type="time" className="pl-10" required value={formData.time} onChange={handleInputChange} /></div></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label htmlFor="end_date">Date de fin (optionnel)</Label><Input id="end_date" type="date" value={formData.end_date} onChange={handleInputChange} /></div>
+                  <div className="space-y-2"><Label htmlFor="end_time">Heure de fin (optionnel)</Label><div className="relative"><Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><Input id="end_time" type="time" className="pl-10" value={formData.end_time} onChange={handleInputChange} /></div></div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="location">Lieu *</Label>
