@@ -520,7 +520,24 @@ import React, { useState, useEffect, useCallback } from 'react';
             toast({ title: 'Erreur', description: "Impossible de charger les événements.", variant: 'destructive' });
             setEvents([]);
           } else {
-            setEvents(data);
+            // Réordonner: à venir d'abord (plus proches), puis passés
+            try {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const toDT = (evt) => {
+                try {
+                  const d = String(evt?.date || '').trim();
+                  const t = String(evt?.time || '').trim();
+                  return new Date(`${d}${t ? `T${t}` : 'T00:00:00'}`);
+                } catch (_) { return new Date(evt?.date || Date.now()); }
+              };
+              const arr = Array.isArray(data) ? data : [];
+              const upcoming = arr.filter((e) => toDT(e) >= today).sort((a, b) => toDT(a) - toDT(b));
+              const past = arr.filter((e) => toDT(e) < today).sort((a, b) => toDT(b) - toDT(a));
+              setEvents([...upcoming, ...past]);
+            } catch (_) {
+              setEvents(data);
+            }
           }
         } catch (e) {
           toast({ title: 'Erreur', description: e?.message || "Impossible de charger les événements.", variant: 'destructive' });

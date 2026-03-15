@@ -101,10 +101,16 @@ const Home = () => {
         .order('created_at', { ascending: false })
         .limit(5);
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().slice(0, 10);
+
       const fetchEvents = supabase
         .from('evenements')
         .select('*')
+        .gte('date', todayStr)
         .order('date', { ascending: true })
+        .order('time', { ascending: true })
         .limit(2);
 
       const fetchFaitsDivers = supabase // Changed from fetchPartners

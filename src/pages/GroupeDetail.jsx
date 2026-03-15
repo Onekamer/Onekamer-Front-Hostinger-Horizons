@@ -87,7 +87,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : (isPlaying ? '❚❚' : '▶')}
           </Button>
           <div className="w-full bg-gray-300 rounded-full h-1.5">
-            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${(currentTime / duration) * 100 || 0}%` }}></div>
+            <div className="bg-[#2BA84A] h-1.5 rounded-full" style={{ width: `${(currentTime / duration) * 100 || 0}%` }}></div>
           </div>
           <span className="text-xs text-gray-600 w-20 text-center">{formatTime(currentTime)} / {formatTime(duration)}</span>
         </div>

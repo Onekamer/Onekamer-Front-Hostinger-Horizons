@@ -56,21 +56,44 @@ const normalizeAudioEntry = (entry) => {
 
 const parseMentions = (text) => {
   if (!text) return '';
-  // 1) Token [[m:...]] avec espaces autorisés jusqu'à avant ']]'
-  // 2) Mention tapée: '@' ou variante @ pleine largeur, suivie de groupes de mots (lettres/chiffres/diacritiques/apostrophes/._-), séparés par des espaces simples
-  const re = /(\[\[m:([^\]]{1,60})\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g;
+  const re = /(\[\[m:([^\]]{1,60})\]\])|(\[\[ref:([a-z_]+):([^\]]+)\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g;
   const out = [];
   let lastIndex = 0;
   let m;
   while ((m = re.exec(text)) !== null) {
     const start = m.index;
     const full = m[0];
-    const isToken = !!m[1];
-    const username = (isToken ? m[2] : m[4]) || '';
-    const before = isToken ? '' : (m[3] || '');
+    const isTokenM = !!m[1];
+    const isRef = !!m[3];
+    const username = (isTokenM ? m[2] : m[6]) || '';
+    const before = (isTokenM || isRef) ? '' : (m[5] || '');
     if (start > lastIndex) out.push(text.slice(lastIndex, start));
     if (before) out.push(before);
-    out.push(<span key={`${start}-${username}`} className="mention text-[#2BA84A] font-semibold">@{username}</span>);
+    if (isRef) {
+      const typ = String(m[4] || '').toLowerCase();
+      const rid = String(m[5] || '');
+      const label = (
+        typ === 'evenement' ? 'Événement' :
+        typ === 'annonce' ? 'Annonce' :
+        typ === 'partenaire' ? 'Boutique' :
+        typ === 'groupe' ? 'Groupe' :
+        typ === 'faits_divers' || typ === 'fait_divers' || typ === 'actualites' ? 'Actualité' : 'Contenu'
+      );
+      const path = (
+        typ === 'evenement' ? `/evenements?eventId=${encodeURIComponent(rid)}` :
+        typ === 'annonce' ? `/annonces?annonceId=${encodeURIComponent(rid)}` :
+        typ === 'partenaire' ? `/partenaires?partnerId=${encodeURIComponent(rid)}` :
+        typ === 'groupe' ? `/groupes/${encodeURIComponent(rid)}` :
+        `/faits-divers?articleId=${encodeURIComponent(rid)}`
+      );
+      out.push(
+        <a key={`ref-${start}-${typ}-${rid}`} href={path} className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A] text-xs font-medium">
+          #{label}
+        </a>
+      );
+    } else {
+      out.push(<span key={`${start}-${username}`} className="mention text-[#2BA84A] font-semibold">@{username}</span>);
+    }
     lastIndex = start + full.length;
   }
   if (lastIndex < text.length) out.push(text.slice(lastIndex));
@@ -318,7 +341,7 @@ const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
             </Button>
             <div className="flex-1 min-w-0 bg-gray-300 rounded-full h-1.5 overflow-hidden">
                 <div
-                    className="bg-blue-500 h-1.5 rounded-full"
+                    className="bg-[#2BA84A] h-1.5 rounded-full"
                     style={{ width: `${(currentTime / displayDuration) * 100 || 0}%` }}
                 ></div>
             </div>
@@ -555,6 +578,9 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
   const [mentionQuery, setMentionQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
+  const [tagQuery, setTagQuery] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [tagSuggestions, setTagSuggestions] = useState([]);
 
   const getBlobDuration = useCallback((blob, fallback = 0) => {
     if (!blob) return Promise.resolve(fallback);
@@ -1059,11 +1085,20 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
       if (m) {
         setMentionQuery(m[2]);
         setShowSuggestions(true);
+        setShowTagSuggestions(false);
       } else {
         setShowSuggestions(false);
+        const h = textBefore.match(/(^|\s)#([^#\s\n]{1,30})$/);
+        if (h) {
+          setTagQuery(h[2]);
+          setShowTagSuggestions(true);
+        } else {
+          setShowTagSuggestions(false);
+        }
       }
     } catch (_) {
       setShowSuggestions(false);
+      setShowTagSuggestions(false);
     }
   };
 
@@ -1091,6 +1126,29 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     }, 0);
   };
 
+  const handleTagPick = (item) => {
+    const input = commentInputRef.current;
+    const value = newComment;
+    const pos = input?.selectionStart ?? value.length;
+    const before = value.slice(0, pos);
+    const after = value.slice(pos);
+    const re = /(^|\s)#([^#\s\n]{1,30})$/;
+    const m = before.match(re);
+    const insert = m ? `${m[1]}[[ref:${item.type}:${item.id}]] ` : ` [[ref:${item.type}:${item.id}]] `;
+    const newBefore = m ? before.replace(re, insert) : before + insert;
+    const next = newBefore + after;
+    setNewComment(next);
+    setShowTagSuggestions(false);
+    setTagQuery('');
+    setTimeout(() => {
+      try {
+        const idx = newBefore.length;
+        input.setSelectionRange(idx, idx);
+        input.focus();
+      } catch (_) {}
+    }, 0);
+  };
+
   useEffect(() => {
     const tid = setTimeout(async () => {
       if (!showSuggestions || !mentionQuery) return;
@@ -1105,6 +1163,29 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     }, 200);
     return () => clearTimeout(tid);
   }, [mentionQuery, showSuggestions]);
+
+  useEffect(() => {
+    const tid = setTimeout(async () => {
+      if (!showTagSuggestions || !tagQuery) return;
+      try {
+        const [ev, an, bt, gr, fd] = await Promise.all([
+          supabase.from('evenements').select('id, title').ilike('title', `%${tagQuery}%`).limit(3),
+          supabase.from('annonces').select('id, titre').ilike('titre', `%${tagQuery}%`).limit(3),
+          supabase.from('partenaires').select('id, name').ilike('name', `%${tagQuery}%`).limit(3),
+          supabase.from('groupes').select('id, nom').ilike('nom', `%${tagQuery}%`).limit(3),
+          supabase.from('faits_divers').select('id, title').ilike('title', `%${tagQuery}%`).limit(3),
+        ]);
+        const out = [];
+        (ev.data || []).forEach((r) => out.push({ id: r.id, label: r.title, type: 'evenement', badge: 'Événement' }));
+        (an.data || []).forEach((r) => out.push({ id: r.id, label: r.titre, type: 'annonce', badge: 'Annonce' }));
+        (bt.data || []).forEach((r) => out.push({ id: r.id, label: r.name, type: 'partenaire', badge: 'Boutique' }));
+        (gr.data || []).forEach((r) => out.push({ id: r.id, label: r.nom, type: 'groupe', badge: 'Groupe' }));
+        (fd.data || []).forEach((r) => out.push({ id: r.id, label: r.title, type: 'faits_divers', badge: 'Actualité' }));
+        setTagSuggestions(out.slice(0, 12));
+      } catch (_) {}
+    }, 200);
+    return () => clearTimeout(tid);
+  }, [tagQuery, showTagSuggestions]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -1154,7 +1235,6 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             type = 'audio';
         }
 
-        // Remplacer les mentions (y compris pseudos avec espaces) par un token [[m:...]], puis neutraliser les '@' restants
         let safeContent = (newComment || '').replace(/(^|\s)@([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g, '$1[[m:$2]]');
         safeContent = safeContent.replace(/@/g, '\uFF20');
 
@@ -1413,6 +1493,16 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                             <div key={s.id} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer" onClick={() => handleMentionPick(s.username)}>
                               <img src={s.avatar_url || ''} alt={s.username} className="w-5 h-5 rounded-full object-cover" />
                               <span className="text-sm">{s.username}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {showTagSuggestions && tagSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border rounded-md shadow z-10">
+                          {tagSuggestions.map((it) => (
+                            <div key={`${it.type}-${it.id}`} className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer" onClick={() => handleTagPick(it)}>
+                              <span className="text-sm truncate">{it.label}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A]">#{it.badge}</span>
                             </div>
                           ))}
                         </div>

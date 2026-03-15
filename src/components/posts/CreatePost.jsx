@@ -133,7 +133,7 @@ const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
             </Button>
             <div className="w-full bg-gray-300 rounded-full h-1.5">
                 <div
-                    className="bg-blue-500 h-1.5 rounded-full"
+                    className="bg-[#2BA84A] h-1.5 rounded-full"
                     style={{ width: `${(currentTime / duration) * 100 || 0}%` }}
                 ></div>
             </div>
@@ -848,8 +848,8 @@ const CreatePost = ({ onCreateSponsored }) => {
             className="editable"
             data-placeholder={`${
                 profile?.username
-                ? `Quoi de neuf, ${profile.username} ? Mentionnez un membre avec @`
-                : 'Quoi de neuf ? Mentionnez un membre avec @'
+                ? `Quoi de neuf, ${profile.username} ? Mentionnez un membre avec @ et un contenu avec #`
+                : 'Quoi de neuf ? Mentionnez un membre avec @ et un contenu avec #'
             }`}
           />
           <MentionSuggestions />
