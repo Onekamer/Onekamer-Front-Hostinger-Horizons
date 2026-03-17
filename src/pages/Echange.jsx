@@ -107,7 +107,7 @@ const InlineRefTag = ({ typ, rid, href }) => {
 
 const parseMentions = (text) => {
   if (!text) return '';
-  const re = /(\[\[m:([^\]]{1,60})\]\])|(\[\[ref:([a-z_]+):([^\]]+)\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g;
+  const re = /(\[\[m:([^\]]{1,60})\]\])|(\[\[ref:([a-z_]+):([^\]]+)\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]{1,30})(?=$|[^A-Za-z0-9À-ÖØ-öø-ÿ'’._-])/g;
   const out = [];
   let lastIndex = 0;
   let m;
@@ -116,7 +116,7 @@ const parseMentions = (text) => {
     const full = m[0];
     const isTokenM = !!m[1];
     const isRef = !!m[3];
-    const username = (isTokenM ? m[2] : m[7]) || '';
+    const username = (isTokenM ? ((m[2] || '').split(/\s+/)[0]) : m[7]) || '';
     const before = (isTokenM || isRef) ? '' : (m[6] || '');
     if (start > lastIndex) out.push(text.slice(lastIndex, start));
     if (before) out.push(before);
@@ -136,7 +136,7 @@ const parseMentions = (text) => {
       if (!u) {
         try {
           const afterAt = full.replace(/^[^@\uFF20]*[@\uFF20](?:\u200B)?/, '');
-          const m2 = afterAt.match(/^([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/);
+          const m2 = afterAt.match(/^([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]{1,30})/);
           if (m2 && m2[1]) u = m2[1];
         } catch (_) {}
       }
@@ -1287,7 +1287,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             type = 'audio';
         }
 
-        let safeContent = (newComment || '').replace(/(^|[^\w@])@([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})(?=$|[\s,;:!\?\)\]\}])/g, '$1[[m:$2]]');
+        let safeContent = (newComment || '').replace(/(^|[^\w@])@([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]{1,30})(?=$|[^A-Za-z0-9À-ÖØ-öø-ÿ'’._-])/g, '$1[[m:$2]]');
         safeContent = safeContent.replace(/@/g, '\uFF20');
 
         const payload = {
