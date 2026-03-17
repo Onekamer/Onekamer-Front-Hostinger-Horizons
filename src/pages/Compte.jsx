@@ -28,6 +28,8 @@ const Compte = () => {
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [profilePublic, setProfilePublic] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [followListPublic, setFollowListPublic] = useState(true);
+  const [followListSaving, setFollowListSaving] = useState(false);
   const [rencontreVisible, setRencontreVisible] = useState(true);
   const [rencontreSaving, setRencontreSaving] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
@@ -415,6 +417,7 @@ const Compte = () => {
   useEffect(() => {
     setOnlineVisible(profile?.show_online_status !== false);
     setProfilePublic(profile?.profile_public !== false);
+    setFollowListPublic(profile?.follow_list_is_public !== false);
   }, [profile?.show_online_status]);
 
   useEffect(() => {
@@ -704,6 +707,35 @@ const Compte = () => {
                     setProfilePublic(profile?.profile_public !== false);
                   } finally {
                     setProfileSaving(false);
+                  }
+                }}
+              />
+            </div>
+
+            <div className="w-full flex justify-between items-center py-4 text-left">
+              <div>
+                <div className="font-medium">Rendre mes listes d’abonnés/suivis publiques</div>
+                <div className="text-xs text-gray-500">Quand désactivé, seuls vous pouvez voir vos abonnés et suivis.</div>
+              </div>
+              <Switch
+                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 border border-gray-300"
+                checked={followListPublic}
+                disabled={followListSaving}
+                onCheckedChange={async (checked) => {
+                  try {
+                    setFollowListSaving(true);
+                    setFollowListPublic(Boolean(checked));
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ follow_list_is_public: Boolean(checked), updated_at: new Date().toISOString() })
+                      .eq('id', user.id);
+                    if (error) throw error;
+                    await refreshProfile();
+                  } catch (e) {
+                    toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+                    setFollowListPublic(profile?.follow_list_is_public !== false);
+                  } finally {
+                    setFollowListSaving(false);
                   }
                 }}
               />

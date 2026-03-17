@@ -1347,13 +1347,15 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
               .in('username', mentionUsernames);
             const ids = (profs || []).map((p) => p.id).filter(Boolean);
             if (ids.length) {
-              await notifyMentions({
-                mentionedUserIds: ids,
-                authorName: (user?.user_metadata?.username) || authorName || 'Un membre',
-                excerpt: newComment,
-                postId: audioParentId || postId,
-                preview: { text80: newComment || '', mediaType: type === 'audio' ? 'audio' : null },
-              });
+              setTimeout(() => {
+                notifyMentions({
+                  mentionedUserIds: ids,
+                  authorName: (user?.user_metadata?.username) || authorName || 'Un membre',
+                  excerpt: newComment,
+                  postId: audioParentId || postId,
+                  preview: { text80: newComment || '', mediaType: type === 'audio' ? 'audio' : null },
+                }).catch(() => {});
+              }, 1500);
             }
           }
         } catch (_) {}

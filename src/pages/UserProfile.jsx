@@ -14,6 +14,13 @@ import { formatDistanceToNow, differenceInDays, differenceInMonths, differenceIn
 import { fr } from 'date-fns/locale';
 import OfficialBadge from '@/components/OfficialBadge';
 import { notifyUserFollow } from '@/services/oneSignalNotifications';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Badge = ({ icon, label, colorClass }) => (
   <div className={`flex items-center gap-2 py-1 px-3 rounded-full text-sm font-semibold ${colorClass}`}>
@@ -48,6 +55,17 @@ const UserProfile = () => {
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [followersOpen, setFollowersOpen] = useState(false);
+  const [followingOpen, setFollowingOpen] = useState(false);
+  const PAGE_SIZE = 30;
+  const [followers, setFollowers] = useState([]);
+  const [followersPage, setFollowersPage] = useState(0);
+  const [followersHasMore, setFollowersHasMore] = useState(false);
+  const [followersLoading, setFollowersLoading] = useState(false);
+  const [followingList, setFollowingList] = useState([]);
+  const [followingPage, setFollowingPage] = useState(0);
+  const [followingHasMore, setFollowingHasMore] = useState(false);
+  const [followingLoading, setFollowingLoading] = useState(false);
 
   const isBlocked = (() => {
     const list = Array.isArray(myProfile?.blocked_user_ids) ? myProfile.blocked_user_ids.map(String) : [];
@@ -323,12 +341,15 @@ const UserProfile = () => {
         if (error) throw error;
         setIsFollowing(true);
         setFollowCounts((c) => ({ ...c, followers: (c.followers || 0) + 1 }));
+        // Fire-and-forget pour ne pas bloquer l'UI
         try {
-          await notifyUserFollow({
-            receiverId: userId,
-            actorName: myProfile?.username || authUser?.email || 'Un membre',
-            followerId: authUser?.id || null,
-          });
+          setTimeout(() => {
+            notifyUserFollow({
+              receiverId: userId,
+              actorName: myProfile?.username || authUser?.email || 'Un membre',
+              followerId: authUser?.id || null,
+            }).catch(() => {});
+          }, 1500);
         } catch (_) {}
         toast({ title: 'Abonnement', description: 'Vous suivez ce membre.' });
       } else {
@@ -343,6 +364,94 @@ const UserProfile = () => {
     } finally {
       setFollowBusy(false);
     }
+  };
+
+  const canViewFollowLists = ((authUser?.id && String(authUser.id) === String(userId)) || profile?.follow_list_is_public !== false);
+
+  const fetchFollowersPage = async (page = 0) => {
+    if (!userId) return { ok: false };
+    setFollowersLoading(true);
+    try {
+      const start = page * PAGE_SIZE;
+      const end = start + PAGE_SIZE - 1;
+      const { data: rels, error, count } = await supabase
+        .from('user_follows')
+        .select('follower_id, created_at', { count: 'exact' })
+        .eq('followee_id', userId)
+        .order('created_at', { ascending: false })
+        .range(start, end);
+      if (error) throw error;
+      const ids = (rels || []).map(r => r.follower_id).filter(Boolean);
+      if (!ids.length) {
+        setFollowersHasMore(false);
+        return { ok: true };
+      }
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, is_official')
+        .in('id', ids);
+      const byId = new Map((Array.isArray(profs) ? profs : []).map(p => [p.id, p]));
+      const ordered = ids.map(id => byId.get(id)).filter(Boolean);
+      setFollowers((prev) => page === 0 ? ordered : [...prev, ...ordered]);
+      const total = typeof count === 'number' ? count : (start + (rels ? rels.length : 0));
+      setFollowersHasMore(start + (rels?.length || 0) < total);
+      setFollowersPage(page);
+      return { ok: true };
+    } catch (_) {
+      return { ok: false };
+    } finally {
+      setFollowersLoading(false);
+    }
+  };
+
+  const fetchFollowingPage = async (page = 0) => {
+    if (!userId) return { ok: false };
+    setFollowingLoading(true);
+    try {
+      const start = page * PAGE_SIZE;
+      const end = start + PAGE_SIZE - 1;
+      const { data: rels, error, count } = await supabase
+        .from('user_follows')
+        .select('followee_id, created_at', { count: 'exact' })
+        .eq('follower_id', userId)
+        .order('created_at', { ascending: false })
+        .range(start, end);
+      if (error) throw error;
+      const ids = (rels || []).map(r => r.followee_id).filter(Boolean);
+      if (!ids.length) {
+        setFollowingHasMore(false);
+        return { ok: true };
+      }
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, is_official')
+        .in('id', ids);
+      const byId = new Map((Array.isArray(profs) ? profs : []).map(p => [p.id, p]));
+      const ordered = ids.map(id => byId.get(id)).filter(Boolean);
+      setFollowingList((prev) => page === 0 ? ordered : [...prev, ...ordered]);
+      const total = typeof count === 'number' ? count : (start + (rels ? rels.length : 0));
+      setFollowingHasMore(start + (rels?.length || 0) < total);
+      setFollowingPage(page);
+      return { ok: true };
+    } catch (_) {
+      return { ok: false };
+    } finally {
+      setFollowingLoading(false);
+    }
+  };
+
+  const handleOpenFollowers = async () => {
+    setFollowersOpen(true);
+    if (!canViewFollowLists) return;
+    setFollowers([]); setFollowersPage(0); setFollowersHasMore(false);
+    await fetchFollowersPage(0);
+  };
+
+  const handleOpenFollowing = async () => {
+    setFollowingOpen(true);
+    if (!canViewFollowLists) return;
+    setFollowingList([]); setFollowingPage(0); setFollowingHasMore(false);
+    await fetchFollowingPage(0);
   };
 
   if (loading) {
@@ -476,7 +585,14 @@ const UserProfile = () => {
                   <span>
                     {memberSinceLabel ? `Membre depuis ${memberSinceLabel}` : ''}
                     {` ${memberSinceLabel ? '· ' : ''}`}{postsCount} post{postsCount > 1 ? 's' : ''} · {commentsCount} commentaire{commentsCount > 1 ? 's' : ''}
-                    {` · ${followCounts.followers} abonné${followCounts.followers > 1 ? 's' : ''} · ${followCounts.following} suivi${followCounts.following > 1 ? 's' : ''}`}
+                    {` · `}
+                    <span role="button" className="cursor-pointer underline-offset-2" onClick={handleOpenFollowers}>
+                      {followCounts.followers} abonné{followCounts.followers > 1 ? 's' : ''}
+                    </span>
+                    {` · `}
+                    <span role="button" className="cursor-pointer underline-offset-2" onClick={handleOpenFollowing}>
+                      {followCounts.following} suivi{followCounts.following > 1 ? 's' : ''}
+                    </span>
                   </span>
                 </div>
                 {authUser?.id && String(authUser.id) !== String(userId) && (
@@ -659,6 +775,90 @@ const UserProfile = () => {
           </div>
         </div>
       )}
+
+      {/* Dialog: Abonnés */}
+      <Dialog open={followersOpen} onOpenChange={setFollowersOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Abonnés</DialogTitle>
+          </DialogHeader>
+          {!canViewFollowLists ? (
+            <div className="text-sm text-gray-600">Les listes sont masquées par cet utilisateur.</div>
+          ) : (
+            <div className="space-y-2">
+              {followersLoading && followers.length === 0 ? (
+                <div className="text-center text-gray-500">Chargement...</div>
+              ) : (
+                <div className="divide-y">
+                  {followers.length === 0 ? (
+                    <div className="text-sm text-gray-500 py-2">Aucun abonné.</div>
+                  ) : (
+                    followers.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 py-2 cursor-pointer" onClick={() => navigate(`/profil/${p.id}`)}>
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={p.avatar_url || ''} alt={p.username} />
+                          <AvatarFallback>{String(p.username || 'U').charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex items-center gap-2 text-sm text-gray-800">
+                          <span>{p.username}</span>
+                          {p?.is_official ? (<OfficialBadge />) : null}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              {followersHasMore && (
+                <div className="pt-2">
+                  <Button variant="outline" disabled={followersLoading} onClick={() => fetchFollowersPage(followersPage + 1)} className="w-full">Charger plus</Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Suivis */}
+      <Dialog open={followingOpen} onOpenChange={setFollowingOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Suivis</DialogTitle>
+          </DialogHeader>
+          {!canViewFollowLists ? (
+            <div className="text-sm text-gray-600">Les listes sont masquées par cet utilisateur.</div>
+          ) : (
+            <div className="space-y-2">
+              {followingLoading && followingList.length === 0 ? (
+                <div className="text-center text-gray-500">Chargement...</div>
+              ) : (
+                <div className="divide-y">
+                  {followingList.length === 0 ? (
+                    <div className="text-sm text-gray-500 py-2">Aucun suivi.</div>
+                  ) : (
+                    followingList.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 py-2 cursor-pointer" onClick={() => navigate(`/profil/${p.id}`)}>
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={p.avatar_url || ''} alt={p.username} />
+                          <AvatarFallback>{String(p.username || 'U').charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex items-center gap-2 text-sm text-gray-800">
+                          <span>{p.username}</span>
+                          {p?.is_official ? (<OfficialBadge />) : null}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              {followingHasMore && (
+                <div className="pt-2">
+                  <Button variant="outline" disabled={followingLoading} onClick={() => fetchFollowingPage(followingPage + 1)} className="w-full">Charger plus</Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

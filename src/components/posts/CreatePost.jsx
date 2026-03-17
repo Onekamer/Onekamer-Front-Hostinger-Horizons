@@ -825,13 +825,15 @@ const CreatePost = ({ onCreateSponsored }) => {
 
           if (mentionProfiles.length) {
             try {
-              await notifyMentions({
-                mentionedUserIds: mentionProfiles.map((m) => m.id),
-                authorName: profile?.username || user?.email || 'Un membre OneKamer',
-                excerpt: currentPostText,
-                postId: insertedPost?.id,
-                preview: { text80: currentPostText || '', mediaType: 'audio' },
-              });
+              setTimeout(() => {
+                notifyMentions({
+                  mentionedUserIds: mentionProfiles.map((m) => m.id),
+                  authorName: profile?.username || user?.email || 'Un membre OneKamer',
+                  excerpt: currentPostText,
+                  postId: insertedPost?.id,
+                  preview: { text80: currentPostText || '', mediaType: 'audio' },
+                }).catch(() => {});
+              }, 1500);
             } catch (notificationError) {
               console.error('Erreur notification OneSignal (commentaire audio):', notificationError);
             }
@@ -882,13 +884,15 @@ const CreatePost = ({ onCreateSponsored }) => {
             try {
               const mediaType = insertedPost?.image_url ? 'image' : (insertedPost?.video_url ? 'video' : null);
               const mediaUrl = insertedPost?.image_url || insertedPost?.video_url || null;
-              await notifyMentions({
-                mentionedUserIds: mentionProfiles.map((m) => m.id),
-                authorName: profile?.username || user?.email || 'Un membre OneKamer',
-                excerpt: currentPostText,
-                postId: insertedPost.id,
-                preview: { text80: currentPostText || '', mediaType, mediaUrl },
-              });
+              setTimeout(() => {
+                notifyMentions({
+                  mentionedUserIds: mentionProfiles.map((m) => m.id),
+                  authorName: profile?.username || user?.email || 'Un membre OneKamer',
+                  excerpt: currentPostText,
+                  postId: insertedPost.id,
+                  preview: { text80: currentPostText || '', mediaType, mediaUrl },
+                }).catch(() => {});
+              }, 1500);
             } catch (notificationError) {
               console.error('Erreur notification OneSignal (mentions):', notificationError);
             }
