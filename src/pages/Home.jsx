@@ -315,9 +315,23 @@ const Home = () => {
                           </div>
                           <p className="text-xs text-gray-500">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: fr })}</p>
                           <div className="text-sm text-gray-700 my-2 line-clamp-2">{parseMentions(item.content)}</div>
-                          {(item.image_url || item.video_url) && (
-                            <MediaDisplay bucket="posts" path={item.image_url || item.video_url} className="w-full h-40 object-cover rounded-md mt-2" disableLightbox={true} />
-                          )}
+                          {item?.video_url ? (
+                            <MediaDisplay
+                              bucket="posts"
+                              path={item.video_url}
+                              className="w-full rounded-md mt-2 aspect-video overflow-hidden bg-black/5"
+                              disableLightbox={true}
+                              fitContain={true}
+                              videoControls={false}
+                            />
+                          ) : item?.image_url ? (
+                            <MediaDisplay
+                              bucket="posts"
+                              path={item.image_url}
+                              className="w-full h-40 object-cover rounded-md mt-2"
+                              disableLightbox={true}
+                            />
+                          ) : null}
                           <div className="flex items-center gap-4 text-gray-500">
                             <span className="flex items-center gap-1 text-xs"><Heart className="h-4 w-4 text-red-500" /> {item.likes_count}</span>
                             <span className="flex items-center gap-1 text-xs"><MessageCircle className="h-4 w-4 text-blue-500" /> {item.comments_count}</span>

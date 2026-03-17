@@ -48,7 +48,7 @@ const defaultImages = {
   rencontres: 'https://onekamer-media-cdn.b-cdn.net/misc/Photo%20D%C3%A9faut%20Rencontre.jpg',
 };
 
-const MediaDisplay = ({ bucket, path, alt, className, forceImage = false, disableLightbox = false }) => {
+const MediaDisplay = ({ bucket, path, alt, className, forceImage = false, disableLightbox = false, fitContain = false, videoControls = true }) => {
   const [mediaUrl, setMediaUrl] = useState(null);
   const [mediaType, setMediaType] = useState('image');
   const [loading, setLoading] = useState(true);
@@ -265,8 +265,9 @@ const MediaDisplay = ({ bucket, path, alt, className, forceImage = false, disabl
         className={className}
         autoPlayOnView={true}
         loop={true}
-        controls={true}
+        controls={videoControls}
         muted={true}
+        fitContain={fitContain}
       />
     );
   }
