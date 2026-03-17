@@ -44,6 +44,10 @@ const UserProfile = () => {
 
   const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
 
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+
   const isBlocked = (() => {
     const list = Array.isArray(myProfile?.blocked_user_ids) ? myProfile.blocked_user_ids.map(String) : [];
     return list.includes(String(userId));
@@ -279,6 +283,60 @@ const UserProfile = () => {
     loadLists();
   }, [userId]);
 
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_follow_counts', { p_user_id: userId });
+        if (!error && Array.isArray(data) && data[0]) {
+          const row = data[0];
+          setFollowCounts({
+            followers: Number(row.followers_count || 0),
+            following: Number(row.following_count || 0),
+          });
+        }
+      } catch (_) {}
+    })();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!authUser?.id || !userId || String(authUser.id) === String(userId)) { setIsFollowing(false); return; }
+    (async () => {
+      try {
+        const { count, error } = await supabase
+          .from('user_follows')
+          .select('follower_id', { count: 'exact', head: true })
+          .eq('follower_id', authUser.id)
+          .eq('followee_id', userId);
+        if (!error) setIsFollowing((count || 0) > 0);
+      } catch (_) {}
+    })();
+  }, [authUser?.id, userId]);
+
+  const handleFollowToggle = async () => {
+    if (!authUser?.id || !userId || String(authUser.id) === String(userId) || followBusy) return;
+    setFollowBusy(true);
+    try {
+      if (!isFollowing) {
+        const { error } = await supabase.rpc('follow_user', { p_followee_id: userId });
+        if (error) throw error;
+        setIsFollowing(true);
+        setFollowCounts((c) => ({ ...c, followers: (c.followers || 0) + 1 }));
+        toast({ title: 'Abonnement', description: 'Vous suivez ce membre.' });
+      } else {
+        const { error } = await supabase.rpc('unfollow_user', { p_followee_id: userId });
+        if (error) throw error;
+        setIsFollowing(false);
+        setFollowCounts((c) => ({ ...c, followers: Math.max(0, (c.followers || 0) - 1) }));
+        toast({ title: 'Abonnement', description: 'Vous ne suivez plus ce membre.' });
+      }
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Action impossible.' });
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -410,10 +468,14 @@ const UserProfile = () => {
                   <span>
                     {memberSinceLabel ? `Membre depuis ${memberSinceLabel}` : ''}
                     {` ${memberSinceLabel ? '· ' : ''}`}{postsCount} post{postsCount > 1 ? 's' : ''} · {commentsCount} commentaire{commentsCount > 1 ? 's' : ''}
+                    {` · ${followCounts.followers} abonné${followCounts.followers > 1 ? 's' : ''} · ${followCounts.following} suivi${followCounts.following > 1 ? 's' : ''}`}
                   </span>
                 </div>
                 {authUser?.id && String(authUser.id) !== String(userId) && (
                   <div className="mt-3 flex items-center gap-2">
+                    <Button variant="outline" disabled={followBusy} onClick={handleFollowToggle}>
+                      {isFollowing ? 'Ne plus suivre' : 'Suivre'}
+                    </Button>
                     {isBlocked ? (
                       <Button variant="outline" onClick={() => unblockUser(userId)}>Ne plus bloquer</Button>
                     ) : (
