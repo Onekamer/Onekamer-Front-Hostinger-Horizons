@@ -13,6 +13,7 @@ const DEFAULT_PREFS = {
   groupes: true,
   rencontre: true,
   marketplace: true,
+  followers: true,
 }
 
 export function useNotifPrefs() {

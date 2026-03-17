@@ -304,6 +304,7 @@ useEffect(() => {
                 { key: 'groupes', label: 'Groupes' },
                 { key: 'rencontre', label: 'Rencontre' },
                 { key: 'marketplace', label: 'Marketplace' },
+                { key: 'followers', label: 'Nouveaux followers' },
               ].map((row) => (
                 <div key={row.key} className="flex items-center justify-between">
                   <div className="text-sm">{row.label}</div>

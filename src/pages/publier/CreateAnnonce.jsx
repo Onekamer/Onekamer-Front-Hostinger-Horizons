@@ -43,6 +43,7 @@ const CreateAnnonce = () => {
   const [mediaFiles, setMediaFiles] = useState([]);
   const [mediaPreviews, setMediaPreviews] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [existingAnnonce, setExistingAnnonce] = useState(null);
   const mediaInputRef = useRef(null);
 
@@ -208,6 +209,7 @@ const CreateAnnonce = () => {
     }
     
     setIsUploading(true);
+    setUploadProgress(0);
     let mediaUrl = existingAnnonce?.media_url || null;
     let mediaType = existingAnnonce?.media_type || null;
     let imageUrls = null;
@@ -215,40 +217,82 @@ const CreateAnnonce = () => {
     try {
       if (mediaFiles && mediaFiles.length > 0) {
         imageUrls = [];
+        const queue = [];
         for (const img of mediaFiles) {
-          let finalImg = img;
+          let f = img;
           if (img.type.startsWith('image')) {
-            try { finalImg = await imageCompression(img, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }); } catch (_) {}
+            try { f = await imageCompression(img, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }); } catch (_) {}
           }
+          queue.push(f);
+        }
+        const totalBytes = queue.reduce((acc, f) => acc + (f.size || 0), 0) || 1;
+        let base = 0;
+        for (const finalImg of queue) {
           const fd = new FormData();
           const safe = new File([finalImg], finalImg.name || `upload_${Date.now()}.${(finalImg.type || 'image/jpeg').split('/')[1]}`, { type: finalImg.type || 'image/jpeg' });
           fd.append('file', safe);
           fd.append('type', 'annonces');
           fd.append('recordId', user.id);
-          const r = await fetch(`${API_PREFIX}/upload`, { method: 'POST', body: fd });
-          if (!r.ok) throw new Error('La mise à jour du fichier a échoué');
-          const out = await r.json().catch(() => ({}));
+          const out = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${API_PREFIX}/upload`);
+            xhr.upload.onprogress = (e) => {
+              if (e && e.lengthComputable) {
+                const p = Math.floor(((base + e.loaded) / totalBytes) * 100);
+                setUploadProgress(Math.max(0, Math.min(99, p)));
+              }
+            };
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({ success: true, url: '' }); }
+              } else {
+                reject(new Error('La mise à jour du fichier a échoué'));
+              }
+            };
+            xhr.onerror = () => reject(new Error('La mise à jour du fichier a échoué'));
+            xhr.send(fd);
+          });
           if (!out?.success || !out?.url) throw new Error('Réponse upload invalide');
           imageUrls.push(out.url);
+          base += finalImg.size || 0;
+          setUploadProgress(Math.max(0, Math.min(99, Math.floor((base / totalBytes) * 100))));
         }
         mediaUrl = imageUrls[0];
         mediaType = 'image';
       } else if (mediaFile) {
-        const uploadFormData = new FormData();
         const safeFile = new File(
           [mediaFile],
           mediaFile.name || `upload_${Date.now()}.${(mediaFile.type || 'application/octet-stream').split('/')[1]}`,
           { type: mediaFile.type || 'application/octet-stream' }
         );
+        const totalBytes = safeFile.size || 1;
+        const uploadFormData = new FormData();
         uploadFormData.append('file', safeFile);
         uploadFormData.append('type', 'annonces');
         uploadFormData.append('recordId', user.id);
-        const res = await fetch(`${API_PREFIX}/upload`, { method: 'POST', body: uploadFormData });
-        if (!res.ok) throw new Error('La mise à jour du fichier a échoué');
-        const uploadResult = await res.json();
-        mediaUrl = uploadResult.url;
+        const out = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${API_PREFIX}/upload`);
+          xhr.upload.onprogress = (e) => {
+            if (e && e.lengthComputable) {
+              const p = Math.floor((e.loaded / totalBytes) * 100);
+              setUploadProgress(Math.max(0, Math.min(99, p)));
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({ url: '' }); }
+            } else {
+              reject(new Error('La mise à jour du fichier a échoué'));
+            }
+          };
+          xhr.onerror = () => reject(new Error('La mise à jour du fichier a échoué'));
+          xhr.send(uploadFormData);
+        });
+        mediaUrl = out.url;
         mediaType = mediaFile.type.startsWith('video') ? 'video' : 'image';
       }
+      setUploadProgress(100);
 
       if (isEditMode) {
         const isAdmin =
@@ -327,14 +371,24 @@ const CreateAnnonce = () => {
       if (newAnnonce) {
         try {
           const catName = (categories.find((c) => String(c.id) === String(newAnnonce.categorie_id))?.nom) || '';
-          await notifyNewAnnonce({
-            annonceId: newAnnonce.id,
-            title: newAnnonce.titre,
-            authorName: profile?.username || user?.email || 'Un membre OneKamer',
-            price: newAnnonce.prix,
-            categoryName: catName,
-            body: newAnnonce.description || '',
-          });
+          setTimeout(() => {
+            try {
+              const k = `nna:${user.id}:${newAnnonce.id}`;
+              const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+              if (Date.now() - last < 8000) return;
+              if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+              const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('ok_notif_prefs') : null;
+              if (raw) { try { const prefs = JSON.parse(raw); if (prefs && prefs.annonces === false) return; } catch {} }
+            } catch {}
+            notifyNewAnnonce({
+              annonceId: newAnnonce.id,
+              title: newAnnonce.titre,
+              authorName: profile?.username || user?.email || 'Un membre OneKamer',
+              price: newAnnonce.prix,
+              categoryName: catName,
+              body: newAnnonce.description || '',
+            }).catch(() => {});
+          }, 1500);
         } catch (notificationError) {
           console.error('Erreur notification OneSignal (annonce):', notificationError);
         }
@@ -479,7 +533,7 @@ const CreateAnnonce = () => {
         <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center">
           <div className="bg-white rounded-lg shadow-md px-4 py-3 flex items-center gap-2">
             <Loader2 className="h-5 w-5 text-gray-700 animate-spin" />
-            <span className="text-sm font-medium text-gray-800">Envoi en cours…</span>
+            <span className="text-sm font-medium text-gray-800">{uploadProgress > 0 ? `Envoi en cours… ${uploadProgress}%` : 'Envoi en cours…'}</span>
           </div>
         </div>
       )}

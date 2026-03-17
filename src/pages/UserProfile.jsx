@@ -341,9 +341,18 @@ const UserProfile = () => {
         if (error) throw error;
         setIsFollowing(true);
         setFollowCounts((c) => ({ ...c, followers: (c.followers || 0) + 1 }));
-        // Fire-and-forget pour ne pas bloquer l'UI
         try {
           setTimeout(() => {
+            try {
+              const k = `nfuf:${authUser?.id || ''}->${userId}`;
+              const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+              if (Date.now() - last < 8000) return;
+              if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+              const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('ok_notif_prefs') : null;
+              if (raw) {
+                try { const prefs = JSON.parse(raw); if (prefs && prefs.followers === false) return; } catch {}
+              }
+            } catch {}
             notifyUserFollow({
               receiverId: userId,
               actorName: myProfile?.username || authUser?.email || 'Un membre',
