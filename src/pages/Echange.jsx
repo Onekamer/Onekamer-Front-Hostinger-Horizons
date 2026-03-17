@@ -552,6 +552,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState(null);
   const mediaInputRef = useRef(null);
   const commentInputRef = useRef(null);
+  const lastCaretRef = useRef(null);
   const navigate = useNavigate();
   const [replyTo, setReplyTo] = useState(null);
   const [replyToUser, setReplyToUser] = useState(null);
@@ -1128,6 +1129,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     setNewComment(value);
     try {
       const pos = e.target.selectionStart || value.length;
+      lastCaretRef.current = pos;
       const textBefore = value.slice(0, pos);
       const m = textBefore.match(/@([^@\n]{1,30})$/);
       if (m) {
@@ -1153,7 +1155,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
   const handleMentionPick = (username) => {
     const input = commentInputRef.current;
     const value = newComment;
-    const pos = input?.selectionStart ?? value.length;
+    const pos = (lastCaretRef.current ?? input?.selectionStart ?? value.length);
     const before = value.slice(0, pos);
     const after = value.slice(pos);
     const atIdx = before.lastIndexOf('@');
@@ -1170,6 +1172,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
       try {
         const idx = newBefore.length;
         input.setSelectionRange(idx, idx);
+        lastCaretRef.current = idx;
         input.focus();
       } catch (_) {}
     }, 0);
@@ -1539,7 +1542,12 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                       {showSuggestions && suggestions.length > 0 && (
                         <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border rounded-md shadow z-10">
                           {suggestions.map((s) => (
-                            <div key={s.id} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer" onClick={() => handleMentionPick(s.username)}>
+                            <div
+                              key={s.id}
+                              className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer"
+                              onMouseDown={(e) => { e.preventDefault(); handleMentionPick(s.username); }}
+                              onTouchStart={(e) => { e.preventDefault(); handleMentionPick(s.username); }}
+                            >
                               <img src={s.avatar_url || ''} alt={s.username} className="w-5 h-5 rounded-full object-cover" />
                               <span className="text-sm">{s.username}</span>
                             </div>

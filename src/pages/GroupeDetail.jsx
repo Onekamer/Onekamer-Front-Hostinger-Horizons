@@ -929,7 +929,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         showSuggestions && suggestions.length > 0 ? (
           <div className="absolute bottom-full left-0 z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mb-1 max-h-48 overflow-y-auto">
             {suggestions.map((s) => (
-              <div key={s.id} className="mention-suggestion" onClick={() => handleMentionSelect(s.username)}>
+              <div
+                key={s.id}
+                className="mention-suggestion"
+                onMouseDown={(e) => { e.preventDefault(); handleMentionSelect(s.username); }}
+                onTouchStart={(e) => { e.preventDefault(); handleMentionSelect(s.username); }}
+              >
                 <Avatar className="w-6 h-6">
                   <AvatarImage src={s.avatar_url} alt={s.username} />
                   <AvatarFallback>{getInitials(s.username)}</AvatarFallback>

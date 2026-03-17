@@ -75,6 +75,23 @@ const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
         }
     };
 
+  useEffect(() => {
+    const onSelChange = () => {
+      try {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const div = editableDivRef.current;
+        if (!div) return;
+        const node = sel.anchorNode;
+        if (node && div.contains(node)) {
+          lastRangeRef.current = sel.getRangeAt(0).cloneRange();
+        }
+      } catch (_) {}
+    };
+    document.addEventListener('selectionchange', onSelChange);
+    return () => document.removeEventListener('selectionchange', onSelChange);
+  }, []);
+
     useEffect(() => {
         const audio = audioRef.current;
         if (audio) {
@@ -179,6 +196,7 @@ const CreatePost = ({ onCreateSponsored }) => {
   const [tagQuery, setTagQuery] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState([]);
+  const lastRangeRef = useRef(null);
 
   const handleInput = (e) => {
     const div = e.currentTarget;
@@ -188,6 +206,7 @@ const CreatePost = ({ onCreateSponsored }) => {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
+        try { lastRangeRef.current = range.cloneRange(); } catch (_) {}
         const textBeforeCursor = range.startContainer.textContent.substring(0, range.startOffset);
         // Autoriser espaces et caractères usuels dans les pseudos
         const mentionMatch = textBeforeCursor.match(/@([^\n@]{1,30})$/);
@@ -340,18 +359,29 @@ const CreatePost = ({ onCreateSponsored }) => {
     editableDivRef.current.focus();
 
     const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
+    let range = null;
+    if (lastRangeRef.current) {
+      try { range = lastRangeRef.current.cloneRange(); } catch (_) {}
+    }
+    if (!range && sel && sel.rangeCount) {
+      range = sel.getRangeAt(0);
+    }
+    if (!range) return;
 
-    const textNode = range.startContainer;
-    const textContent = textNode.textContent;
-    const endOffset = range.startOffset;
+    let textNode = range.startContainer;
+    if (textNode && textNode.nodeType !== 3 && sel && sel.anchorNode && sel.anchorNode.nodeType === 3) {
+      textNode = sel.anchorNode;
+    }
+    const textContent = (textNode && textNode.textContent) || '';
+    const endOffset = (textNode === range.startContainer) ? range.startOffset : (sel ? sel.anchorOffset : 0);
     const startOffset = textContent.lastIndexOf('@', endOffset - 1);
 
     if (startOffset === -1) return;
 
-    range.setStart(textNode, startOffset);
-    range.setEnd(textNode, endOffset);
+    try {
+      range.setStart(textNode, startOffset);
+      range.setEnd(textNode, endOffset);
+    } catch (_) { return; }
     range.deleteContents();
 
     const mention = document.createElement("span");
@@ -370,6 +400,7 @@ const CreatePost = ({ onCreateSponsored }) => {
 
     sel.removeAllRanges();
     sel.addRange(range);
+    try { lastRangeRef.current = range.cloneRange(); } catch (_) {}
 
     setPostText(editableDivRef.current.innerText);
   };
@@ -892,7 +923,8 @@ const CreatePost = ({ onCreateSponsored }) => {
           <div
             key={s.id}
             className="mention-suggestion"
-            onClick={() => handleMentionSelect(s.username)}
+            onMouseDown={(e) => { e.preventDefault(); handleMentionSelect(s.username); }}
+            onTouchStart={(e) => { e.preventDefault(); handleMentionSelect(s.username); }}
           >
             <Avatar className="w-6 h-6">
               <AvatarImage src={s.avatar_url} alt={s.username} />
