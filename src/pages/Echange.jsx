@@ -116,11 +116,18 @@ const parseMentions = (text) => {
     const full = m[0];
     const isTokenM = !!m[1];
     const isRef = !!m[3];
-    const username = (isTokenM ? ((m[2] || '').split(/\s+/)[0]) : m[7]) || '';
     const before = (isTokenM || isRef) ? '' : (m[6] || '');
     if (start > lastIndex) out.push(text.slice(lastIndex, start));
     if (before) out.push(before);
-    if (isRef) {
+    if (isTokenM) {
+      const tokenStr = String(m[2] || '').trim();
+      const parts = tokenStr ? tokenStr.split(/\s+/) : [];
+      const first = parts[0] || '';
+      const remainder = parts.length > 1 ? parts.slice(1).join(' ') : '';
+      const u = first;
+      out.push(<span key={`tok-${start}-${u}`} className="mention text-[#2BA84A] font-semibold">@{u}</span>);
+      if (remainder) out.push(` ${remainder}`);
+    } else if (isRef) {
       const typ = String(m[4] || '').toLowerCase();
       const rid = String(m[5] || '');
       const path = (
@@ -132,7 +139,7 @@ const parseMentions = (text) => {
       );
       out.push(<InlineRefTag key={`ref-${start}-${typ}-${rid}`} typ={typ} rid={rid} href={path} />);
     } else {
-      let u = username;
+      let u = m[7] || '';
       if (!u) {
         try {
           const afterAt = full.replace(/^[^@\uFF20]*[@\uFF20](?:\u200B)?/, '');
