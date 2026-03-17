@@ -13,6 +13,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { formatDistanceToNow, differenceInDays, differenceInMonths, differenceInYears } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import OfficialBadge from '@/components/OfficialBadge';
+import { notifyUserFollow } from '@/services/oneSignalNotifications';
 
 const Badge = ({ icon, label, colorClass }) => (
   <div className={`flex items-center gap-2 py-1 px-3 rounded-full text-sm font-semibold ${colorClass}`}>
@@ -322,6 +323,13 @@ const UserProfile = () => {
         if (error) throw error;
         setIsFollowing(true);
         setFollowCounts((c) => ({ ...c, followers: (c.followers || 0) + 1 }));
+        try {
+          await notifyUserFollow({
+            receiverId: userId,
+            actorName: myProfile?.username || authUser?.email || 'Un membre',
+            followerId: authUser?.id || null,
+          });
+        } catch (_) {}
         toast({ title: 'Abonnement', description: 'Vous suivez ce membre.' });
       } else {
         const { error } = await supabase.rpc('unfollow_user', { p_followee_id: userId });

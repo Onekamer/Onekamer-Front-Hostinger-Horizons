@@ -184,6 +184,26 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
   });
 };
 
+export const notifyUserFollow = async ({ receiverId, actorName, followerId }) => {
+  const targets = normalizeUserIds([receiverId]);
+  if (!targets.length) return false;
+
+  const name = (actorName || 'Un membre').trim();
+  const url = followerId ? `/profil/${followerId}` : '/profil';
+
+  return postNotification({
+    title: 'Communauté',
+    message: `${name} vous suit maintenant`,
+    targetUserIds: targets,
+    url,
+    data: {
+      type: 'user_follow',
+      followerUserId: followerId || null,
+      actorName: name,
+    },
+  });
+};
+
 // Groupes: nouveau message dans un groupe
 export const notifyGroupMessage = async ({ recipientIds = [], actorName, groupName, groupId, messageId, excerpt }) => {
   const targets = normalizeUserIds(recipientIds);
@@ -552,4 +572,5 @@ export default {
   notifyMentionInComment,
   notifyGroupMention,
   notifyGroupMessage,
+  notifyUserFollow,
 };
