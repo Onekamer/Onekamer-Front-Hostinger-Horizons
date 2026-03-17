@@ -1129,9 +1129,9 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     try {
       const pos = e.target.selectionStart || value.length;
       const textBefore = value.slice(0, pos);
-      const m = textBefore.match(/(^|\s)@([^@\n]{1,30})$/);
+      const m = textBefore.match(/@([^@\n]{1,30})$/);
       if (m) {
-        setMentionQuery(m[2]);
+        setMentionQuery(m[1]);
         setShowSuggestions(true);
         setShowTagSuggestions(false);
       } else {
@@ -1156,11 +1156,12 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
     const pos = input?.selectionStart ?? value.length;
     const before = value.slice(0, pos);
     const after = value.slice(pos);
-    const re = /(^|\s)@([^@\n]{1,30})$/;
-    const m = before.match(re);
-    if (!m) return;
-    const insert = `${m[1]}@${username} `;
-    const newBefore = before.replace(re, insert);
+    const atIdx = before.lastIndexOf('@');
+    if (atIdx === -1) return;
+    const prevChar = atIdx > 0 ? before[atIdx - 1] : '';
+    const needsSpaceBefore = prevChar && /[A-Za-z0-9À-ÖØ-öø-ÿ]/.test(prevChar);
+    const insert = `${needsSpaceBefore ? ' ' : ''}@${username} `;
+    const newBefore = before.slice(0, atIdx) + insert;
     const next = newBefore + after;
     setNewComment(next);
     setShowSuggestions(false);
@@ -1283,7 +1284,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             type = 'audio';
         }
 
-        let safeContent = (newComment || '').replace(/(^|\s)@([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g, '$1[[m:$2]]');
+        let safeContent = (newComment || '').replace(/(^|[^\w@])@([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})(?=$|[\s,;:!\?\)\]\}])/g, '$1[[m:$2]]');
         safeContent = safeContent.replace(/@/g, '\uFF20');
 
         const payload = {

@@ -1,6 +1,6 @@
 export const extractUniqueMentions = (text = '') => {
-  // Autorise les pseudos avec espaces: '@' au début ou précédé d'un espace, puis jusqu'à 30 caractères (hors '@' et saut de ligne)
-  const mentionRegex = /(?:^|\s)@([^@\n]{1,30})/g;
+  // '@' précédé d'un séparateur (début ou non-mot, pas un autre '@'), et suivi d'une borne (fin, espace, ponctuation)
+  const mentionRegex = /(?:^|[^\w@])@([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})(?=$|[\s,;:!\?\)\]\}])/g;
   const matches = new Set();
   if (!text) return [];
 

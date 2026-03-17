@@ -834,7 +834,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           const rng = sel.getRangeAt(0);
           const nodeText = rng.startContainer?.textContent || '';
           const before = nodeText.substring(0, rng.startOffset);
-          const m = before.match(/(?:^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})$/);
+          const m = before.match(/@([A-Za-z0-9][A-Za-z0-9._-]{0,30})$/);
           if (m) {
             setMentionQuery(m[1]);
             setShowSuggestions(true);
@@ -864,7 +864,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         const range = sel.getRangeAt(0);
         const node = range.startContainer;
         const text = (node.textContent || '').substring(0, range.startOffset);
-        const match = text.match(/(?:^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})$/);
+        const match = text.match(/@([A-Za-z0-9][A-Za-z0-9._-]{0,30})$/);
         if (match) {
           e.preventDefault();
           const username = match[1];
@@ -906,7 +906,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         const textContent = node.textContent || '';
         const endOffset = range.startOffset;
         let startOffset = textContent.lastIndexOf('@', endOffset - 1);
-        if (startOffset > 0 && !/\s/.test(textContent[startOffset - 1])) return;
         range.setStart(node, Math.max(0, startOffset));
         range.setEnd(node, endOffset);
         range.deleteContents();
@@ -915,8 +914,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         mention.textContent = `@${username}`;
         mention.setAttribute('contenteditable', 'false');
         const space = document.createTextNode('\u00A0');
-        range.insertNode(space);
         range.insertNode(mention);
+        range.setStartAfter(mention);
+        range.collapse(true);
+        range.insertNode(space);
         range.setStartAfter(space);
         range.collapse(true);
         sel.removeAllRanges();

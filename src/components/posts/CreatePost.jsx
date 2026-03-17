@@ -361,9 +361,10 @@ const CreatePost = ({ onCreateSponsored }) => {
 
     const space = document.createTextNode("\u00A0");
 
-    range.insertNode(space);
     range.insertNode(mention);
-
+    range.setStartAfter(mention);
+    range.collapse(true);
+    range.insertNode(space);
     range.setStartAfter(space);
     range.collapse(true);
 
