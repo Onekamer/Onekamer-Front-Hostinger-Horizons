@@ -116,8 +116,8 @@ const parseMentions = (text) => {
     const full = m[0];
     const isTokenM = !!m[1];
     const isRef = !!m[3];
-    const username = (isTokenM ? m[2] : m[6]) || '';
-    const before = (isTokenM || isRef) ? '' : (m[5] || '');
+    const username = (isTokenM ? m[2] : m[7]) || '';
+    const before = (isTokenM || isRef) ? '' : (m[6] || '');
     if (start > lastIndex) out.push(text.slice(lastIndex, start));
     if (before) out.push(before);
     if (isRef) {
