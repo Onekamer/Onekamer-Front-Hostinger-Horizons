@@ -119,14 +119,8 @@ const postNotification = async (payload = {}) => {
       body: JSON.stringify(body),
     });
 
-    // Si le serveur répond "ignored" ou échec → fallback sur l’alias /api/...
-    let ignored = false;
-    try {
-      const maybeJson = await response.clone().json();
-      ignored = !!maybeJson?.ignored;
-    } catch (_e) {}
-
-    if (!response.ok || ignored) {
+    // Si échec HTTP → fallback sur l’alias /api/...
+    if (!response.ok) {
       const alt = resolveFallbackEndpoint(endpoint);
       if (alt) {
         response = await fetch(alt, {
