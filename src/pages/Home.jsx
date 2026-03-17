@@ -297,7 +297,14 @@ const Home = () => {
               <SectionHeader title="Tendances" icon={TrendingUp} path="/echange" navigate={navigate} />
               <div className="space-y-4">
                 {trending.map(item => (
-                  <Card key={`${item.type}-${item.id}`} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/echange')}>
+                  <Card
+                    key={`${item.type}-${item.id}`}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => {
+                      const param = item.type === 'audio_post' ? 'audioId' : 'postId';
+                      navigate(`/echange?${param}=${encodeURIComponent(item.id)}`);
+                    }}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
