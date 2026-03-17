@@ -12,6 +12,100 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import OfficialBadge from '@/components/OfficialBadge';
 
+const toHashLabel = (name) => {
+  try {
+    const base = String(name || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_{2,}/g, '_');
+    return base ? `#${base}` : '#contenu';
+  } catch (_) {
+    return '#contenu';
+  }
+};
+
+const InlineRefTag = ({ typ, rid, href }) => {
+  const [label, setLabel] = React.useState('');
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        let out = '';
+        if (typ === 'evenement') {
+          const { data } = await supabase.from('evenements').select('title').eq('id', rid).maybeSingle();
+          out = data?.title || '';
+        } else if (typ === 'annonce') {
+          const { data } = await supabase.from('annonces').select('titre').eq('id', rid).maybeSingle();
+          out = data?.titre || '';
+        } else if (typ === 'partenaire') {
+          const { data } = await supabase.from('partenaires').select('name').eq('id', rid).maybeSingle();
+          out = data?.name || '';
+        } else if (typ === 'groupe') {
+          const { data } = await supabase.from('groupes').select('nom').eq('id', rid).maybeSingle();
+          out = data?.nom || '';
+        } else {
+          const { data } = await supabase.from('faits_divers').select('title').eq('id', rid).maybeSingle();
+          out = data?.title || '';
+        }
+        if (mounted) setLabel(out || '');
+      } catch (_) {}
+    };
+    load();
+    return () => { mounted = false; };
+  }, [typ, rid]);
+
+  const text = toHashLabel(label);
+  return (
+    <a href={href} className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A] text-xs font-medium">{text}</a>
+  );
+};
+
+const parseMentions = (text) => {
+  if (!text) return '';
+  const re = /(\[\[m:([^\]]{1,60})\]\])|(\[\[ref:([a-z_]+):([^\]]+)\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/g;
+  const out = [];
+  let lastIndex = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const start = m.index;
+    const full = m[0];
+    const isTokenM = !!m[1];
+    const isRef = !!m[3];
+    const username = (isTokenM ? m[2] : m[6]) || '';
+    const before = (isTokenM || isRef) ? '' : (m[5] || '');
+    if (start > lastIndex) out.push(text.slice(lastIndex, start));
+    if (before) out.push(before);
+    if (isRef) {
+      const typ = String(m[4] || '').toLowerCase();
+      const rid = String(m[5] || '');
+      const path = (
+        typ === 'evenement' ? `/evenements?eventId=${encodeURIComponent(rid)}` :
+        typ === 'annonce' ? `/annonces?annonceId=${encodeURIComponent(rid)}` :
+        typ === 'partenaire' ? `/partenaires?partnerId=${encodeURIComponent(rid)}` :
+        typ === 'groupe' ? `/groupes/${encodeURIComponent(rid)}` :
+        `/faits-divers?articleId=${encodeURIComponent(rid)}`
+      );
+      out.push(<InlineRefTag key={`ref-${start}-${typ}-${rid}`} typ={typ} rid={rid} href={path} />);
+    } else {
+      let u = username;
+      if (!u) {
+        try {
+          const afterAt = full.replace(/^[^@\uFF20]*[@\uFF20](?:\u200B)?/, '');
+          const m2 = afterAt.match(/^([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+(?:\s+[A-Za-z0-9À-ÖØ-öø-ÿ'’._-]+){0,4})/);
+          if (m2 && m2[1]) u = m2[1];
+        } catch (_) {}
+      }
+      out.push(<span key={`${start}-${u}`} className="mention text-[#2BA84A] font-semibold">@{u}</span>);
+    }
+    lastIndex = start + full.length;
+  }
+  if (lastIndex < text.length) out.push(text.slice(lastIndex));
+  return out;
+};
+
 const SectionHeader = ({ title, icon: Icon, path, navigate }) => (
   <div className="flex items-center justify-between mb-4">
     <div className="flex items-center gap-3">
@@ -139,6 +233,8 @@ const Home = () => {
         type: 'post',
         created_at: p.created_at,
         content: p.content,
+        image_url: p.image_url || null,
+        video_url: p.video_url || null,
         likes_count: Number(p.likes_count) || 0,
         comments_count: Number(p.comments_count) || 0,
         profiles: p.profiles || null,
@@ -218,7 +314,10 @@ const Home = () => {
                             {item.profiles?.id ? (<UserBadgeIconsStatic userId={item.profiles.id} className="ml-1" />) : null}
                           </div>
                           <p className="text-xs text-gray-500">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: fr })}</p>
-                          <p className="text-sm text-gray-700 my-2 line-clamp-2">{item.content}</p>
+                          <div className="text-sm text-gray-700 my-2 line-clamp-2">{parseMentions(item.content)}</div>
+                          {(item.image_url || item.video_url) && (
+                            <MediaDisplay bucket="posts" path={item.image_url || item.video_url} className="w-full h-40 object-cover rounded-md mt-2" disableLightbox={true} />
+                          )}
                           <div className="flex items-center gap-4 text-gray-500">
                             <span className="flex items-center gap-1 text-xs"><Heart className="h-4 w-4 text-red-500" /> {item.likes_count}</span>
                             <span className="flex items-center gap-1 text-xs"><MessageCircle className="h-4 w-4 text-blue-500" /> {item.comments_count}</span>
