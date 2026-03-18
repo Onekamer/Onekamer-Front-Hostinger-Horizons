@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { uploadAudioFile } from '@/utils/audioStorage';
-import { notifyMentions } from '@/services/oneSignalNotifications';
+import { notifyMentions, notifyFollowersNewPost } from '@/services/oneSignalNotifications';
 import { extractUniqueMentions } from '@/utils/mentions';
 import { compressVideoIfIOS } from '@/lib/iosVideoCompression';
 
@@ -353,6 +353,7 @@ const CreatePost = ({ onCreateSponsored }) => {
       const plain = root.innerText || '';
       const left = plain.slice(0, abs);
       const m = left.match(/#([^\s#\n]{1,30})$/);
+      let insertAt = { node: range.startContainer, offset: range.startOffset };
       if (m) {
         const q = m[1] || '';
         const startAbs = left.lastIndexOf(`#${q}`);
@@ -362,15 +363,20 @@ const CreatePost = ({ onCreateSponsored }) => {
         const del = document.createRange();
         del.setStart(startLoc.node, startLoc.offset);
         del.setEnd(endLoc.node, endLoc.offset);
+        // Capturer le point d’insertion AVANT suppression
+        insertAt = { node: startLoc.node, offset: startLoc.offset };
         del.deleteContents();
       }
 
+      // Créer un Range à l’emplacement précis de l’ancien hashtag
+      const r2 = document.createRange();
+      r2.setStart(insertAt.node, insertAt.offset);
+      r2.collapse(true);
       const space = document.createTextNode(' ');
       const tok = document.createTextNode(token);
-      const afterDelSel = window.getSelection();
-      const r2 = afterDelSel.rangeCount ? afterDelSel.getRangeAt(0) : range;
       r2.insertNode(tok);
-      r2.collapse(false);
+      r2.setStartAfter(tok);
+      r2.collapse(true);
       r2.insertNode(space);
       r2.setStartAfter(space);
       r2.collapse(true);
@@ -875,6 +881,33 @@ const CreatePost = ({ onCreateSponsored }) => {
               console.error('Erreur notification OneSignal (commentaire audio):', notificationError);
             }
           }
+
+          // Notifier les followers (audio post)
+          try {
+            setTimeout(async () => {
+              try {
+                const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('ok_notif_prefs') : null;
+                if (raw) { try { const prefs = JSON.parse(raw); if (prefs && prefs.followers === false) return; } catch {} }
+                const { data: rels } = await supabase
+                  .from('user_follows')
+                  .select('follower_id')
+                  .eq('followee_id', user.id);
+                const followerIds = Array.isArray(rels) ? rels.map(r => r.follower_id).filter((id) => id && id !== user.id) : [];
+                if (!followerIds.length) return;
+                const k = `nfp:${insertedPost?.id || 'np'}:audio:${String(currentPostText || '').slice(0,50)}`;
+                const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+                if (Date.now() - last < 10000) return;
+                if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+                await notifyFollowersNewPost({
+                  followerIds,
+                  actorName: profile?.username || user?.email || 'Un membre OneKamer',
+                  postId: insertedPost?.id,
+                  excerpt: currentPostText,
+                  preview: { text80: currentPostText || '', mediaType: 'audio' },
+                });
+              } catch (_) {}
+            }, 1500);
+          } catch (_) {}
       } else { 
           let postData = {
             user_id: user.id,
@@ -943,6 +976,36 @@ const CreatePost = ({ onCreateSponsored }) => {
               console.error('Erreur notification OneSignal (mentions):', notificationError);
             }
           }
+
+          // Notifier les followers (post texte/image/vidéo)
+          try {
+            setTimeout(async () => {
+              try {
+                const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('ok_notif_prefs') : null;
+                if (raw) { try { const prefs = JSON.parse(raw); if (prefs && prefs.followers === false) return; } catch {} }
+                const { data: rels } = await supabase
+                  .from('user_follows')
+                  .select('follower_id')
+                  .eq('followee_id', user.id);
+                const followerIds = Array.isArray(rels) ? rels.map(r => r.follower_id).filter((id) => id && id !== user.id) : [];
+                if (!followerIds.length) return;
+                const mediaType = insertedPost?.image_url ? 'image' : (insertedPost?.video_url ? 'video' : null);
+                const mediaUrl = insertedPost?.image_url || insertedPost?.video_url || null;
+                const mt = mediaType || 'text';
+                const k = `nfp:${insertedPost?.id || 'np'}:${mt}:${String(currentPostText || '').slice(0,50)}`;
+                const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+                if (Date.now() - last < 10000) return;
+                if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+                await notifyFollowersNewPost({
+                  followerIds,
+                  actorName: profile?.username || user?.email || 'Un membre OneKamer',
+                  postId: insertedPost.id,
+                  excerpt: currentPostText,
+                  preview: { text80: currentPostText || '', mediaType, mediaUrl },
+                });
+              } catch (_) {}
+            }, 1500);
+          } catch (_) {}
       }
 
       toast({

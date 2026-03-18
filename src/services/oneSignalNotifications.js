@@ -184,6 +184,42 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
   });
 };
 
+// Échanges: nouveau post – notifier les followers de l’auteur
+export const notifyFollowersNewPost = async ({ followerIds = [], actorName, postId, excerpt, preview }) => {
+  const targets = normalizeUserIds(followerIds);
+  if (!targets.length) return false;
+
+  const name = actorName || 'Un membre';
+  const raw = (excerpt || preview?.text80 || '').trim();
+  const mediaType = (preview && preview.mediaType) || null;
+  let l3 = '';
+  if (mediaType === 'audio') l3 = '🎧 Message audio';
+  else if (mediaType === 'video') l3 = '🎬 Message vidéo';
+  else if (mediaType === 'image') l3 = '🖼️ Message image';
+  else if (raw) {
+    const addDots = raw.length > 60;
+    l3 = raw.length > 80 ? raw.slice(0, 80) : raw;
+    if (addDots && !/\.\.\.$/.test(l3)) l3 = `${l3}...`;
+  }
+
+  return postNotification({
+    title: 'La Place du Kwat',
+    message: `${name} a publié un nouveau post${l3 ? `\n${l3}` : ''}`.trim(),
+    targetUserIds: targets,
+    url: postId ? `/echange?postId=${postId}` : '/echange',
+    data: {
+      type: 'new_post',
+      postId,
+      actorName: name,
+      preview: {
+        text80: raw ? clip(raw, 80) : '',
+        mediaType: preview?.mediaType || null,
+        mediaUrl: preview?.mediaUrl || null,
+      },
+    },
+  });
+};
+
 export const notifyUserFollow = async ({ receiverId, actorName, followerId }) => {
   const targets = normalizeUserIds([receiverId]);
   if (!targets.length) return false;
@@ -573,4 +609,5 @@ export default {
   notifyGroupMention,
   notifyGroupMessage,
   notifyUserFollow,
+  notifyFollowersNewPost,
 };
