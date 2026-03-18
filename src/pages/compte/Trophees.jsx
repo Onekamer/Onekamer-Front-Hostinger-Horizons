@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Lock, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 
 export default function Trophees() {
+  const navigate = useNavigate();
   const { session } = useAuth();
   const token = session?.access_token;
 
@@ -97,6 +101,12 @@ export default function Trophees() {
       </Helmet>
 
       <div className="space-y-6">
+        <div>
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour
+          </Button>
+        </div>
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-bold">Mes Trophées</h1>
           <div className="text-sm text-gray-600">{unlockedCount}/{items.length || 3}</div>

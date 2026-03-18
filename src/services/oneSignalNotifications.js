@@ -192,8 +192,8 @@ export const notifyUserFollow = async ({ receiverId, actorName, followerId }) =>
   const url = followerId ? `/profil/${followerId}` : '/profil';
 
   return postNotification({
-    title: 'Communauté',
-    message: `${name} vous suit maintenant`,
+    title: 'La Place du Kwat',
+    message: `${name} vous suit et sera notifié lorsque vous publiez un post.`,
     targetUserIds: targets,
     url,
     data: {

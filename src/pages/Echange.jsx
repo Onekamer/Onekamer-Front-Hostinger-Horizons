@@ -1348,6 +1348,15 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
             const ids = (profs || []).map((p) => p.id).filter(Boolean);
             if (ids.length) {
               setTimeout(() => {
+                try {
+                  const baseId = (audioParentId || postId || 'np');
+                  const idsKey = ids.slice().sort().join(',');
+                  const textKey = String(newComment || '').slice(0, 50);
+                  const k = `nm:${baseId}:${idsKey}:${textKey}`;
+                  const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+                  if (Date.now() - last < 10000) return;
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+                } catch (_) {}
                 notifyMentions({
                   mentionedUserIds: ids,
                   authorName: (user?.user_metadata?.username) || authorName || 'Un membre',

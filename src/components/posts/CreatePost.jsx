@@ -826,6 +826,14 @@ const CreatePost = ({ onCreateSponsored }) => {
           if (mentionProfiles.length) {
             try {
               setTimeout(() => {
+                try {
+                  const idsKey = mentionProfiles.map((m) => m.id).filter(Boolean).sort().join(',');
+                  const textKey = String(currentPostText || '').slice(0, 50);
+                  const k = `nm:${insertedPost?.id || 'np'}:${idsKey}:${textKey}:audio`;
+                  const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+                  if (Date.now() - last < 10000) return;
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+                } catch (_) {}
                 notifyMentions({
                   mentionedUserIds: mentionProfiles.map((m) => m.id),
                   authorName: profile?.username || user?.email || 'Un membre OneKamer',
@@ -885,6 +893,15 @@ const CreatePost = ({ onCreateSponsored }) => {
               const mediaType = insertedPost?.image_url ? 'image' : (insertedPost?.video_url ? 'video' : null);
               const mediaUrl = insertedPost?.image_url || insertedPost?.video_url || null;
               setTimeout(() => {
+                try {
+                  const idsKey = mentionProfiles.map((m) => m.id).filter(Boolean).sort().join(',');
+                  const textKey = String(currentPostText || '').slice(0, 50);
+                  const mt = mediaType || 'text';
+                  const k = `nm:${insertedPost?.id || 'np'}:${idsKey}:${textKey}:${mt}`;
+                  const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+                  if (Date.now() - last < 10000) return;
+                  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+                } catch (_) {}
                 notifyMentions({
                   mentionedUserIds: mentionProfiles.map((m) => m.id),
                   authorName: profile?.username || user?.email || 'Un membre OneKamer',

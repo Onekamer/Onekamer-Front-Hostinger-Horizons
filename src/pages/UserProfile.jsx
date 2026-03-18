@@ -144,6 +144,27 @@ const UserProfile = () => {
       setProfile(userProfile);
       setLoading(false);
     };
+
+  const handleRemoveFollower = async (followerId, e) => {
+    try { e?.stopPropagation?.(); } catch (_) {}
+    if (!authUser?.id || String(authUser.id) !== String(userId)) return;
+    const prev = Array.isArray(followers) ? followers.slice() : [];
+    setFollowers((cur) => (Array.isArray(cur) ? cur.filter((p) => String(p?.id) !== String(followerId)) : []));
+    setFollowCounts((c) => ({ ...c, followers: Math.max(0, Number(c?.followers || 0) - 1) }));
+    try {
+      const { error } = await supabase
+        .from('user_follows')
+        .delete()
+        .eq('follower_id', followerId)
+        .eq('followee_id', authUser.id);
+      if (error) throw error;
+      toast({ title: 'Abonnés', description: 'Le follower a été retiré.' });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Action refusée', description: "Impossible de retirer cet abonné. Vous pouvez le bloquer pour empêcher l'accès à vos posts." });
+      setFollowers(prev);
+      setFollowCounts((c) => ({ ...c, followers: Number(c?.followers || 0) + 1 }));
+    }
+  };
     loadProfile();
   }, [userId]);
 
@@ -346,7 +367,7 @@ const UserProfile = () => {
             try {
               const k = `nfuf:${authUser?.id || ''}->${userId}`;
               const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
-              if (Date.now() - last < 8000) return;
+              if (Date.now() - last < 10000) return;
               if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
               const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('ok_notif_prefs') : null;
               if (raw) {
@@ -584,7 +605,20 @@ const UserProfile = () => {
                 </div>
                 <h1 className="text-3xl font-bold text-gray-800 flex items-center justify-center gap-2">
                   <span>{profile.username || "Utilisateur"}</span>
-                  {profile?.is_official ? (<OfficialBadge />) : null}
+                  {profile?.is_official ? (
+                    profile?.username === 'OneKamer' ? (
+                      <span
+                        role="button"
+                        onMouseEnter={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                        onClick={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                        className="inline-flex"
+                      >
+                        <OfficialBadge />
+                      </span>
+                    ) : (
+                      <OfficialBadge />
+                    )
+                  ) : null}
                 </h1>
                 <div className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
@@ -812,6 +846,16 @@ const UserProfile = () => {
                           <span>{p.username}</span>
                           {p?.is_official ? (<OfficialBadge />) : null}
                         </div>
+                        {authUser?.id && String(authUser.id) === String(userId) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={(e) => handleRemoveFollower(p.id, e)}
+                          >
+                            Retirer
+                          </Button>
+                        )}
                       </div>
                     ))
                   )}
