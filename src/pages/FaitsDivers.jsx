@@ -63,6 +63,7 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [open, setOpen] = useState(false);
 
   const handleChange = (e) => {
@@ -70,11 +71,17 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // API de téléversement (alignée sur Annonces/Événements)
+  const serverUrlLocal = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
+  const apiBaseUrlLocal = import.meta.env.DEV ? '' : serverUrlLocal;
+  const API_PREFIX_LOCAL = `${apiBaseUrlLocal}/api`;
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setIsUploading(true);
+    setUploadProgress(0);
     setImagePreview(URL.createObjectURL(file));
 
     const options = {
@@ -85,18 +92,40 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
 
     try {
       const compressedFile = await imageCompression(file, options);
-      const fileExt = compressedFile.name.split('.').pop();
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      const safeFile = new File(
+        [compressedFile],
+        compressedFile.name || `upload_${Date.now()}.${(compressedFile.type || 'image/jpeg').split('/')[1] || 'jpg'}`,
+        { type: compressedFile.type || 'image/jpeg' }
+      );
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('faits_divers')
-        .upload(filePath, compressedFile);
+      const totalBytes = safeFile.size || 1;
+      const fd = new FormData();
+      fd.append('file', safeFile);
+      fd.append('type', 'faits_divers');
+      fd.append('recordId', user.id);
 
-      if (uploadError) {
-        throw uploadError;
-      }
-      
-      setFormData((prev) => ({ ...prev, image_url: uploadData.path }));
+      const out = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_PREFIX_LOCAL}/upload`);
+        xhr.upload.onprogress = (ev) => {
+          if (ev && ev.lengthComputable) {
+            const p = Math.floor((ev.loaded / totalBytes) * 100);
+            setUploadProgress(Math.max(0, Math.min(99, p)));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({ success: true, url: '' }); }
+          } else {
+            reject(new Error('La mise à jour du fichier a échoué'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('La mise à jour du fichier a échoué'));
+        xhr.send(fd);
+      });
+      if (!out?.success || !out?.url) throw new Error('Réponse upload invalide');
+      setUploadProgress(100);
+      setFormData((prev) => ({ ...prev, image_url: out.url }));
       toast({ title: 'Image prête à être publiée !' });
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -156,13 +185,23 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
     } else {
       toast({ title: 'Article publié !' });
       try {
-        await notifyNewFaitDivers({
-          articleId: newArticle.id,
-          title: newArticle.title,
-          authorName: newArticle.author?.username || user?.email || 'Un membre OneKamer',
-          categoryName: newArticle.category?.nom || '',
-          excerpt: newArticle.excerpt || '',
-        });
+        setTimeout(() => {
+          try {
+            const k = `nfd:${user.id}:${newArticle.id}`;
+            const last = Number((typeof sessionStorage !== 'undefined' && sessionStorage.getItem(k)) || 0);
+            if (Date.now() - last < 10000) return;
+            if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(k, String(Date.now()));
+            const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('ok_notif_prefs') : null;
+            if (raw) { try { const prefs = JSON.parse(raw); if (prefs && prefs.faits_divers === false) return; } catch {} }
+          } catch {}
+          notifyNewFaitDivers({
+            articleId: newArticle.id,
+            title: newArticle.title,
+            authorName: newArticle.author?.username || user?.email || 'Un membre OneKamer',
+            categoryName: newArticle.category?.nom || '',
+            excerpt: newArticle.excerpt || '',
+          }).catch(() => {});
+        }, 1500);
       } catch (notificationError) {
         console.error('Erreur notification OneSignal (fait divers):', notificationError);
       }
@@ -209,7 +248,11 @@ const AddNewsForm = ({ categories, onArticleAdded }) => {
              <Label htmlFor="image" className="text-right">Image</Label>
              <Input id="image" type="file" accept="image/*" onChange={handleImageUpload} className="col-span-3" disabled={isUploading} />
           </div>
-          {isUploading && <p className="col-span-4 text-center text-sm text-gray-500">Téléversement en cours...</p>}
+          {isUploading && (
+            <p className="col-span-4 text-center text-sm text-gray-500">
+              Téléversement en cours... {uploadProgress > 0 && uploadProgress < 100 ? `${uploadProgress}%` : ''}
+            </p>
+          )}
           {imagePreview && (
             <div className="col-span-4">
                 <img src={imagePreview} alt="Aperçu" className="rounded-lg mt-2 w-full max-h-40 object-cover" />
@@ -628,6 +671,7 @@ const FaitsDivers = () => {
   });
   const [editImagePreview, setEditImagePreview] = useState(null);
   const [editUploading, setEditUploading] = useState(false);
+  const [editUploadProgress, setEditUploadProgress] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -831,6 +875,7 @@ const FaitsDivers = () => {
     if (!file || !user) return;
 
     setEditUploading(true);
+    setEditUploadProgress(0);
     setEditImagePreview(URL.createObjectURL(file));
 
     const options = {
@@ -841,16 +886,40 @@ const FaitsDivers = () => {
 
     try {
       const compressedFile = await imageCompression(file, options);
-      const fileExt = compressedFile.name.split('.').pop();
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      const safeFile = new File(
+        [compressedFile],
+        compressedFile.name || `upload_${Date.now()}.${(compressedFile.type || 'image/jpeg').split('/')[1] || 'jpg'}`,
+        { type: compressedFile.type || 'image/jpeg' }
+      );
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('faits_divers')
-        .upload(filePath, compressedFile);
+      const totalBytes = safeFile.size || 1;
+      const fd = new FormData();
+      fd.append('file', safeFile);
+      fd.append('type', 'faits_divers');
+      fd.append('recordId', user.id);
 
-      if (uploadError) throw uploadError;
-
-      setEditFormData((prev) => ({ ...prev, image_url: uploadData.path }));
+      const out = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_PREFIX}/upload`);
+        xhr.upload.onprogress = (ev) => {
+          if (ev && ev.lengthComputable) {
+            const p = Math.floor((ev.loaded / totalBytes) * 100);
+            setEditUploadProgress(Math.max(0, Math.min(99, p)));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({ success: true, url: '' }); }
+          } else {
+            reject(new Error('La mise à jour du fichier a échoué'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('La mise à jour du fichier a échoué'));
+        xhr.send(fd);
+      });
+      if (!out?.success || !out?.url) throw new Error('Réponse upload invalide');
+      setEditUploadProgress(100);
+      setEditFormData((prev) => ({ ...prev, image_url: out.url }));
       toast({ title: 'Image prête à être publiée !' });
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -974,7 +1043,11 @@ const FaitsDivers = () => {
               <Label htmlFor="edit-image" className="text-right">Image</Label>
               <Input id="edit-image" type="file" accept="image/*" onChange={handleEditImageUpload} className="col-span-3" disabled={editUploading} />
             </div>
-            {editUploading && <p className="col-span-4 text-center text-sm text-gray-500">Téléversement en cours...</p>}
+            {editUploading && (
+              <p className="col-span-4 text-center text-sm text-gray-500">
+                Téléversement en cours... {editUploadProgress > 0 && editUploadProgress < 100 ? `${editUploadProgress}%` : ''}
+              </p>
+            )}
             {(editImagePreview || editFormData.image_url) && (
               <div className="col-span-4">
                 {editImagePreview ? (

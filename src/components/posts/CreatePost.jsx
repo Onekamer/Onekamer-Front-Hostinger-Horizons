@@ -326,27 +326,56 @@ const CreatePost = ({ onCreateSponsored }) => {
       editableDivRef.current.focus();
       const sel = window.getSelection();
       if (!sel.rangeCount) return;
-      const range = sel.getRangeAt(0);
-      const node = range.startContainer;
-      const text = (node.textContent || '').substring(0, range.startOffset);
-      const m = text.match(/#([^\s#\n]{1,30})$/);
+      const range = sel.getRangeAt(0).cloneRange();
+      const root = editableDivRef.current;
       const token = `[[ref:${item.type}:${item.id}]]`;
+
+      const getAbsIndex = (r) => {
+        const pre = r.cloneRange();
+        pre.selectNodeContents(root);
+        pre.setEnd(r.endContainer, r.endOffset);
+        return pre.toString().length;
+      };
+      const findNodeAt = (idx) => {
+        let remaining = idx;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        let n = walker.nextNode();
+        while (n) {
+          const len = (n.textContent || '').length;
+          if (remaining <= len) return { node: n, offset: remaining };
+          remaining -= len;
+          n = walker.nextNode();
+        }
+        return { node: root, offset: root.childNodes.length };
+      };
+
+      const abs = getAbsIndex(range);
+      const plain = root.innerText || '';
+      const left = plain.slice(0, abs);
+      const m = left.match(/#([^\s#\n]{1,30})$/);
       if (m) {
         const q = m[1] || '';
-        const start = text.lastIndexOf(`#${q}`);
-        const end = range.startOffset;
-        range.setStart(node, Math.max(0, start));
-        range.setEnd(node, end);
-        range.deleteContents();
+        const startAbs = left.lastIndexOf(`#${q}`);
+        const endAbs = abs;
+        const startLoc = findNodeAt(startAbs);
+        const endLoc = findNodeAt(endAbs);
+        const del = document.createRange();
+        del.setStart(startLoc.node, startLoc.offset);
+        del.setEnd(endLoc.node, endLoc.offset);
+        del.deleteContents();
       }
+
       const space = document.createTextNode(' ');
-      range.insertNode(document.createTextNode(token));
-      range.collapse(false);
-      range.insertNode(space);
-      range.setStartAfter(space);
-      range.collapse(true);
+      const tok = document.createTextNode(token);
+      const afterDelSel = window.getSelection();
+      const r2 = afterDelSel.rangeCount ? afterDelSel.getRangeAt(0) : range;
+      r2.insertNode(tok);
+      r2.collapse(false);
+      r2.insertNode(space);
+      r2.setStartAfter(space);
+      r2.collapse(true);
       sel.removeAllRanges();
-      sel.addRange(range);
+      sel.addRange(r2);
       setShowTagSuggestions(false);
       setTagQuery('');
       setPostText(editableDivRef.current.innerText);
