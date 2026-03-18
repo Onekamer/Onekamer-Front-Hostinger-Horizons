@@ -1428,7 +1428,20 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                     <div className="bg-gray-100 rounded-lg px-3 py-2 w-full min-w-0 overflow-hidden">
                       <div className="flex items-center gap-1">
                         <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (comment.author?.id) navigate(`/profil/${comment.author.id}`) }}>{comment.author?.username}</p>
-                        {comment.author?.is_official ? (<OfficialBadge />) : null}
+                        {comment.author?.is_official ? (
+                          comment.author?.username === 'OneKamer' ? (
+                            <span
+                              role="button"
+                              className="inline-flex"
+                              onMouseEnter={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                              onClick={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                            >
+                              <OfficialBadge />
+                            </span>
+                          ) : (
+                            <OfficialBadge />
+                          )
+                        ) : null}
                         {comment.author?.id && <UserBadgeIcons userId={comment.author.id} className="ml-1" />}
                       </div>
                       {hiddenCommentSet.has(`ecomment:${comment.id}`) ? (
@@ -1484,7 +1497,20 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                           <div className="bg-gray-50 rounded-lg px-3 py-2 w-full min-w-0 overflow-hidden">
                             <div className="flex items-center gap-1">
                               <p className="text-sm font-semibold cursor-pointer" onClick={() => { if (child.author?.id) navigate(`/profil/${child.author.id}`) }}>{child.author?.username}</p>
-                              {child.author?.is_official ? (<OfficialBadge />) : null}
+                              {child.author?.is_official ? (
+                                child.author?.username === 'OneKamer' ? (
+                                  <span
+                                    role="button"
+                                    className="inline-flex"
+                                    onMouseEnter={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                                    onClick={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                                  >
+                                    <OfficialBadge />
+                                  </span>
+                                ) : (
+                                  <OfficialBadge />
+                                )
+                              ) : null}
                               {child.author?.id && <UserBadgeIcons userId={child.author.id} className="ml-1" />}
                             </div>
                             {hiddenCommentSet.has(`ecomment:${child.id}`) ? (
@@ -1859,7 +1885,20 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
                   <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
                     {isDeletedAuthor ? 'Compte supprimé' : (post.profiles?.username || 'Anonyme')}
                   </div>
-                  {!isDeletedAuthor && post.profiles?.is_official ? (<OfficialBadge />) : null}
+                  {!isDeletedAuthor && post.profiles?.is_official ? (
+                    post.profiles?.username === 'OneKamer' ? (
+                      <span
+                        role="button"
+                        className="inline-flex"
+                        onMouseEnter={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                        onClick={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                      >
+                        <OfficialBadge />
+                      </span>
+                    ) : (
+                      <OfficialBadge />
+                    )
+                  ) : null}
                   {!isDeletedAuthor && post.user_id && <UserBadgeIcons userId={post.user_id} />}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>
@@ -2307,7 +2346,20 @@ const AudioPostCard = ({ post, user, profile, onDelete, onWarn, refreshBalance, 
                   <div className="font-semibold cursor-pointer hover:underline" onClick={() => (isDeletedAuthor ? toast({ title: 'Compte supprimé' }) : navigate(`/profil/${post.user_id}`))}>
                     {isDeletedAuthor ? 'Compte supprimé' : (post.author?.username || 'Anonyme')}
                   </div>
-                  {!isDeletedAuthor && post.author?.is_official ? (<OfficialBadge />) : null}
+                  {!isDeletedAuthor && post.author?.is_official ? (
+                    post.author?.username === 'OneKamer' ? (
+                      <span
+                        role="button"
+                        className="inline-flex"
+                        onMouseEnter={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                        onClick={() => toast({ description: "Coucou, je suis le compte officiel d'OneKamer, un souci, une question ou autre, tagguez moi !" })}
+                      >
+                        <OfficialBadge />
+                      </span>
+                    ) : (
+                      <OfficialBadge />
+                    )
+                  ) : null}
                   {!isDeletedAuthor && post.user_id && <UserBadgeIcons userId={post.user_id} />}
                 </div>
                 <div className="text-sm text-[#6B6B6B]">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr })}</div>

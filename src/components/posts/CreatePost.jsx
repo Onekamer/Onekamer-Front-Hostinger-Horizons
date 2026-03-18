@@ -372,10 +372,16 @@ const CreatePost = ({ onCreateSponsored }) => {
       const r2 = document.createRange();
       r2.setStart(insertAt.node, insertAt.offset);
       r2.collapse(true);
-      const space = document.createTextNode(' ');
-      const tok = document.createTextNode(token);
-      r2.insertNode(tok);
-      r2.setStartAfter(tok);
+      const space = document.createTextNode('\u00A0');
+      const tag = document.createElement('span');
+      tag.className = 'mention';
+      tag.setAttribute('data-ref-type', String(item.type || ''));
+      tag.setAttribute('data-ref-id', String(item.id || ''));
+      tag.contentEditable = 'false';
+      const shown = `#${(item.label || item.badge || '').trim()}`;
+      tag.textContent = shown || '#contenu';
+      r2.insertNode(tag);
+      r2.setStartAfter(tag);
       r2.collapse(true);
       r2.insertNode(space);
       r2.setStartAfter(space);
@@ -387,6 +393,38 @@ const CreatePost = ({ onCreateSponsored }) => {
       setPostText(editableDivRef.current.innerText);
     } catch (_) {}
   };
+
+  // Sérialiser l’éditeur en texte avec tokens [[ref:type:id]] pour l’envoi backend
+  const serializeEditorToTextWithTokens = useCallback(() => {
+    const root = editableDivRef.current;
+    if (!root) return postText || '';
+    const parts = [];
+    const walk = (node) => {
+      if (!node) return;
+      if (node.nodeType === 3) { // TEXT
+        parts.push(node.nodeValue || '');
+        return;
+      }
+      if (node.nodeType === 1) { // ELEMENT
+        const el = node;
+        try {
+          const t = el.getAttribute && el.getAttribute('data-ref-type');
+          const id = el.getAttribute && el.getAttribute('data-ref-id');
+          if (t && id) {
+            parts.push(`[[ref:${t}:${id}]]`);
+            return;
+          }
+        } catch (_) {}
+        // Explorer enfants
+        const children = el.childNodes || [];
+        for (let i = 0; i < children.length; i++) walk(children[i]);
+        return;
+      }
+    };
+    const kids = root.childNodes || [];
+    for (let i = 0; i < kids.length; i++) walk(kids[i]);
+    return parts.join('');
+  }, [postText]);
 
   const handleMentionSelect = (username, isAuto) => {
     setShowSuggestions(false);
@@ -791,6 +829,7 @@ const CreatePost = ({ onCreateSponsored }) => {
   const handlePublish = async () => {
     await highlightExistingMentions();
     const currentPostText = editableDivRef.current.innerText;
+    const finalContent = serializeEditorToTextWithTokens();
     const mentionUsernames = extractUniqueMentions(currentPostText);
     let mentionProfiles = [];
 
@@ -847,7 +886,7 @@ const CreatePost = ({ onCreateSponsored }) => {
             .insert([
               {
                 user_id: user.id,
-                content: currentPostText || '',
+                content: finalContent || '',
                 likes_count: 0,
                 comments_count: 0,
                 audio_url: audioUrl,
@@ -911,7 +950,7 @@ const CreatePost = ({ onCreateSponsored }) => {
       } else { 
           let postData = {
             user_id: user.id,
-            content: currentPostText,
+            content: finalContent,
             likes_count: 0,
             comments_count: 0,
           };
