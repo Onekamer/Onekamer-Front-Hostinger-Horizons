@@ -601,6 +601,16 @@ const Compte = () => {
               </p>
             </CardContent>
           </Card>
+          {isAdmin && (
+            <Card className="text-center cursor-pointer" onClick={() => navigate('/compte/admin')}>
+              <CardHeader>
+                <CardTitle className="text-lg">Espace Admin</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600">Accéder aux outils</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <Card className="cursor-pointer" onClick={() => navigate('/compte/trophees')}>
@@ -787,9 +797,7 @@ const Compte = () => {
             {String(profile?.role || '').toLowerCase() === 'qrcode_verif' && (
               <MenuItem onClick={() => navigate('/scan')} title="Scanner QR (Admin)" />
             )}
-            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
-              <MenuItem onClick={() => navigate('/compte/admin')} title="Espace Admin" />
-            )}
+            
             
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             {SPONSORED_POSTS_ENABLED && (
