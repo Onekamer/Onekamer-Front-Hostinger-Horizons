@@ -790,6 +790,9 @@ const Compte = () => {
             {profile.role === 'admin' && (
               <MenuItem onClick={() => navigate('/compte/emails-admin')} title="Envoyer des emails (admin)" />
             )}
+            {profile.role === 'admin' && (
+              <MenuItem onClick={() => navigate('/compte/notifications-admin')} title="Envoyer une notification (admin)" />
+            )}
             {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
               <MenuItem onClick={() => navigate('/compte/admin-utilisateurs')} title="Gestion utilisateurs (admin)" />
             )}

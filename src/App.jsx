@@ -64,6 +64,8 @@ import { applyAutoAccessProtection } from '@/lib/autoAccessWrapper';
 import ResetPassword from '@/pages/ResetPassword';
 import SupportCenter from '@/pages/SupportCenter';
 import SupportAdmin from '@/pages/SupportAdmin';
+import NotificationsAdmin from '@/pages/NotificationsAdmin';
+import AdminHub from '@/pages/AdminHub';
 import CguPage from '@/pages/Cgu';
 import RgpdPage from '@/pages/Rgpd';
 import MentionsLegalesPage from '@/pages/MentionLegales';
@@ -220,10 +222,11 @@ const AppContent = () => {
         const unlocked = items.filter((it) => it && it.unlocked && it.key).map((it) => String(it.key));
         let prev = [];
         try { prev = JSON.parse(localStorage.getItem('ok_trophies_unlocked') || '[]'); } catch (_) {}
+        const hadPrev = Array.isArray(prev) && prev.length > 0;
         const prevSet = new Set(Array.isArray(prev) ? prev : []);
         const nowSet = new Set(unlocked);
         const newly = unlocked.filter((k) => !prevSet.has(k));
-        if (newly.length) {
+        if (hadPrev && newly.length) {
           try { localStorage.setItem('ok_trophies_unlocked', JSON.stringify(Array.from(nowSet))); } catch (_) {}
           newly.forEach((k) => {
             const t = items.find((it) => String(it.key) === k);
@@ -358,6 +361,8 @@ const AppContent = () => {
           <Route path="/compte/moderation" element={<ModerationAdmin />} />
           <Route path="/compte/okcoins-admin" element={<OKCoinsAdminLab />} />
           <Route path="/compte/support-admin" element={<SupportAdmin />} />
+          <Route path="/compte/notifications-admin" element={<NotificationsAdmin />} />
+          <Route path="/compte/admin" element={<AdminHub />} />
           <Route path="/compte/okcoins-transactions" element={<OKCoinsTransactions />} />
           <Route path="/compte/mes-stats-influenceur" element={<InfluenceurStats />} />
           <Route path="/compte/mon-qrcode" element={<MonQRCode />} />

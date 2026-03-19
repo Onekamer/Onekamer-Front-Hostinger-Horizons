@@ -174,13 +174,13 @@ const Home = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
       // Tendances: Top 2 posts + audios (7j) classés par likes
       const fetchTrendingPosts = supabase
         .from('posts')
         .select('*, profiles(id, username, avatar_url, is_official)')
-        .gte('created_at', sevenDaysAgo)
+        .gte('created_at', thirtyDaysAgo)
         .order('likes_count', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(5);
@@ -190,7 +190,7 @@ const Home = () => {
         .select('*, author:profiles (id, username, avatar_url, is_official)')
         .eq('content_type', 'echange')
         .is('parent_comment_id', null)
-        .gte('created_at', sevenDaysAgo)
+        .gte('created_at', thirtyDaysAgo)
         .order('likes_count', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(5);
