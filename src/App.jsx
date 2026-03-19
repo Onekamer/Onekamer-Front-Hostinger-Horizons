@@ -206,6 +206,61 @@ const AppContent = () => {
   }, [navigate, toast]);
 
   useEffect(() => {
+    if (!session?.access_token) return;
+    let mounted = true;
+    const loadAndToast = async () => {
+      try {
+        const serverUrl = (import.meta.env.VITE_SERVER_URL || 'https://onekamer-server.onrender.com').replace(/\/$/, '');
+        const apiBaseUrl = import.meta.env.DEV ? '' : serverUrl;
+        const PREFIX = `${apiBaseUrl}/api`;
+        const res = await fetch(`${PREFIX}/trophies/my`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const data = await res.json().catch(() => ({}));
+        if (!mounted || !res.ok) return;
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const unlocked = items.filter((it) => it && it.unlocked && it.key).map((it) => String(it.key));
+        let prev = [];
+        try { prev = JSON.parse(localStorage.getItem('ok_trophies_unlocked') || '[]'); } catch (_) {}
+        const prevSet = new Set(Array.isArray(prev) ? prev : []);
+        const nowSet = new Set(unlocked);
+        const newly = unlocked.filter((k) => !prevSet.has(k));
+        if (newly.length) {
+          try { localStorage.setItem('ok_trophies_unlocked', JSON.stringify(Array.from(nowSet))); } catch (_) {}
+          newly.forEach((k) => {
+            const t = items.find((it) => String(it.key) === k);
+            const name = t?.name || 'Un trophée';
+            toast({
+              title: 'Trophée débloqué',
+              description: `Vous avez gagné: ${name}`,
+              action: (
+                <ToastAction altText="Voir" onClick={() => navigate('/compte/trophees')}>
+                  Voir
+                </ToastAction>
+              ),
+            });
+          });
+        } else {
+          try { localStorage.setItem('ok_trophies_unlocked', JSON.stringify(Array.from(nowSet))); } catch (_) {}
+        }
+      } catch (_) {}
+    };
+    loadAndToast();
+    const iv = setInterval(loadAndToast, 60000);
+    const onFocus = () => loadAndToast();
+    const onVisible = () => { try { if (document.visibilityState === 'visible') loadAndToast(); } catch (_) {} };
+    const onCheck = () => loadAndToast();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('ok_trophy_check', onCheck);
+    return () => {
+      mounted = false;
+      clearInterval(iv);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('ok_trophy_check', onCheck);
+    };
+  }, [session?.access_token, navigate, toast]);
+
+  useEffect(() => {
     if (loading) return;
     if (session) return;
 

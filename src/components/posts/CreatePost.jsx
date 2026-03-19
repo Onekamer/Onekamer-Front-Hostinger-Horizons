@@ -1055,6 +1055,7 @@ const CreatePost = ({ onCreateSponsored }) => {
       if(editableDivRef.current) editableDivRef.current.innerHTML = '';
       handleRemoveMedia();
       handleRemoveAudio();
+      try { window.dispatchEvent(new Event('ok_trophy_check')); } catch (_) {}
     } catch (error) {
       console.error('Erreur de publication :', error.message);
       toast({

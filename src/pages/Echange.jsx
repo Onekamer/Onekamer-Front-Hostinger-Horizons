@@ -1374,6 +1374,7 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
         handleRemoveAudio();
         setReplyTo(null);
         setReplyToUser(null);
+        try { window.dispatchEvent(new Event('ok_trophy_check')); } catch (_) {}
 
     } catch (error) {
         console.error('Error posting comment:', error);
@@ -2533,6 +2534,7 @@ const Echange = () => {
   const blockedSet = useMemo(() => new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String)), [profile?.blocked_user_ids]);
   const [feedItems, setFeedItems] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const FEED_PAGE_SIZE = 20;
   const [visibleFeedCount, setVisibleFeedCount] = useState(FEED_PAGE_SIZE);
   const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
@@ -2823,7 +2825,7 @@ const Echange = () => {
   };
   
   const fetchFeed = useCallback(async () => {
-    setLoadingPosts(true);
+    if (!initialLoadDone) setLoadingPosts(true);
 
     const { data: postsData, error: postsError } = await supabase
       .from('posts')
@@ -2863,7 +2865,8 @@ const Echange = () => {
     // Ne pas réduire le nombre d'items visibles lors d'un refresh pour éviter les sauts de scroll
     setVisibleFeedCount((c) => Math.max(c, FEED_PAGE_SIZE));
     setLoadingPosts(false);
-  }, [profile?.blocked_user_ids]);
+    if (!initialLoadDone) setInitialLoadDone(true);
+  }, [profile?.blocked_user_ids, initialLoadDone]);
   
   useEffect(() => {
     fetchFeed();
