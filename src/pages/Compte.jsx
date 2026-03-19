@@ -784,30 +784,13 @@ const Compte = () => {
             <MenuItem onClick={() => navigate('/compte/notifications')} title="Notifications" />
             <MenuItem onClick={() => navigate('/compte/mon-qrcode')} title="Mon QR Code" />
 
-            {isQrAdmin && (
+            {String(profile?.role || '').toLowerCase() === 'qrcode_verif' && (
               <MenuItem onClick={() => navigate('/scan')} title="Scanner QR (Admin)" />
             )}
             {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
               <MenuItem onClick={() => navigate('/compte/admin')} title="Espace Admin" />
             )}
-            {profile.role === 'admin' && (
-              <MenuItem onClick={() => navigate('/compte/emails-admin')} title="Envoyer des emails (admin)" />
-            )}
-            {profile.role === 'admin' && (
-              <MenuItem onClick={() => navigate('/compte/notifications-admin')} title="Envoyer une notification (admin)" />
-            )}
-            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
-              <MenuItem onClick={() => navigate('/compte/admin-utilisateurs')} title="Gestion utilisateurs (admin)" />
-            )}
-            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
-              <MenuItem onClick={() => navigate('/compte/moderation')} title="Modération" />
-            )}
-            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
-              <MenuItem onClick={() => navigate('/compte/admin-invitations')} title="Dashboard invitations (admin)" />
-            )}
-            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
-              <MenuItem onClick={() => navigate('/compte/marketplace-admin')} title="Gestion Marketplace" />
-            )}
+            
             <MenuItem onClick={() => navigate('/compte/favoris')} title="Mes favoris" />
             {SPONSORED_POSTS_ENABLED && (
               <MenuItem onClick={() => navigate('/compte/mes-posts-sponsorises')} title="Mes posts sponsorisés" />
