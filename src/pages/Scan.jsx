@@ -171,7 +171,7 @@ const Scan = () => {
       <Helmet><title>Scanner un QR Code - OneKamer</title></Helmet>
       <div className="max-w-xl mx-auto space-y-6">
         <Card>
-          <CardHeader><CardTitle>Vérification QR Code (Admin)</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Vérification QR Code</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
               <Button variant={mode === 'secret' ? undefined : 'outline'} onClick={() => setMode('secret')}>Mode Secret</Button>
@@ -203,12 +203,12 @@ const Scan = () => {
             </div>
             {mode === 'secret' ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Secret Admin</label>
+                <label className="text-sm font-medium">Code secret</label>
                 <Input value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="x-admin-secret" type="password" />
               </div>
             ) : (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Token JWT Admin</label>
+                <label className="text-sm font-medium">Token JWT</label>
                 <Input value={jwtToken} onChange={(e) => setJwtToken(e.target.value)} placeholder="Bearer token" />
               </div>
             )}

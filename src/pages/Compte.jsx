@@ -601,16 +601,6 @@ const Compte = () => {
               </p>
             </CardContent>
           </Card>
-          {isAdmin && (
-            <Card className="text-center cursor-pointer" onClick={() => navigate('/compte/admin')}>
-              <CardHeader>
-                <CardTitle className="text-lg">Espace Admin</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600">Accéder aux outils</p>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         <Card className="cursor-pointer" onClick={() => navigate('/compte/trophees')}>
@@ -795,7 +785,7 @@ const Compte = () => {
             <MenuItem onClick={() => navigate('/compte/mon-qrcode')} title="Mon QR Code" />
 
             {String(profile?.role || '').toLowerCase() === 'qrcode_verif' && (
-              <MenuItem onClick={() => navigate('/scan')} title="Scanner QR (Admin)" />
+              <MenuItem onClick={() => navigate('/scan')} title="Scanner QR" />
             )}
             
             
@@ -1160,85 +1150,21 @@ const Compte = () => {
           </Card>
         )}
 
-        {profile.role === 'admin' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Invitations (Admin)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="text-gray-600">
-                Consultez les statistiques d'invitations de chaque utilisateur.
-              </p>
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => navigate('/compte/admin-invitations')}
-              >
-                Ouvrir le dashboard invitations
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         {isAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle>Centre d'aide (Admin)</CardTitle>
+              <CardTitle>Espace Admin</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p className="text-gray-600">
-                Gérer les signalements utilisateurs/boutiques, feedbacks et demandes de suppression de compte.
+                Centralise toutes les actions administrateur (modération, invitations, notifications, QR, retraits, etc.).
               </p>
               <Button
                 type="button"
                 className="w-full sm:w-auto"
-                onClick={() => navigate('/compte/support-admin')}
+                onClick={() => navigate('/compte/admin')}
               >
-                Ouvrir le centre d'aide admin
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        
-
-        
-
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Retraits OK COINS</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="text-gray-600">
-                Validez/refusez les demandes de retrait et marquez comme traitées.
-              </p>
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => navigate('/compte/okcoins-admin')}
-              >
-                Ouvrir la gestion retraits
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>QR Codes événements (Admin)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="text-gray-600">
-                Scanner et vérifier les QR Codes à l'entrée (PAYÉ / ACOMPTE PAYÉ / DOIT PAYER).
-              </p>
-              <Button
-                type="button"
-                className="w-full sm:w-auto"
-                onClick={() => navigate('/scan')}
-              >
-                Ouvrir le scanner
+                Ouvrir l'espace admin
               </Button>
             </CardContent>
           </Card>

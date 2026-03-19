@@ -25,7 +25,7 @@ const AdminHub = () => {
     { path: '/compte/admin-invitations', label: 'Dashboard invitations (admin)' },
     { path: '/compte/marketplace-admin', label: 'Gestion Marketplace' },
     { path: '/compte/support-admin', label: 'Centre d\'aide (Admin)' },
-    { path: '/scan', label: 'Scanner QR (Admin)' },
+    { path: '/scan', label: 'Scanner QR' },
     { path: '/compte/okcoins-admin', label: 'Retraits OK COINS' },
     { path: '/compte/okcoins-transactions', label: 'Transactions OK COINS' },
     { path: '/compte/influenceurs-admin', label: 'Influenceurs (Admin)' },
