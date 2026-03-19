@@ -75,22 +75,7 @@ const AudioPlayer = ({ src, onCanPlay, mimeType }) => {
         }
     };
 
-  useEffect(() => {
-    const onSelChange = () => {
-      try {
-        const sel = window.getSelection();
-        if (!sel || !sel.rangeCount) return;
-        const div = editableDivRef.current;
-        if (!div) return;
-        const node = sel.anchorNode;
-        if (node && div.contains(node)) {
-          lastRangeRef.current = sel.getRangeAt(0).cloneRange();
-        }
-      } catch (_) {}
-    };
-    document.addEventListener('selectionchange', onSelChange);
-    return () => document.removeEventListener('selectionchange', onSelChange);
-  }, []);
+  
 
     useEffect(() => {
         const audio = audioRef.current;
@@ -197,6 +182,23 @@ const CreatePost = ({ onCreateSponsored }) => {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState([]);
   const lastRangeRef = useRef(null);
+
+  useEffect(() => {
+    const onSelChange = () => {
+      try {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const div = editableDivRef.current;
+        if (!div) return;
+        const node = sel.anchorNode;
+        if (node && div.contains(node)) {
+          lastRangeRef.current = sel.getRangeAt(0).cloneRange();
+        }
+      } catch (_) {}
+    };
+    document.addEventListener('selectionchange', onSelChange);
+    return () => document.removeEventListener('selectionchange', onSelChange);
+  }, []);
 
   const handleInput = (e) => {
     const div = e.currentTarget;
@@ -325,50 +327,47 @@ const CreatePost = ({ onCreateSponsored }) => {
     try {
       editableDivRef.current.focus();
       const sel = window.getSelection();
-      if (!sel.rangeCount) return;
-      const range = sel.getRangeAt(0).cloneRange();
       const root = editableDivRef.current;
+      if (!root) return;
+      let range = null;
+      // Prioriser la dernière sélection connue dans l'éditeur
+      if (lastRangeRef.current && root.contains(lastRangeRef.current.startContainer)) {
+        try { range = lastRangeRef.current.cloneRange(); } catch (_) {}
+      }
+      if (!range) {
+        if (!sel || !sel.rangeCount) return;
+        range = sel.getRangeAt(0).cloneRange();
+        // Si la sélection actuelle n'est pas dans l'éditeur, fallback à la fin
+        if (!root.contains(range.startContainer)) {
+          const rEnd = document.createRange();
+          rEnd.selectNodeContents(root);
+          rEnd.collapse(false);
+          range = rEnd;
+        }
+      }
       const token = `[[ref:${item.type}:${item.id}]]`;
 
-      const getAbsIndex = (r) => {
-        const pre = r.cloneRange();
-        pre.selectNodeContents(root);
-        pre.setEnd(r.endContainer, r.endOffset);
-        return pre.toString().length;
-      };
-      const findNodeAt = (idx) => {
-        let remaining = idx;
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-        let n = walker.nextNode();
-        while (n) {
-          const len = (n.textContent || '').length;
-          if (remaining <= len) return { node: n, offset: remaining };
-          remaining -= len;
-          n = walker.nextNode();
-        }
-        return { node: root, offset: root.childNodes.length };
-      };
-
-      const abs = getAbsIndex(range);
-      const plain = root.innerText || '';
-      const left = plain.slice(0, abs);
-      const m = left.match(/#([^\s#\n]{1,30})$/);
+      // Essayer un remplacement local dans le nœud texte courant (plus fiable)
       let insertAt = { node: range.startContainer, offset: range.startOffset };
-      if (m) {
-        const q = m[1] || '';
-        const startAbs = left.lastIndexOf(`#${q}`);
-        const endAbs = abs;
-        const startLoc = findNodeAt(startAbs);
-        const endLoc = findNodeAt(endAbs);
-        const del = document.createRange();
-        del.setStart(startLoc.node, startLoc.offset);
-        del.setEnd(endLoc.node, endLoc.offset);
-        // Capturer le point d’insertion AVANT suppression
-        insertAt = { node: startLoc.node, offset: startLoc.offset };
-        del.deleteContents();
+      let localDeleted = false;
+      if (insertAt.node && insertAt.node.nodeType === 3) {
+        try {
+          const textNode = insertAt.node;
+          const before = textNode.textContent.slice(0, insertAt.offset);
+          const mm = before.match(/#([^\s#\n]{1,30})$/);
+          if (mm) {
+            const toDel = mm[0];
+            const del = document.createRange();
+            del.setStart(textNode, insertAt.offset - toDel.length);
+            del.setEnd(textNode, insertAt.offset);
+            insertAt = { node: textNode, offset: insertAt.offset - toDel.length };
+            del.deleteContents();
+            localDeleted = true;
+          }
+        } catch (_) {}
       }
 
-      // Créer un Range à l’emplacement précis de l’ancien hashtag
+      // Si non supprimé localement (cas rares: caret pas dans un TextNode), fallback sûr: insérer au caret actuel
       const r2 = document.createRange();
       r2.setStart(insertAt.node, insertAt.offset);
       r2.collapse(true);
@@ -1111,7 +1110,12 @@ const CreatePost = ({ onCreateSponsored }) => {
           {showTagSuggestions && tagSuggestions.length > 0 && (
             <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-56 overflow-y-auto">
               {tagSuggestions.map((it) => (
-                <div key={`${it.type}-${it.id}`} className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer" onClick={() => handleTagPick(it)}>
+                <div
+                  key={`${it.type}-${it.id}`}
+                  className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer"
+                  onMouseDown={(e) => { e.preventDefault(); handleTagPick(it); }}
+                  onTouchStart={(e) => { e.preventDefault(); handleTagPick(it); }}
+                >
                   <span className="text-sm truncate">{it.label}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A]">#{it.badge}</span>
                 </div>
