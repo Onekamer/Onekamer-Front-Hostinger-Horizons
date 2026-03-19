@@ -787,6 +787,9 @@ const Compte = () => {
             {isQrAdmin && (
               <MenuItem onClick={() => navigate('/scan')} title="Scanner QR (Admin)" />
             )}
+            {(profile?.is_admin === true || profile?.is_admin === 1 || profile?.is_admin === 'true' || String(profile?.role || '').toLowerCase() === 'admin') && (
+              <MenuItem onClick={() => navigate('/compte/admin')} title="Espace Admin" />
+            )}
             {profile.role === 'admin' && (
               <MenuItem onClick={() => navigate('/compte/emails-admin')} title="Envoyer des emails (admin)" />
             )}
