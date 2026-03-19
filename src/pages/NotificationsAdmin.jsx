@@ -30,6 +30,8 @@ const NotificationsAdmin = () => {
 
   const API_BASE_URL = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
+  
+
   const sendBroadcast = async () => {
     if (!API_BASE_URL) {
       toast({ title: 'Configuration manquante', description: "VITE_API_URL n'est pas défini.", variant: 'destructive' });
@@ -180,6 +182,38 @@ const NotificationsAdmin = () => {
   const removeSelected = (id) => {
     setSelected((prev) => prev.filter((u) => String(u.id) !== String(id)));
   };
+
+  
+
+  useEffect(() => {
+    if (mode !== 'targeted') { setResults([]); return; }
+    const q = String(query || '').trim();
+    if (!q) { setResults([]); return; }
+    let canceled = false;
+    const t = setTimeout(async () => {
+      try {
+        setSearching(true);
+        const token = session?.access_token;
+        if (!token) { setResults([]); setSearching(false); return; }
+        const API_PREFIX = import.meta.env.VITE_API_URL || '/api';
+        const qs = new URLSearchParams();
+        qs.set('search', q);
+        qs.set('limit', '10');
+        const res = await fetch(`${API_PREFIX}/admin/users?${qs.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json().catch(() => ({}));
+        if (!canceled) {
+          const items = Array.isArray(data?.items) ? data.items : [];
+          setResults(items);
+        }
+      } catch {
+        if (!canceled) setResults([]);
+      } finally {
+        if (!canceled) setSearching(false);
+      }
+    }, 300);
+    return () => { canceled = true; clearTimeout(t); };
+  }, [mode, query, session?.access_token]);
+
   const goBack = () => {
     try {
       if (window.history && window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {

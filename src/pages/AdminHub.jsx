@@ -38,7 +38,21 @@ const AdminHub = () => {
       </Helmet>
 
       <div className="space-y-4">
-        <Button variant="ghost" className="px-0 text-sm" onClick={() => navigate('/compte')}>
+        <Button
+          variant="ghost"
+          className="px-0 text-sm"
+          onClick={() => {
+            try {
+              if (window.history && window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0) {
+                navigate(-1);
+              } else {
+                navigate('/compte');
+              }
+            } catch {
+              navigate('/compte');
+            }
+          }}
+        >
           ← Retour à mon compte
         </Button>
 
