@@ -86,6 +86,27 @@ const clip = (s, n = 80) => {
   return t.length > n ? `${t.slice(0, n)}...` : t;
 };
 
+const _notifDedup = new Map();
+const _shouldSend = (key, ttlMs = 10000) => {
+  try {
+    if (!key) return true;
+    const now = Date.now();
+    let last = 0;
+    try {
+      const v = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(`notif:${key}`)) || '';
+      if (v) last = Number(v) || 0;
+    } catch (_) {}
+    const mem = _notifDedup.get(key) || 0;
+    const seen = Math.max(last, mem);
+    if (now - seen < ttlMs) return false;
+    _notifDedup.set(key, now);
+    try { if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(`notif:${key}`, String(now)); } catch (_) {}
+    return true;
+  } catch (_) {
+    return true;
+  }
+};
+
 const mediaLabel = (mt) => (mt === 'image' ? '🖼️ Image' : (mt === 'video' ? '🎬 Vidéo' : (mt === 'audio' ? '🎧 Fichier audio' : '')));
 
 const postNotification = async (payload = {}) => {
@@ -147,6 +168,12 @@ export const notifyMentions = async ({ mentionedUserIds = [], authorName, actorN
   const targets = normalizeUserIds(mentionedUserIds);
   if (!targets.length) return false;
 
+  const textKey = String((excerpt || (preview && preview.text80) || '')).slice(0, 50);
+  const mt = (preview && preview.mediaType) || 'text';
+  const idsKey = targets.slice().sort().join(',');
+  const _k_nm = `nm:${postId || 'np'}:${idsKey}:${textKey}:${mt}`;
+  if (!_shouldSend(_k_nm, 10000)) return false;
+
   const name = actorName || authorName || 'Un membre';
   const raw = (excerpt || preview?.text80 || '').trim();
   const mediaType = (preview && preview.mediaType) || null;
@@ -189,6 +216,11 @@ export const notifyFollowersNewPost = async ({ followerIds = [], actorName, post
   const targets = normalizeUserIds(followerIds);
   if (!targets.length) return false;
 
+  const textKey = String((excerpt || (preview && preview.text80) || '')).slice(0, 50);
+  const mt = (preview && preview.mediaType) || 'text';
+  const _k_nfp = `nfp:${postId || 'np'}:${mt}:${textKey}:${targets.length}`;
+  if (!_shouldSend(_k_nfp, 10000)) return false;
+
   const name = actorName || 'Un membre';
   const raw = (excerpt || preview?.text80 || '').trim();
   const mediaType = (preview && preview.mediaType) || null;
@@ -223,6 +255,9 @@ export const notifyFollowersNewPost = async ({ followerIds = [], actorName, post
 export const notifyUserFollow = async ({ receiverId, actorName, followerId }) => {
   const targets = normalizeUserIds([receiverId]);
   if (!targets.length) return false;
+
+  const _k_nfuf = `nfuf:${followerId || ''}->${receiverId || ''}`;
+  if (!_shouldSend(_k_nfuf, 10000)) return false;
 
   const name = (actorName || 'Un membre').trim();
   const url = followerId ? `/profil/${followerId}` : '/profil';
