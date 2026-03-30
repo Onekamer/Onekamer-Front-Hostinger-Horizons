@@ -93,6 +93,7 @@ const VideoPlayer = ({
 
   const wrapperClass = `relative ${className} ${fitContain && !useEmbed ? 'aspect-video overflow-hidden bg-black/5' : ''} ${onOpenLightbox ? 'cursor-zoom-in' : ''}`;
   const videoClass = `rounded-lg ${fitContain ? 'w-full h-full object-contain' : 'w-full h-auto'}`;
+  const hasAspect = /(?:^|\s)aspect-/.test(String(className));
   const handleWrapperClick = (e) => {
     if (!onOpenLightbox) return;
     e.stopPropagation();
@@ -100,7 +101,7 @@ const VideoPlayer = ({
   };
   const mutedAttr = allowSoundAutoplay ? false : muted;
   return (
-    <div className={wrapperClass} onClick={handleWrapperClick}>
+    <div className={`relative ${className} ${fitContain && !useEmbed && !hasAspect ? 'aspect-video overflow-hidden bg-black/5' : ''} ${onOpenLightbox ? 'cursor-zoom-in' : ''}`} onClick={handleWrapperClick}>
       <video
         ref={videoRef}
         src={src}

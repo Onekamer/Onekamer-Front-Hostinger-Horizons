@@ -100,6 +100,7 @@ const Landing = () => {
         <meta property="og:description" content="Actualités, rencontres, événements et opportunités de la diaspora camerounaise." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://onekamer.co" />
+        <meta name="apple-itunes-app" content="app-id=6757192496" />
       </Helmet>
 
       {/* Hero */}
@@ -118,6 +119,14 @@ const Landing = () => {
             </button>
             <a href="#decouvrir" className="w-full sm:w-auto px-6 py-3 rounded-md border border-black text-black font-semibold hover:bg-gray-50 text-center">
               Découvrir OneKamer
+            </a>
+            <a
+              href="https://apps.apple.com/fr/app/onekamer/id6757192496"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-6 py-3 rounded-md border border-black text-black font-semibold hover:bg-gray-50 text-center"
+            >
+              Télécharger sur l'App Store
             </a>
           </div>
         </div>

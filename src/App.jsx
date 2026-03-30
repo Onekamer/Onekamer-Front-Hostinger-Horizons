@@ -273,6 +273,19 @@ const AppContent = () => {
     };
   }, [session?.access_token, navigate, toast]);
 
+  // Afficher le toast de bienvenue après arrivée sur / (home) ou /compte (déclenché par MerciVerification via un flag)
+  useEffect(() => {
+    if (!session?.user) return;
+    const p = location.pathname || '';
+    const allowed = new Set(['/compte', '/']);
+    if (!allowed.has(p)) return;
+    let show = false;
+    try { show = (sessionStorage.getItem('ok_show_welcome_next') === '1'); } catch (_) {}
+    if (!show) return;
+    try { sessionStorage.removeItem('ok_show_welcome_next'); } catch (_) {}
+    toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' });
+  }, [session?.user?.id, location.pathname, toast]);
+
   useEffect(() => {
     if (loading) return;
     if (session) return;

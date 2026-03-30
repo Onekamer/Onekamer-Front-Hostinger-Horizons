@@ -326,7 +326,7 @@ const Home = () => {
                             <MediaDisplay
                               bucket="posts"
                               path={item.video_url}
-                              className="w-full rounded-md mt-2 aspect-video overflow-hidden bg-black/5"
+                              className="w-full rounded-md mt-2 aspect-[9/16] md:aspect-video overflow-hidden bg-black/5"
                               disableLightbox={true}
                               fitContain={true}
                               videoControls={false}

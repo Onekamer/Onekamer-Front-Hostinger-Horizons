@@ -457,11 +457,12 @@ const CommentMedia = ({ url, type }) => {
         return (
             <VideoPlayer
                 src={url}
-                className="rounded-lg max-h-40 mt-2 overflow-hidden"
+                className="w-full aspect-[9/16] md:aspect-video max-h-[75vh] md:max-h-[80vh] rounded-lg mt-2 bg-black/5"
                 autoPlayOnView={true}
                 loop={true}
                 controls={true}
                 muted={true}
+                fitContain={true}
             />
         );
     }
@@ -1623,11 +1624,12 @@ const CommentSection = ({ postId, postOwnerId, authorName, postContent, audioPar
                   ) : mediaPreviewUrl ? (
                     <VideoPlayer
                       src={mediaPreviewUrl}
-                      className="w-full rounded object-cover overflow-hidden"
+                      className="w-full aspect-[9/16] md:aspect-video max-h-[75vh] md:max-h-[80vh] rounded bg-black/5"
                       autoPlayOnView={true}
                       loop={true}
                       controls={true}
                       muted={true}
+                      fitContain={true}
                     />
                   ) : audioBlob ? (
                     <AudioPlayer src={URL.createObjectURL(audioBlob)} mimeType={(mimeRef.current?.type || audioBlob.type || 'audio/mp4').split(';')[0]} />
@@ -2020,7 +2022,7 @@ const PostCard = ({ post, user, profile, onLike, onDelete, onWarn, showComments,
         {videoUrl && (
           <VideoPlayer
             src={videoUrl}
-            className="rounded-lg w-full max-h-64 md:max-h-80 mb-4"
+            className="rounded-lg w-full aspect-[9/16] md:aspect-video max-h-[75vh] md:max-h-[80vh] mb-4 bg-black/5"
             fitContain={true}
             autoPlayOnView={true}
             loop={true}
@@ -3304,7 +3306,7 @@ const Echange = () => {
                         ) : (
                           <VideoPlayer
                             src={spMediaPreviewUrl || ''}
-                            className="w-full max-h-48 md:max-h-64 rounded-md"
+                            className="w-full aspect-[9/16] md:aspect-video max-h-48 md:max-h-64 rounded-md bg-black/5"
                             fitContain={true}
                             controls={true}
                             autoPlayOnView={false}
