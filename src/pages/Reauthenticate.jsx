@@ -32,6 +32,9 @@ const Reauthenticate = () => {
     return e2 || null;
   };
 
+  const sanitizeCode = (v) => String(v || '').replace(/[^0-9]/g, '').slice(0, 6);
+  const maskEmail = (m) => String(m || '').replace(/(^.).*(@.*$)/, '$1***$2');
+
   const verifyWithTokenHash = async (tokenHash, typeHint = '') => {
     const hint = String(typeHint || '').toLowerCase();
     const base = ['reauthenticate', 'magiclink', 'signup', 'recovery', 'email_change'];
@@ -160,14 +163,16 @@ const Reauthenticate = () => {
 
   useEffect(() => {
     const token = String(code || '').trim();
-    if (!verifyLoading && email && token.length === 6 && autoTriedTokenRef.current !== token && !verifyError) {
-      autoTriedTokenRef.current = token;
+    const tSan = sanitizeCode(token);
+    if (!verifyLoading && email && tSan.length === 6 && autoTriedTokenRef.current !== tSan && !verifyError) {
+      autoTriedTokenRef.current = tSan;
       const t = setTimeout(() => {
         (async () => {
           setVerifyError('');
           setVerifyLoading(true);
           try {
-            const { ok, data, error } = await verifyReauthToken(email, token);
+            console.info('verifyOtp payload (masked):', { type: 'email', email: maskEmail(email), tokenLen: tSan.length });
+            const { ok, data, error } = await verifyReauthToken(email, tSan);
             if (!ok) {
               console.error('reauth verify error:', error);
               const msg = (error && (error.message || error.error_description)) || 'Code invalide ou expiré.';
@@ -196,13 +201,14 @@ const Reauthenticate = () => {
   const handleVerify = async (e) => {
     e.preventDefault();
     setVerifyError('');
-    const token = String(code || '').trim();
+    const token = sanitizeCode(code);
     if (!email || token.length < 4) {
       setVerifyError('Veuillez saisir le code reçu.');
       return;
     }
     setVerifyLoading(true);
     try {
+      console.info('verifyOtp payload (masked):', { type: 'email', email: maskEmail(email), tokenLen: token.length });
       const { ok, data, error } = await verifyReauthToken(email, token);
       if (!ok) {
         console.error('reauth verify error (manual):', error);

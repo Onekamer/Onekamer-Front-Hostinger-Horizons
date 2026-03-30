@@ -116,6 +116,10 @@ const AuthPage = () => {
     );
     if (!error) {
       toast({ title: 'Inscription réussie !', description: 'Un code de vérification vous a été envoyé par e-mail.' });
+      try {
+        window.sessionStorage.setItem('ok_signup_email', registerEmail);
+        window.sessionStorage.setItem('ok_signup_pw', registerPassword);
+      } catch (_) {}
       try { navigate(`/merci-verification?email=${encodeURIComponent(registerEmail)}`); } catch (_) {}
 
       try {

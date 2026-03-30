@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import OtpInput from '@/components/OtpInput';
+import { useToast } from '@/components/ui/use-toast';
 
 const MerciVerification = () => {
     const [status, setStatus] = useState('loading');
@@ -20,6 +21,7 @@ const MerciVerification = () => {
     const [verifyError, setVerifyError] = useState('');
     const [cooldownLeft, setCooldownLeft] = useState(0);
     const navigate = useNavigate();
+    const { toast } = useToast();
     const autoTriedTokenRef = useRef('');
 
     // OTP inputs refs et helpers
@@ -73,11 +75,29 @@ const MerciVerification = () => {
         } catch (_) {}
     };
 
+    const ensureSignedInAfterVerify = async () => {
+        try {
+            const { data: s0 } = await supabase.auth.getSession();
+            if (s0?.session) return true;
+            const em = String(window.sessionStorage.getItem('ok_signup_email') || '');
+            const pw = String(window.sessionStorage.getItem('ok_signup_pw') || '');
+            if (em && pw) {
+                const { error: e1 } = await supabase.auth.signInWithPassword({ email: em, password: pw });
+                if (!e1) {
+                    try { window.sessionStorage.removeItem('ok_signup_email'); window.sessionStorage.removeItem('ok_signup_pw'); } catch (_) {}
+                    return true;
+                }
+            }
+        } catch (_) {}
+        return false;
+    };
+
     useEffect(() => {
         const sub = supabase.auth.onAuthStateChange((_event, session) => {
             if (session) {
                 setStatus('success');
                 try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
+                try { toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' }); } catch (_) {}
                 setTimeout(() => { navigate('/compte'); }, 800);
             }
         });
@@ -114,6 +134,7 @@ const MerciVerification = () => {
                         setStatus('success');
                         try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                         try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
+                        try { toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' }); } catch (_) {}
                         setTimeout(() => { navigate('/compte'); }, 300);
                         return;
                     }
@@ -123,9 +144,13 @@ const MerciVerification = () => {
                 if (token_hash || token) {
                     const payload = token_hash ? { type, token_hash } : { type, token, email };
                     const { data, error } = await supabase.auth.verifyOtp(payload);
-                    if (!error && data?.session) {
+                    if (!error && (data?.session || data?.user)) {
+                        if (!data?.session) {
+                            await ensureSignedInAfterVerify();
+                        }
                         setStatus('success');
                         try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
+                        try { toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' }); } catch (_) {}
                         setTimeout(() => { navigate('/compte'); }, 800);
                         return;
                     }
@@ -136,6 +161,7 @@ const MerciVerification = () => {
                 if (userData?.user) {
                     setStatus('success');
                     try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
+                    try { toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' }); } catch (_) {}
                     setTimeout(() => { navigate('/compte'); }, 800);
                     return;
                 }
@@ -221,9 +247,13 @@ const MerciVerification = () => {
             });
             if (error) {
                 setVerifyError('Code invalide ou expiré.');
-            } else if (data?.session) {
+            } else if (data?.session || data?.user) {
+                if (!data?.session) {
+                    await ensureSignedInAfterVerify();
+                }
                 setStatus('success');
                 try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
+                try { toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' }); } catch (_) {}
                 setTimeout(() => { navigate('/compte'); }, 600);
             }
         } finally {
@@ -244,9 +274,13 @@ const MerciVerification = () => {
                         const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
                         if (error) {
                             setVerifyError('Code invalide ou expiré.');
-                        } else if (data?.session) {
+                        } else if (data?.session || data?.user) {
+                            if (!data?.session) {
+                                await ensureSignedInAfterVerify();
+                            }
                             setStatus('success');
                             try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
+                            try { toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' }); } catch (_) {}
                             setTimeout(() => { navigate('/compte'); }, 600);
                         }
                     } finally {
