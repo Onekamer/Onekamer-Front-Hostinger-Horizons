@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -7,6 +7,7 @@ import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import OtpInput from '@/components/OtpInput';
 
 const MerciVerification = () => {
     const [status, setStatus] = useState('loading');
@@ -14,7 +15,62 @@ const MerciVerification = () => {
     const [resendLoading, setResendLoading] = useState(false);
     const [resendError, setResendError] = useState('');
     const [resendDone, setResendDone] = useState(false);
+    const [code, setCode] = useState('');
+    const [verifyLoading, setVerifyLoading] = useState(false);
+    const [verifyError, setVerifyError] = useState('');
+    const [cooldownLeft, setCooldownLeft] = useState(0);
     const navigate = useNavigate();
+
+    // OTP inputs refs et helpers
+    const otpRefs = useRef([]);
+    const setDigitAt = (idx, val) => {
+        const arr = Array.from({ length: 6 }, (_, k) => (code[k] || ''));
+        arr[idx] = val;
+        setCode(arr.join(''));
+    };
+    const focusAt = (idx) => {
+        const el = otpRefs.current[idx];
+        if (el && typeof el.focus === 'function') {
+            try { el.focus(); el.select?.(); } catch (_) {}
+        }
+    };
+    const handleOtpChange = (idx, raw) => {
+        const v = String(raw || '').replace(/\D/g, '').slice(0, 1);
+        setDigitAt(idx, v);
+        if (v && idx < 5) focusAt(idx + 1);
+    };
+    const handleOtpKeyDown = (idx, e) => {
+        const key = e.key;
+        const cur = code[idx] || '';
+        if (key === 'Backspace') {
+            if (cur) {
+                // effacer ce digit
+                e.preventDefault();
+                setDigitAt(idx, '');
+            } else if (idx > 0) {
+                e.preventDefault();
+                focusAt(idx - 1);
+                setTimeout(() => setDigitAt(idx - 1, ''), 0);
+            }
+        } else if (key === 'ArrowLeft' && idx > 0) {
+            e.preventDefault();
+            focusAt(idx - 1);
+        } else if (key === 'ArrowRight' && idx < 5) {
+            e.preventDefault();
+            focusAt(idx + 1);
+        }
+    };
+    const handleOtpPaste = (e) => {
+        try {
+            const txt = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+            if (!txt) return;
+            e.preventDefault();
+            const arr = Array.from({ length: 6 }, (_, i) => txt[i] || '');
+            setCode(arr.join(''));
+            const last = Math.min(txt.length, 6) - 1;
+            focusAt(last >= 0 ? last : 0);
+        } catch (_) {}
+    };
 
     useEffect(() => {
         const sub = supabase.auth.onAuthStateChange((_event, session) => {
@@ -112,6 +168,7 @@ const MerciVerification = () => {
             setResendError('Veuillez entrer un e-mail valide.');
             return;
         }
+        if (cooldownLeft > 0) return;
         setResendLoading(true);
         try {
             const { error } = await supabase.auth.resend({
@@ -123,11 +180,69 @@ const MerciVerification = () => {
                 setResendError(error.message || "Impossible de renvoyer l'e-mail.");
             } else {
                 setResendDone(true);
+                try {
+                  let left = 45; // 45s de cooldown
+                  setCooldownLeft(left);
+                  const id = setInterval(() => {
+                    left -= 1;
+                    setCooldownLeft((v) => (v > 0 ? v - 1 : 0));
+                    if (left <= 0) clearInterval(id);
+                  }, 1000);
+                } catch (_) {}
             }
         } finally {
             setResendLoading(false);
         }
     };
+
+    const handleVerifyCode = async (e) => {
+        e.preventDefault();
+        setVerifyError('');
+        const email = String(resendEmail || '').trim();
+        const token = String(code || '').trim();
+        if (!email || token.length < 4) {
+            setVerifyError('Veuillez saisir le code reçu.');
+            return;
+        }
+        setVerifyLoading(true);
+        try {
+            const { data, error } = await supabase.auth.verifyOtp({
+                email,
+                token,
+                type: 'signup',
+            });
+            if (error) {
+                setVerifyError('Code invalide ou expiré.');
+            } else if (data?.session) {
+                setStatus('success');
+                setTimeout(() => { navigate('/compte'); }, 600);
+            }
+        } finally {
+            setVerifyLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const email = String(resendEmail || '').trim();
+        const token = String(code || '').trim();
+        if (!verifyLoading && email && token.length === 6) {
+            (async () => {
+                setVerifyError('');
+                setVerifyLoading(true);
+                try {
+                    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+                    if (error) {
+                        setVerifyError('Code invalide ou expiré.');
+                    } else if (data?.session) {
+                        setStatus('success');
+                        setTimeout(() => { navigate('/compte'); }, 600);
+                    }
+                } finally {
+                    setVerifyLoading(false);
+                }
+            })();
+        }
+    }, [code, resendEmail, verifyLoading, navigate]);
 
     const renderContent = () => {
         switch (status) {
@@ -149,20 +264,33 @@ const MerciVerification = () => {
                 );
             case 'error':
                 return (
-                    <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-4 text-red-700 w-full max-w-md">
-                        <XCircle className="h-16 w-16" />
-                        <h1 className="text-3xl font-bold">Lien invalide ou expiré</h1>
-                        <p className="text-center">La vérification a échoué. Vous pouvez demander un nouvel e-mail de confirmation ci-dessous.</p>
+                    <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-4 text-gray-800 w-full max-w-md">
+                        <XCircle className="h-16 w-16 text-red-700" />
+                        <h1 className="text-3xl font-bold">Entrez votre code de vérification</h1>
+                        <p className="text-center">Un code à 6 chiffres a été envoyé à {resendEmail || 'votre e-mail'}.</p>
+
+                        <form onSubmit={handleVerifyCode} className="w-full space-y-3">
+                            <div className="space-y-2">
+                                <Label htmlFor="otp-code-0">Code à 6 chiffres</Label>
+                                <OtpInput idPrefix="otp-code" value={code} onChange={setCode} onComplete={(v) => setCode(v)} />
+                            </div>
+                            {verifyError ? <p className="text-sm text-red-500">{verifyError}</p> : null}
+                            <Button type="submit" disabled={verifyLoading || code.length !== 6} className="w-full">
+                                {verifyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Vérifier le code
+                            </Button>
+                        </form>
+
                         <form onSubmit={handleResend} className="w-full space-y-3">
                             <div className="space-y-2">
                                 <Label htmlFor="resend-email">Votre e-mail</Label>
                                 <Input id="resend-email" type="email" value={resendEmail} onChange={(e) => setResendEmail(e.target.value)} placeholder="vous@exemple.com" required />
                             </div>
                             {resendError ? <p className="text-sm text-red-500">{resendError}</p> : null}
-                            {resendDone ? <p className="text-sm text-green-600">E-mail envoyé. Vérifiez votre boîte mail.</p> : null}
-                            <Button type="submit" disabled={resendLoading} className="w-full">
+                            {resendDone ? <p className="text-sm text-green-600">Code renvoyé. Vérifiez votre boîte mail.</p> : null}
+                            <Button type="submit" disabled={resendLoading || cooldownLeft > 0} className="w-full">
                                 {resendLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Renvoyer l’e-mail de vérification
+                                {cooldownLeft > 0 ? `Renvoyer dans ${cooldownLeft}s` : 'Renvoyer le code par e-mail'}
                             </Button>
                             <Button type="button" variant="ghost" className="w-full" onClick={() => navigate('/auth')}>
                                 Revenir à la connexion

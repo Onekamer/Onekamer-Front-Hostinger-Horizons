@@ -89,7 +89,7 @@ const AuthPage = () => {
     if (error) {
       toast({ title: "Échec de l'envoi", description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Email renvoyé', description: '📬 Vérifiez votre boîte de réception pour confirmer votre compte.' });
+      toast({ title: 'Code renvoyé', description: '📬 Un nouveau code a été envoyé à votre e-mail.' });
     }
   };
 
@@ -115,7 +115,8 @@ const AuthPage = () => {
       }
     );
     if (!error) {
-      toast({ title: 'Inscription réussie !', description: 'Veuillez vérifier votre e-mail pour confirmer votre compte.' });
+      toast({ title: 'Inscription réussie !', description: 'Un code de vérification vous a été envoyé par e-mail.' });
+      try { navigate(`/merci-verification?email=${encodeURIComponent(registerEmail)}`); } catch (_) {}
 
       try {
         if (!API_PREFIX) return;
@@ -254,7 +255,7 @@ const AuthPage = () => {
                   </Button>
                   <div className="text-center">
                     <Button type="button" variant="link" onClick={handleResendConfirmation} disabled={loading}>
-                      Renvoyer l’email de confirmation
+                      Renvoyer le code par e-mail
                     </Button>
                   </div>
                 </form>
