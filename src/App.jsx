@@ -58,6 +58,7 @@ import PaiementSuccess from '@/pages/PaiementSuccess';
 import PaiementAnnule from '@/pages/PaiementAnnule';
 import MerciVerification from '@/pages/MerciVerification';
 import VerificationSMS from '@/pages/VerificationSMS';
+import Reauthenticate from '@/pages/Reauthenticate';
 import ChartePopup from '@/components/ChartePopup';
 import { useCharteValidation } from '@/hooks/useCharteValidation';
 import { applyAutoAccessProtection } from '@/lib/autoAccessWrapper';
@@ -146,6 +147,15 @@ const AppContent = () => {
   const publicPaths = useMemo(() => ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'], []);
   const isPublic = !session && publicPaths.includes(location.pathname);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const isSensitivePath = (p) => {
+    if (!p) return false;
+    return (
+      p.startsWith('/compte/admin') ||
+      p.startsWith('/scan') ||
+      p.startsWith('/compte/okcoins-admin') ||
+      p.startsWith('/pay/')
+    );
+  };
 
   // 🔍 On détecte si on est dans l’app native iOS (Capacitor + WKWebView)
   const isIOSNativeApp =
@@ -285,6 +295,20 @@ const AppContent = () => {
     navigate('/auth', { replace: true });
   }, [loading, session, location.pathname, navigate, publicPaths]);
 
+  // Garde de réauthentification: pour certains chemins sensibles, exiger un OTP récent
+  useEffect(() => {
+    if (!session) return;
+    const path = location.pathname || '';
+    if (path === '/reauth') return;
+    if (!isSensitivePath(path)) return;
+    try {
+      const raw = localStorage.getItem('ok_reauth_next_due_ts') || '0';
+      const ts = parseInt(raw, 10) || 0;
+      if (ts > Date.now()) return; // encore valide
+    } catch (_) {}
+    navigate('/reauth');
+  }, [session, location.pathname, navigate]);
+
   return (
     <>
       {!isPublic ? <Header deferredPrompt={deferredPrompt} /> : <PublicHeader />}
@@ -385,6 +409,7 @@ const AppContent = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/merci-verification" element={<MerciVerification />} />
           <Route path="/verification-sms" element={<VerificationSMS />} />
+          <Route path="/reauth" element={<Reauthenticate />} />
           <Route path="/paiement-success" element={<PaiementSuccess />} />
           <Route path="/paiement-annule" element={<PaiementAnnule />} />
           <Route path="/aide" element={<SupportCenter />} />
@@ -403,6 +428,11 @@ const AppContent = () => {
 }
 
 function App() {
+  const isIOSNativeApp =
+    typeof window !== 'undefined' &&
+    window.Capacitor &&
+    typeof window.Capacitor.getPlatform === 'function' &&
+    window.Capacitor.getPlatform() === 'ios';
   return (
     <AuthProvider>
       <Router>
@@ -415,7 +445,7 @@ function App() {
         <div className="min-h-screen bg-gradient-to-br from-[#FDF9F9] to-[#CDE1D5]">
           <AppContent />
           <OneSignalInitializer />
-          <IosPwaPrompt />
+          {!isIOSNativeApp && <IosPwaPrompt />}
         </div>
 
         <Toaster />

@@ -1,0 +1,216 @@
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/customSupabaseClient';
+import { motion } from 'framer-motion';
+import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import OtpInput from '@/components/OtpInput';
+
+const Reauthenticate = () => {
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('idle');
+  const [code, setCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendError, setResendError] = useState('');
+  const [resendDone, setResendDone] = useState(false);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+  const [remember, setRemember] = useState(false); // par défaut non coché
+  const [rememberDays] = useState(30); // durée fixe 30 jours
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let mounted = true;
+    const bootstrap = async () => {
+      const { data: s } = await supabase.auth.getSession();
+      const mail = s?.session?.user?.email || '';
+      if (!mail) {
+        navigate('/auth', { replace: true });
+        return;
+      }
+      if (!mounted) return;
+      setEmail(mail);
+      setStatus('loading');
+      const { error } = await supabase.auth.reauthenticate();
+      if (error) {
+        setStatus('error');
+        setResendError(error.message || "Impossible d'envoyer le code.");
+      } else {
+        setStatus('awaiting');
+        try {
+          let left = 45;
+          setCooldownLeft(left);
+          const id = setInterval(() => {
+            left -= 1;
+            setCooldownLeft((v) => (v > 0 ? v - 1 : 0));
+            if (left <= 0) clearInterval(id);
+          }, 1000);
+        } catch (_) {}
+      }
+    };
+    bootstrap();
+    return () => { mounted = false; };
+  }, [navigate]);
+
+  useEffect(() => {
+    const token = String(code || '').trim();
+    if (!verifyLoading && email && token.length === 6) {
+      (async () => {
+        setVerifyError('');
+        setVerifyLoading(true);
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({ token, type: 'reauthenticate' });
+          if (error) {
+            setVerifyError('Code invalide ou expiré.');
+          } else if (data?.user || data?.session) {
+            try {
+              if (remember) {
+                const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+                window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
+              } else {
+                window.localStorage.removeItem('ok_reauth_next_due_ts');
+              }
+            } catch (_) {}
+            setStatus('success');
+            setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 600);
+          }
+        } finally {
+          setVerifyLoading(false);
+        }
+      })();
+    }
+  }, [code, email, verifyLoading, navigate]);
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setVerifyError('');
+    const token = String(code || '').trim();
+    if (!email || token.length < 4) {
+      setVerifyError('Veuillez saisir le code reçu.');
+      return;
+    }
+    setVerifyLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({ token, type: 'reauthenticate' });
+      if (error) {
+        setVerifyError('Code invalide ou expiré.');
+      } else if (data?.user || data?.session) {
+        try {
+          if (remember) {
+            const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+            window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
+          } else {
+            window.localStorage.removeItem('ok_reauth_next_due_ts');
+          }
+        } catch (_) {}
+        setStatus('success');
+        setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 600);
+      }
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleResend = async (e) => {
+    e.preventDefault();
+    setResendError('');
+    setResendDone(false);
+    if (cooldownLeft > 0) return;
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.reauthenticate();
+      if (error) {
+        setResendError(error.message || "Impossible de renvoyer le code.");
+      } else {
+        setResendDone(true);
+        try {
+          let left = 45;
+          setCooldownLeft(left);
+          const id = setInterval(() => {
+            left -= 1;
+            setCooldownLeft((v) => (v > 0 ? v - 1 : 0));
+            if (left <= 0) clearInterval(id);
+          }, 1000);
+        } catch (_) {}
+      }
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const renderContent = () => {
+    if (status === 'loading') {
+      return (
+        <div className="flex flex-col items-center gap-4 text-gray-700">
+          <Loader2 className="h-12 w-12 animate-spin text-[#2BA84A]" />
+          <h1 className="text-2xl font-bold">Envoi du code…</h1>
+          <p>Veuillez patienter un instant.</p>
+        </div>
+      );
+    }
+    if (status === 'success') {
+      return (
+        <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-4 text-green-700">
+          <CheckCircle className="h-16 w-16" />
+          <h1 className="text-3xl font-bold">Identité vérifiée</h1>
+          <p>Redirection…</p>
+        </motion.div>
+      );
+    }
+    return (
+      <div className="flex flex-col items-center gap-4 text-gray-800 w-full max-w-md">
+        <XCircle className="h-16 w-16 text-[#2BA84A]" />
+        <h1 className="text-3xl font-bold">Vérification d’identité</h1>
+        <p className="text-center">Un code à 6 chiffres a été envoyé à {email || 'votre e‑mail'}.</p>
+
+        <form onSubmit={handleVerify} className="w-full space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="reauth-otp-0">Code à 6 chiffres</Label>
+            <OtpInput idPrefix="reauth-otp" value={code} onChange={setCode} onComplete={(v) => setCode(v)} />
+          </div>
+          <div className="space-y-1 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              <span>Ne plus me redemander pendant 30 jours</span>
+            </label>
+            <p className="text-xs text-gray-500">
+              À n’activer que sur un appareil de confiance. Sinon, le code pourra être demandé à chaque nouvelle connexion et action sensible.
+            </p>
+          </div>
+          {verifyError ? <p className="text-sm text-red-500">{verifyError}</p> : null}
+          <Button type="submit" disabled={verifyLoading || code.length !== 6} className="w-full">
+            {verifyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Vérifier le code
+          </Button>
+        </form>
+
+        <form onSubmit={handleResend} className="w-full space-y-3">
+          {resendError ? <p className="text-sm text-red-500">{resendError}</p> : null}
+          {resendDone ? <p className="text-sm text-green-600">Code renvoyé. Vérifiez votre boîte mail.</p> : null}
+          <Button type="submit" disabled={resendLoading || cooldownLeft > 0} className="w-full">
+            {resendLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {cooldownLeft > 0 ? `Renvoyer dans ${cooldownLeft}s` : 'Renvoyer le code par e‑mail'}
+          </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }}>
+            Retour
+          </Button>
+        </form>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <Helmet><title>Vérification d’identité - OneKamer.co</title></Helmet>
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+        {renderContent()}
+      </div>
+    </>
+  );
+};
+
+export default Reauthenticate;
