@@ -24,11 +24,91 @@ const Reauthenticate = () => {
   const navigate = useNavigate();
   const autoTriedTokenRef = useRef('');
   const [flow, setFlow] = useState('reauth');
+  const [linkProcessing, setLinkProcessing] = useState(false);
 
   const sendEmailOtp = async (mail) => {
     const { error: e2 } = await supabase.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: false } });
     return e2 || null;
   };
+
+  const verifyWithTokenHash = async (tokenHash, typeHint = '') => {
+    const hint = String(typeHint || '').toLowerCase();
+    const base = ['reauthenticate', 'magiclink', 'signup', 'recovery', 'email_change'];
+    const order = hint && base.includes(hint) ? [hint, ...base.filter((t) => t !== hint)] : base;
+    let lastErr = null;
+    for (const t of order) {
+      try {
+        console.info('verifyOtp (token_hash) try type:', t);
+        const { data, error } = await supabase.auth.verifyOtp({ type: t, token_hash: tokenHash });
+        if (data?.user || data?.session) return { ok: true, data };
+        lastErr = error || lastErr;
+        if (error) console.warn('verifyOtp (token_hash) failed for type', t, error);
+      } catch (e) {
+        lastErr = e;
+        console.warn('verifyOtp (token_hash) exception for type', t, e);
+      }
+    }
+    return { ok: false, error: lastErr };
+  };
+
+  useEffect(() => {
+    // Gestion du retour par Magic Link (token_hash ou tokens directs)
+    const q = new URLSearchParams(window.location.search || '');
+    const th = q.get('token_hash') || '';
+    const typ = q.get('type') || '';
+    const at = q.get('access_token') || '';
+    const rt = q.get('refresh_token') || '';
+    if (!th && !at) return;
+    (async () => {
+      setLinkProcessing(true);
+      setStatus('loading');
+      try {
+        if (at && rt) {
+          console.info('setSession via access_token from URL');
+          const { data, error } = await supabase.auth.setSession({ access_token: at, refresh_token: rt });
+          if (error) throw error;
+          if (data?.user || data?.session) {
+            try {
+              if (remember) {
+                const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+                window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
+              } else {
+                window.localStorage.removeItem('ok_reauth_next_due_ts');
+              }
+            } catch (_) {}
+            setStatus('success');
+            setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 400);
+            return;
+          }
+        }
+        if (th) {
+          const { ok, data, error } = await verifyWithTokenHash(th, typ);
+          if (!ok) throw error || new Error('Invalid or expired link');
+          if (data?.user || data?.session) {
+            try {
+              if (remember) {
+                const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+                window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
+              } else {
+                window.localStorage.removeItem('ok_reauth_next_due_ts');
+              }
+            } catch (_) {}
+            setStatus('success');
+            setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 400);
+            return;
+          }
+        }
+        setStatus('error');
+        setVerifyError('Lien invalide ou expiré.');
+      } catch (e) {
+        console.error('reauth link processing error:', e);
+        setStatus('error');
+        setVerifyError((e && (e.message || e.error_description)) || 'Lien invalide ou expiré.');
+      } finally {
+        setLinkProcessing(false);
+      }
+    })();
+  }, [remember, rememberDays, navigate]);
 
   const verifyReauthToken = async (mail, tok, preferred = 'reauthenticate') => {
     try {
@@ -61,6 +141,9 @@ const Reauthenticate = () => {
       }
       if (!mounted) return;
       setEmail(mail);
+      // Si on traite un lien (token_hash/access_token), ne pas renvoyer reauth maintenant
+      const q = new URLSearchParams(window.location.search || '');
+      if (q.get('token_hash') || q.get('access_token')) return;
       setStatus('loading');
       const { error } = await supabase.auth.reauthenticate();
       if (error) {
