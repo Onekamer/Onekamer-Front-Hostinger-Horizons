@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -22,6 +22,7 @@ const Reauthenticate = () => {
   const [remember, setRemember] = useState(false); // par défaut non coché
   const [rememberDays] = useState(30); // durée fixe 30 jours
   const navigate = useNavigate();
+  const autoTriedTokenRef = useRef('');
 
   useEffect(() => {
     let mounted = true;
@@ -58,32 +59,36 @@ const Reauthenticate = () => {
 
   useEffect(() => {
     const token = String(code || '').trim();
-    if (!verifyLoading && email && token.length === 6) {
-      (async () => {
-        setVerifyError('');
-        setVerifyLoading(true);
-        try {
-          const { data, error } = await supabase.auth.verifyOtp({ token, type: 'reauthenticate' });
-          if (error) {
-            setVerifyError('Code invalide ou expiré.');
-          } else if (data?.user || data?.session) {
-            try {
-              if (remember) {
-                const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
-                window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
-              } else {
-                window.localStorage.removeItem('ok_reauth_next_due_ts');
-              }
-            } catch (_) {}
-            setStatus('success');
-            setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 600);
+    if (!verifyLoading && email && token.length === 6 && autoTriedTokenRef.current !== token && !verifyError) {
+      autoTriedTokenRef.current = token;
+      const t = setTimeout(() => {
+        (async () => {
+          setVerifyError('');
+          setVerifyLoading(true);
+          try {
+            const { data, error } = await supabase.auth.verifyOtp({ token, type: 'reauthenticate' });
+            if (error) {
+              setVerifyError('Code invalide ou expiré.');
+            } else if (data?.user || data?.session) {
+              try {
+                if (remember) {
+                  const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+                  window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
+                } else {
+                  window.localStorage.removeItem('ok_reauth_next_due_ts');
+                }
+              } catch (_) {}
+              setStatus('success');
+              setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 600);
+            }
+          } finally {
+            setVerifyLoading(false);
           }
-        } finally {
-          setVerifyLoading(false);
-        }
-      })();
+        })();
+      }, 200);
+      return () => clearTimeout(t);
     }
-  }, [code, email, verifyLoading, navigate]);
+  }, [code, email, verifyLoading, verifyError, navigate, remember, rememberDays]);
 
   const handleVerify = async (e) => {
     e.preventDefault();
@@ -127,6 +132,8 @@ const Reauthenticate = () => {
         setResendError(error.message || "Impossible de renvoyer le code.");
       } else {
         setResendDone(true);
+        autoTriedTokenRef.current = '';
+        setCode('');
         try {
           let left = 45;
           setCooldownLeft(left);

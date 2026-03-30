@@ -20,6 +20,7 @@ const MerciVerification = () => {
     const [verifyError, setVerifyError] = useState('');
     const [cooldownLeft, setCooldownLeft] = useState(0);
     const navigate = useNavigate();
+    const autoTriedTokenRef = useRef('');
 
     // OTP inputs refs et helpers
     const otpRefs = useRef([]);
@@ -185,6 +186,8 @@ const MerciVerification = () => {
                 setResendError(error.message || "Impossible de renvoyer l'e-mail.");
             } else {
                 setResendDone(true);
+                autoTriedTokenRef.current = '';
+                setCode('');
                 try {
                   let left = 45; // 45s de cooldown
                   setCooldownLeft(left);
@@ -231,25 +234,29 @@ const MerciVerification = () => {
     useEffect(() => {
         const email = String(resendEmail || '').trim();
         const token = String(code || '').trim();
-        if (!verifyLoading && email && token.length === 6) {
-            (async () => {
-                setVerifyError('');
-                setVerifyLoading(true);
-                try {
-                    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
-                    if (error) {
-                        setVerifyError('Code invalide ou expiré.');
-                    } else if (data?.session) {
-                        setStatus('success');
-                        try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
-                        setTimeout(() => { navigate('/compte'); }, 600);
+        if (email && token.length === 6 && autoTriedTokenRef.current !== token && !verifyLoading && !verifyError) {
+            autoTriedTokenRef.current = token;
+            const t = setTimeout(() => {
+                (async () => {
+                    setVerifyError('');
+                    setVerifyLoading(true);
+                    try {
+                        const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+                        if (error) {
+                            setVerifyError('Code invalide ou expiré.');
+                        } else if (data?.session) {
+                            setStatus('success');
+                            try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
+                            setTimeout(() => { navigate('/compte'); }, 600);
+                        }
+                    } finally {
+                        setVerifyLoading(false);
                     }
-                } finally {
-                    setVerifyLoading(false);
-                }
-            })();
+                })();
+            }, 200);
+            return () => clearTimeout(t);
         }
-    }, [code, resendEmail, verifyLoading, navigate]);
+    }, [code, resendEmail, verifyLoading, verifyError, navigate]);
 
     const renderContent = () => {
         switch (status) {
