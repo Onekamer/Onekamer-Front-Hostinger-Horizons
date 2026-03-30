@@ -111,14 +111,8 @@ const Reauthenticate = () => {
     })();
   }, [remember, rememberDays, navigate]);
 
-  const verifyReauthToken = async (mail, tok, preferred = 'reauthenticate') => {
+  const verifyReauthToken = async (mail, tok) => {
     try {
-      if (preferred === 'reauthenticate') {
-        console.info('verifyOtp try type: reauthenticate');
-        const res = await supabase.auth.verifyOtp({ email: mail, token: tok, type: 'reauthenticate' });
-        if (res?.data?.user || res?.data?.session) return { ok: true, data: res.data };
-        return { ok: false, error: res?.error };
-      }
       console.info('verifyOtp try type: email');
       const res = await supabase.auth.verifyOtp({ email: mail, token: tok, type: 'email' });
       if (res?.data?.user || res?.data?.session) return { ok: true, data: res.data };
@@ -139,14 +133,14 @@ const Reauthenticate = () => {
       }
       if (!mounted) return;
       setEmail(mail);
-      // Si on traite un lien (token_hash/access_token), ne pas renvoyer reauth maintenant
+      // Si on traite un lien (token_hash/access_token), ne pas envoyer d'OTP maintenant
       const q = new URLSearchParams(window.location.search || '');
       if (q.get('token_hash') || q.get('access_token')) return;
       setStatus('loading');
-      const { error } = await supabase.auth.reauthenticate();
-      if (error) {
+      const e2 = await sendEmailOtp(mail);
+      if (e2) {
         setStatus('error');
-        setResendError(error.message || "Impossible d'envoyer le code.");
+        setResendError(e2.message || "Impossible d'envoyer le code.");
       } else {
         setStatus('awaiting');
         try {
@@ -173,7 +167,7 @@ const Reauthenticate = () => {
           setVerifyError('');
           setVerifyLoading(true);
           try {
-            const { ok, data, error } = await verifyReauthToken(email, token, 'reauthenticate');
+            const { ok, data, error } = await verifyReauthToken(email, token);
             if (!ok) {
               console.error('reauth verify error:', error);
               const msg = (error && (error.message || error.error_description)) || 'Code invalide ou expiré.';
@@ -209,7 +203,7 @@ const Reauthenticate = () => {
     }
     setVerifyLoading(true);
     try {
-      const { ok, data, error } = await verifyReauthToken(email, token, 'reauthenticate');
+      const { ok, data, error } = await verifyReauthToken(email, token);
       if (!ok) {
         console.error('reauth verify error (manual):', error);
         const msg = (error && (error.message || error.error_description)) || 'Code invalide ou expiré.';
@@ -238,9 +232,9 @@ const Reauthenticate = () => {
     if (cooldownLeft > 0) return;
     setResendLoading(true);
     try {
-      const { error } = await supabase.auth.reauthenticate();
-      if (error) {
-        setResendError(error.message || "Impossible de renvoyer le code.");
+      const { error: e2 } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/reauth` } });
+      if (e2) {
+        setResendError(e2.message || "Impossible de renvoyer le code.");
       } else {
         setResendDone(true);
         autoTriedTokenRef.current = '';
