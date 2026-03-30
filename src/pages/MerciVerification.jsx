@@ -76,6 +76,7 @@ const MerciVerification = () => {
         const sub = supabase.auth.onAuthStateChange((_event, session) => {
             if (session) {
                 setStatus('success');
+                try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                 setTimeout(() => { navigate('/compte'); }, 800);
             }
         });
@@ -86,6 +87,7 @@ const MerciVerification = () => {
                 const { data: s1 } = await supabase.auth.getSession();
                 if (s1?.session) {
                     setStatus('success');
+                    try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                     setTimeout(() => { navigate('/compte'); }, 800);
                     return;
                 }
@@ -109,6 +111,7 @@ const MerciVerification = () => {
                     const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
                     if (!error && data?.session) {
                         setStatus('success');
+                        try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                         try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
                         setTimeout(() => { navigate('/compte'); }, 300);
                         return;
@@ -121,6 +124,7 @@ const MerciVerification = () => {
                     const { data, error } = await supabase.auth.verifyOtp(payload);
                     if (!error && data?.session) {
                         setStatus('success');
+                        try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                         setTimeout(() => { navigate('/compte'); }, 800);
                         return;
                     }
@@ -130,6 +134,7 @@ const MerciVerification = () => {
                 const { data: userData } = await supabase.auth.getUser();
                 if (userData?.user) {
                     setStatus('success');
+                    try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                     setTimeout(() => { navigate('/compte'); }, 800);
                     return;
                 }
@@ -215,6 +220,7 @@ const MerciVerification = () => {
                 setVerifyError('Code invalide ou expiré.');
             } else if (data?.session) {
                 setStatus('success');
+                try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                 setTimeout(() => { navigate('/compte'); }, 600);
             }
         } finally {
@@ -235,6 +241,7 @@ const MerciVerification = () => {
                         setVerifyError('Code invalide ou expiré.');
                     } else if (data?.session) {
                         setStatus('success');
+                        try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                         setTimeout(() => { navigate('/compte'); }, 600);
                     }
                 } finally {

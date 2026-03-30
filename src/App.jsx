@@ -139,7 +139,7 @@ const AppLayout = () => {
 
 const AppContent = () => {
   const { showCharte, acceptCharte } = useCharteValidation();
-  const { session, loading } = useAuth();
+  const { session, loading, profile } = useAuth();
   const userId = session?.user?.id;
   const location = useLocation();
   const navigate = useNavigate();
@@ -295,19 +295,45 @@ const AppContent = () => {
     navigate('/auth', { replace: true });
   }, [loading, session, location.pathname, navigate, publicPaths]);
 
-  // Garde de réauthentification: pour certains chemins sensibles, exiger un OTP récent
+  // Garde de réauthentification: globale (toutes pages privées) si OTP périmé
+  useEffect(() => {
+    if (!session) return;
+    const path = location.pathname || '';
+    const allow = new Set([
+      ...publicPaths,
+      '/reauth',
+      '/auth',
+      '/reset-password',
+      '/merci-verification',
+      '/verification-sms',
+      '/paiement-success',
+      '/paiement-annule',
+      '/aide',
+    ]);
+    if (allow.has(path)) return;
+    try {
+      const raw = localStorage.getItem('ok_reauth_next_due_ts') || '0';
+      const ts = parseInt(raw, 10) || 0;
+      if (ts > Date.now()) return;
+    } catch (_) {}
+    navigate('/reauth');
+  }, [session, location.pathname, navigate, publicPaths]);
+
+  // Garde de réauthentification: chemins sensibles, admins uniquement
   useEffect(() => {
     if (!session) return;
     const path = location.pathname || '';
     if (path === '/reauth') return;
     if (!isSensitivePath(path)) return;
+    const isAdmin = !!profile?.is_admin;
+    if (!isAdmin) return;
     try {
       const raw = localStorage.getItem('ok_reauth_next_due_ts') || '0';
       const ts = parseInt(raw, 10) || 0;
       if (ts > Date.now()) return; // encore valide
     } catch (_) {}
     navigate('/reauth');
-  }, [session, location.pathname, navigate]);
+  }, [session, location.pathname, navigate, profile?.is_admin]);
 
   return (
     <>
