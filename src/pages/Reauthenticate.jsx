@@ -25,14 +25,22 @@ const Reauthenticate = () => {
   const autoTriedTokenRef = useRef('');
   const [flow, setFlow] = useState('reauth');
 
-  const verifyReauthToken = async (mail, tok) => {
+  const sendEmailOtp = async (mail) => {
+    const { error: e2 } = await supabase.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: false } });
+    return e2 || null;
+  };
+
+  const verifyReauthToken = async (mail, tok, preferred = 'reauthenticate') => {
     try {
-      const primary = await supabase.auth.verifyOtp({ email: mail, token: tok, type: 'reauthenticate' });
+      const firstType = preferred === 'email' ? 'email' : 'reauthenticate';
+      const secondType = preferred === 'email' ? 'reauthenticate' : 'email';
+      console.info('verifyOtp try type:', firstType);
+      const primary = await supabase.auth.verifyOtp({ email: mail, token: tok, type: firstType });
       if (primary?.data?.user || primary?.data?.session) return { ok: true, data: primary.data };
       const err = primary?.error;
-      if (err && (err.status === 400 || /invalid|expired|reauth/i.test(err.message || ''))) {
-        // Fallback possible suivant versions: tenter type 'email'
-        const alt = await supabase.auth.verifyOtp({ email: mail, token: tok, type: 'email' });
+      if (err && (err.status === 400 || /invalid|expired/i.test(err.message || ''))) {
+        console.info('verifyOtp fallback type:', secondType);
+        const alt = await supabase.auth.verifyOtp({ email: mail, token: tok, type: secondType });
         if (alt?.data?.user || alt?.data?.session) return { ok: true, data: alt.data };
         return { ok: false, error: alt?.error || err };
       }
@@ -99,10 +107,36 @@ const Reauthenticate = () => {
           setVerifyError('');
           setVerifyLoading(true);
           try {
-            const { ok, data, error } = await verifyReauthToken(email, token);
+            const { ok, data, error } = await verifyReauthToken(email, token, flow === 'email' ? 'email' : 'reauthenticate');
             if (!ok) {
               console.error('reauth verify error:', error);
-              setVerifyError((error && (error.message || error.error_description)) || 'Code invalide ou expiré.');
+              const msg = (error && (error.message || error.error_description)) || 'Code invalide ou expiré.';
+              setVerifyError(msg);
+              // Si le code reauth n'est pas reconnu, on bascule en flow 'email' et on renvoie automatiquement un nouveau code
+              try {
+                if (/invalid|expired/i.test(String(msg))) {
+                  console.warn('Switching to email OTP flow after reauth failure, sending fresh code...');
+                  setFlow('email');
+                  autoTriedTokenRef.current = '';
+                  setCode('');
+                  setCooldownLeft(0);
+                  const e2 = await sendEmailOtp(email);
+                  if (e2) {
+                    console.error('send email otp after reauth fail error:', e2);
+                    setResendError(e2.message || "Impossible d'envoyer le code.");
+                  } else {
+                    console.warn('Email OTP sent after reauth failure fallback');
+                    setResendDone(true);
+                    let left = 45;
+                    setCooldownLeft(left);
+                    const id = setInterval(() => {
+                      left -= 1;
+                      setCooldownLeft((v) => (v > 0 ? v - 1 : 0));
+                      if (left <= 0) clearInterval(id);
+                    }, 1000);
+                  }
+                }
+              } catch (_) {}
             } else if (data?.user || data?.session) {
               try {
                 if (remember) {
@@ -134,10 +168,33 @@ const Reauthenticate = () => {
     }
     setVerifyLoading(true);
     try {
-      const { ok, data, error } = await verifyReauthToken(email, token);
+      const { ok, data, error } = await verifyReauthToken(email, token, flow === 'email' ? 'email' : 'reauthenticate');
       if (!ok) {
         console.error('reauth verify error (manual):', error);
-        setVerifyError((error && (error.message || error.error_description)) || 'Code invalide ou expiré.');
+        const msg = (error && (error.message || error.error_description)) || 'Code invalide ou expiré.';
+        setVerifyError(msg);
+        if (/invalid|expired/i.test(String(msg))) {
+          console.warn('Switching to email OTP flow after manual reauth failure, sending fresh code...');
+          setFlow('email');
+          autoTriedTokenRef.current = '';
+          setCode('');
+          setCooldownLeft(0);
+          const e2 = await sendEmailOtp(email);
+          if (e2) {
+            console.error('send email otp after manual reauth fail error:', e2);
+            setResendError(e2.message || "Impossible d'envoyer le code.");
+          } else {
+            console.warn('Email OTP sent after manual reauth failure fallback');
+            setResendDone(true);
+            let left = 45;
+            setCooldownLeft(left);
+            const id = setInterval(() => {
+              left -= 1;
+              setCooldownLeft((v) => (v > 0 ? v - 1 : 0));
+              if (left <= 0) clearInterval(id);
+            }, 1000);
+          }
+        }
       } else if (data?.user || data?.session) {
         try {
           if (remember) {
