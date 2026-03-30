@@ -29,6 +29,7 @@ const Reauthenticate = () => {
   const sendEmailOtp = async (mail) => {
     const redirectTo = `${window.location.origin}/reauth`;
     const { error: e2 } = await supabase.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: false, emailRedirectTo: redirectTo } });
+    try { window.localStorage.setItem('ok_reauth_last_send_ts', String(Date.now())); } catch (_) {}
     return e2 || null;
   };
 
@@ -73,15 +74,11 @@ const Reauthenticate = () => {
           if (error) throw error;
           if (data?.user || data?.session) {
             try {
-              if (remember) {
-                const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
-                window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
-              } else {
-                window.localStorage.removeItem('ok_reauth_next_due_ts');
-              }
+              const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+              window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
             } catch (_) {}
             setStatus('success');
-            setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 400);
+            setTimeout(() => { try { navigate('/compte', { replace: true }); } catch (_) { navigate('/compte'); } }, 400);
             return;
           }
         }
@@ -90,15 +87,11 @@ const Reauthenticate = () => {
           if (!ok) throw error || new Error('Invalid or expired link');
           if (data?.user || data?.session) {
             try {
-              if (remember) {
-                const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
-                window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
-              } else {
-                window.localStorage.removeItem('ok_reauth_next_due_ts');
-              }
+              const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+              window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
             } catch (_) {}
             setStatus('success');
-            setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 400);
+            setTimeout(() => { try { navigate('/compte', { replace: true }); } catch (_) { navigate('/compte'); } }, 400);
             return;
           }
         }
@@ -139,6 +132,26 @@ const Reauthenticate = () => {
       // Si on traite un lien (token_hash/access_token), ne pas envoyer d'OTP maintenant
       const q = new URLSearchParams(window.location.search || '');
       if (q.get('token_hash') || q.get('access_token')) return;
+      // Anti-spam: éviter d'appeler signInWithOtp si un envoi a eu lieu il y a < 12s
+      let lastSend = 0;
+      try { lastSend = parseInt(window.localStorage.getItem('ok_reauth_last_send_ts') || '0', 10) || 0; } catch (_) {}
+      const since = Date.now() - lastSend;
+      const mustThrottle = since >= 0 && since < 12000; // 12s de marge
+      if (mustThrottle) {
+        setStatus('awaiting');
+        try {
+          // Laisser le code précédent fonctionner sans renvoyer immédiatement
+          let left = 45;
+          setCooldownLeft(left);
+          const id = setInterval(() => {
+            left -= 1;
+            setCooldownLeft((v) => (v > 0 ? v - 1 : 0));
+            if (left <= 0) clearInterval(id);
+          }, 1000);
+        } catch (_) {}
+        return;
+      }
+
       setStatus('loading');
       const e2 = await sendEmailOtp(mail);
       if (e2) {
@@ -179,15 +192,11 @@ const Reauthenticate = () => {
               setVerifyError(msg);
             } else if (data?.user || data?.session) {
               try {
-                if (remember) {
-                  const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
-                  window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
-                } else {
-                  window.localStorage.removeItem('ok_reauth_next_due_ts');
-                }
+                const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+                window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
               } catch (_) {}
               setStatus('success');
-              setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 600);
+              setTimeout(() => { try { navigate('/compte', { replace: true }); } catch (_) { navigate('/compte'); } }, 600);
             }
           } finally {
             setVerifyLoading(false);
@@ -216,15 +225,11 @@ const Reauthenticate = () => {
         setVerifyError(msg);
       } else if (data?.user || data?.session) {
         try {
-          if (remember) {
-            const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
-            window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
-          } else {
-            window.localStorage.removeItem('ok_reauth_next_due_ts');
-          }
+          const nextDue = Date.now() + rememberDays * 24 * 60 * 60 * 1000;
+          window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
         } catch (_) {}
         setStatus('success');
-        setTimeout(() => { try { navigate(-1); } catch (_) { navigate('/compte'); } }, 600);
+        setTimeout(() => { try { navigate('/compte', { replace: true }); } catch (_) { navigate('/compte'); } }, 600);
       }
     } finally {
       setVerifyLoading(false);
@@ -238,6 +243,14 @@ const Reauthenticate = () => {
     if (cooldownLeft > 0) return;
     setResendLoading(true);
     try {
+      // Respecter le throttle serveur (10s minimum)
+      let lastSend = 0;
+      try { lastSend = parseInt(window.localStorage.getItem('ok_reauth_last_send_ts') || '0', 10) || 0; } catch (_) {}
+      const since = Date.now() - lastSend;
+      if (since >= 0 && since < 12000) {
+        setResendError('Patientez quelques secondes avant de demander un nouvel envoi.');
+        return;
+      }
       const { error: e2 } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/reauth` } });
       if (e2) {
         setResendError(e2.message || "Impossible de renvoyer le code.");
@@ -246,6 +259,7 @@ const Reauthenticate = () => {
         autoTriedTokenRef.current = '';
         setCode('');
         try {
+          window.localStorage.setItem('ok_reauth_last_send_ts', String(Date.now()));
           let left = 45;
           setCooldownLeft(left);
           const id = setInterval(() => {

@@ -312,8 +312,11 @@ const AppContent = () => {
     ]);
     if (allow.has(path)) return;
     try {
-      const raw = localStorage.getItem('ok_reauth_next_due_ts') || '0';
-      const ts = parseInt(raw, 10) || 0;
+      let ts = 0;
+      try {
+        const raw = localStorage.getItem('ok_reauth_next_due_ts') || sessionStorage.getItem('ok_reauth_next_due_ts') || '0';
+        ts = parseInt(raw, 10) || 0;
+      } catch (_) {}
       if (ts > Date.now()) return;
     } catch (_) {}
     navigate('/reauth');
@@ -328,8 +331,11 @@ const AppContent = () => {
     const isAdmin = !!profile?.is_admin;
     if (!isAdmin) return;
     try {
-      const raw = localStorage.getItem('ok_reauth_next_due_ts') || '0';
-      const ts = parseInt(raw, 10) || 0;
+      let ts = 0;
+      try {
+        const raw = localStorage.getItem('ok_reauth_next_due_ts') || sessionStorage.getItem('ok_reauth_next_due_ts') || '0';
+        ts = parseInt(raw, 10) || 0;
+      } catch (_) {}
       if (ts > Date.now()) return; // encore valide
     } catch (_) {}
     navigate('/reauth');
