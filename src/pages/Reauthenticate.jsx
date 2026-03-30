@@ -23,6 +23,24 @@ const Reauthenticate = () => {
   const [rememberDays] = useState(30); // durée fixe 30 jours
   const navigate = useNavigate();
   const autoTriedTokenRef = useRef('');
+  const [flow, setFlow] = useState('reauth');
+
+  const verifyReauthToken = async (mail, tok) => {
+    try {
+      const primary = await supabase.auth.verifyOtp({ email: mail, token: tok, type: 'reauthenticate' });
+      if (primary?.data?.user || primary?.data?.session) return { ok: true, data: primary.data };
+      const err = primary?.error;
+      if (err && (err.status === 400 || /invalid|expired|reauth/i.test(err.message || ''))) {
+        // Fallback possible suivant versions: tenter type 'email'
+        const alt = await supabase.auth.verifyOtp({ email: mail, token: tok, type: 'email' });
+        if (alt?.data?.user || alt?.data?.session) return { ok: true, data: alt.data };
+        return { ok: false, error: alt?.error || err };
+      }
+      return { ok: false, error: err };
+    } catch (e) {
+      return { ok: false, error: e };
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -38,8 +56,23 @@ const Reauthenticate = () => {
       setStatus('loading');
       const { error } = await supabase.auth.reauthenticate();
       if (error) {
-        setStatus('error');
-        setResendError(error.message || "Impossible d'envoyer le code.");
+        setFlow('email');
+        const { error: e2 } = await supabase.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: false } });
+        if (e2) {
+          setStatus('error');
+          setResendError(e2.message || "Impossible d'envoyer le code.");
+        } else {
+          setStatus('awaiting');
+          try {
+            let left = 45;
+            setCooldownLeft(left);
+            const id = setInterval(() => {
+              left -= 1;
+              setCooldownLeft((v) => (v > 0 ? v - 1 : 0));
+              if (left <= 0) clearInterval(id);
+            }, 1000);
+          } catch (_) {}
+        }
       } else {
         setStatus('awaiting');
         try {
@@ -66,9 +99,10 @@ const Reauthenticate = () => {
           setVerifyError('');
           setVerifyLoading(true);
           try {
-            const { data, error } = await supabase.auth.verifyOtp({ token, type: 'reauthenticate' });
-            if (error) {
-              setVerifyError('Code invalide ou expiré.');
+            const { ok, data, error } = await verifyReauthToken(email, token);
+            if (!ok) {
+              console.error('reauth verify error:', error);
+              setVerifyError((error && (error.message || error.error_description)) || 'Code invalide ou expiré.');
             } else if (data?.user || data?.session) {
               try {
                 if (remember) {
@@ -100,9 +134,10 @@ const Reauthenticate = () => {
     }
     setVerifyLoading(true);
     try {
-      const { data, error } = await supabase.auth.verifyOtp({ token, type: 'reauthenticate' });
-      if (error) {
-        setVerifyError('Code invalide ou expiré.');
+      const { ok, data, error } = await verifyReauthToken(email, token);
+      if (!ok) {
+        console.error('reauth verify error (manual):', error);
+        setVerifyError((error && (error.message || error.error_description)) || 'Code invalide ou expiré.');
       } else if (data?.user || data?.session) {
         try {
           if (remember) {
@@ -127,7 +162,7 @@ const Reauthenticate = () => {
     if (cooldownLeft > 0) return;
     setResendLoading(true);
     try {
-      const { error } = await supabase.auth.reauthenticate();
+      const { error } = flow === 'reauth' ? await supabase.auth.reauthenticate() : await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
       if (error) {
         setResendError(error.message || "Impossible de renvoyer le code.");
       } else {
