@@ -354,6 +354,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
       const [mentionQuery, setMentionQuery] = useState('');
       const [showSuggestions, setShowSuggestions] = useState(false);
       const [suggestions, setSuggestions] = useState([]);
+      const [tagQuery, setTagQuery] = useState('');
+      const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+      const [tagSuggestions, setTagSuggestions] = useState([]);
       const [sending, setSending] = useState(false);
       const [joinRequestStatus, setJoinRequestStatus] = useState('idle');
       const [tabValue, setTabValue] = useState('messages');
@@ -927,9 +930,19 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           if (m) {
             setMentionQuery(m[1]);
             setShowSuggestions(true);
+            setShowTagSuggestions(false);
           } else {
             setShowSuggestions(false);
+            const h = before.match(/(^|\s)#([^#\s\n]{1,30})$/);
+            if (h) {
+              setTagQuery(h[2]);
+              setShowTagSuggestions(true);
+            } else {
+              setShowTagSuggestions(false);
+            }
           }
+        } else {
+          setShowTagSuggestions(false);
         }
       };
 
@@ -938,6 +951,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           if (showSuggestions && suggestions.length > 0) {
             e.preventDefault();
             handleMentionSelect(suggestions[0].username);
+          } else if (showTagSuggestions && tagSuggestions.length > 0) {
+            e.preventDefault();
+            handleTagSelect(tagSuggestions[0]);
           } else {
             e.preventDefault();
             await handleSendMessage();
@@ -945,6 +961,38 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         } else if (e.key === ' ' || e.key === ',') {
           await processAndColorizeMention(e);
         }
+      };
+
+      const handleTagSelect = (item) => {
+        setShowTagSuggestions(false);
+        setTagQuery('');
+        const div = editableDivRef.current;
+        if (!div) return;
+        div.focus();
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        const textContent = node.textContent || '';
+        const endOffset = range.startOffset;
+        const before = textContent.substring(0, endOffset);
+        const re = /(^|\s)#([^#\s\n]{1,30})$/;
+        const m = before.match(re);
+        const token = `[[ref:${item.type}:${item.id}]]`;
+        const insert = m ? `${m[1]}${token} ` : ` ${token} `;
+        if (m) {
+          const startIndex = before.lastIndexOf(m[0]);
+          range.setStart(node, Math.max(0, startIndex));
+          range.setEnd(node, endOffset);
+          range.deleteContents();
+        }
+        const textNode = document.createTextNode(insert);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        setNewMessage(div.innerText);
       };
 
       const processAndColorizeMention = async (e) => {
@@ -981,6 +1029,29 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         const t = setTimeout(doFetch, 300);
         return () => clearTimeout(t);
       }, [mentionQuery, showSuggestions]);
+
+      useEffect(() => {
+        const t = setTimeout(async () => {
+          if (!showTagSuggestions || !tagQuery) return;
+          try {
+            const [ev, an, pt, gr, fd] = await Promise.all([
+              supabase.from('evenements').select('id, title').ilike('title', `%${tagQuery}%`).limit(3),
+              supabase.from('annonces').select('id, titre').ilike('titre', `%${tagQuery}%`).limit(3),
+              supabase.from('partenaires').select('id, name').ilike('name', `%${tagQuery}%`).limit(3),
+              supabase.from('groupes').select('id, nom').ilike('nom', `%${tagQuery}%`).limit(3),
+              supabase.from('faits_divers').select('id, title').ilike('title', `%${tagQuery}%`).limit(3),
+            ]);
+            const out = [];
+            (ev.data || []).forEach((r) => out.push({ id: r.id, label: r.title, type: 'evenement', badge: 'Événement' }));
+            (an.data || []).forEach((r) => out.push({ id: r.id, label: r.titre, type: 'annonce', badge: 'Annonce' }));
+            (pt.data || []).forEach((r) => out.push({ id: r.id, label: r.name, type: 'partenaire', badge: 'Boutique' }));
+            (gr.data || []).forEach((r) => out.push({ id: r.id, label: r.nom, type: 'groupe', badge: 'Groupe' }));
+            (fd.data || []).forEach((r) => out.push({ id: r.id, label: r.title, type: 'faits_divers', badge: 'Actualité' }));
+            setTagSuggestions(out.slice(0, 12));
+          } catch (_) {}
+        }, 200);
+        return () => clearTimeout(t);
+      }, [tagQuery, showTagSuggestions]);
 
       const handleMentionSelect = (username) => {
         setShowSuggestions(false);
@@ -1029,6 +1100,24 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                   <AvatarFallback>{getInitials(s.username)}</AvatarFallback>
                 </Avatar>
                 <span>{s.username}</span>
+              </div>
+            ))}
+          </div>
+        ) : null
+      );
+
+      const TagSuggestions = () => (
+        showTagSuggestions && tagSuggestions.length > 0 ? (
+          <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border rounded-md shadow z-10 max-h-48 overflow-y-auto">
+            {tagSuggestions.map((it) => (
+              <div
+                key={`${it.type}-${it.id}`}
+                className="flex items-center justify-between gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer"
+                onMouseDown={(e) => { e.preventDefault(); handleTagSelect(it); }}
+                onTouchStart={(e) => { e.preventDefault(); handleTagSelect(it); }}
+              >
+                <span className="text-sm truncate">{it.label}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A]">#{it.badge}</span>
               </div>
             ))}
           </div>
@@ -1309,6 +1398,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
                               style={{ minHeight: '2.25rem' }}
                             />
                             <MentionSuggestions />
+                            <TagSuggestions />
                           </div>
                         )}
                         <Button onClick={handleSendMessage} size="icon" className="bg-[#2BA84A] rounded-full shrink-0" disabled={sending || (!((editableDivRef.current?.innerText || newMessage || '').trim()) && !audioBlob && !recorderPromiseRef.current && !mediaFile)}>

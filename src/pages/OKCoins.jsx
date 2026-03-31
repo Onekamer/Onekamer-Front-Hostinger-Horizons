@@ -141,7 +141,10 @@ const OKCoins = () => {
     } else {
       setPacks(packsRes.data);
       setLevels(levelsRes.data);
-      setTopDonors(donors);
+      const filtered = Array.isArray(donors)
+        ? donors.filter((d) => (d?.profiles?.okc_show_in_top_donors !== false))
+        : [];
+      setTopDonors(filtered);
     }
     setLoading(false);
   }, []);
