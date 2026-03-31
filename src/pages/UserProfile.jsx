@@ -755,7 +755,35 @@ const UserProfile = () => {
                             onClick={() => navigate(`/echange?postId=${encodeURIComponent(p.id)}`)}
                           >
                             <div className="text-sm text-gray-500">{new Date(p.created_at).toLocaleString('fr-FR')}</div>
-                            <div className="text-gray-800 whitespace-pre-wrap">{p.content || (p.video_url ? '🎬 Vidéo' : (p.image_url ? '🖼️ Image' : '(sans contenu)'))}</div>
+                            <div className="text-gray-800 whitespace-pre-wrap">
+                              {p.content
+                                ? p.content
+                                : (
+                                  p.image_url ? (
+                                    <img
+                                      src={p.image_url}
+                                      alt="aperçu image"
+                                      className="mt-1 max-w-[160px] max-h-36 object-contain rounded-md border"
+                                      loading="lazy"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    p.video_url ? (
+                                      <video
+                                        src={p.video_url}
+                                        className="mt-1 max-w-[200px] max-h-36 object-contain rounded-md border"
+                                        preload="metadata"
+                                        playsInline
+                                        controls
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    ) : (
+                                      '(sans contenu)'
+                                    )
+                                  )
+                                )
+                              }
+                            </div>
                           </div>
                         ))
                       )}
@@ -790,10 +818,38 @@ const UserProfile = () => {
                             <div className="text-sm text-gray-500">{new Date(c.created_at).toLocaleString('fr-FR')}</div>
                             <div className="text-gray-800 whitespace-pre-wrap">{
                               c.content || (
-                                (String(c.media_type||'').toLowerCase().startsWith('video') || /\.(mp4|webm|mov)(\?|$)/i.test(String(c.media_url||''))) ? '🎬 Vidéo' :
-                                (String(c.media_type||'').toLowerCase().startsWith('audio') || /\.(m4a|mp3|ogg|webm)(\?|$)/i.test(String(c.media_url||'')) || !!c.audio_url) ? '🎧 Audio' :
-                                (String(c.media_type||'').toLowerCase().startsWith('image') || /\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/i.test(String(c.media_url||''))) ? '🖼️ Image' :
-                                ((String(c.content_type||'').toLowerCase()==='echange' && !c.parent_comment_id) ? '🎧 Message audio' : '(sans contenu)')
+                                (String(c.media_type||'').toLowerCase().startsWith('video') || /\.(mp4|webm|mov)(\?|$)/i.test(String(c.media_url||''))) ? (
+                                  <video
+                                    src={String(c.media_url||'')}
+                                    className="mt-1 max-w-[200px] max-h-36 object-contain rounded-md border"
+                                    preload="metadata"
+                                    playsInline
+                                    controls
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                ) : (
+                                  (String(c.media_type||'').toLowerCase().startsWith('audio') || /\.(m4a|mp3|ogg|webm)(\?|$)/i.test(String(c.media_url||'')) || !!c.audio_url) ? (
+                                    <audio
+                                      src={c.audio_url || String(c.media_url||'')}
+                                      className="mt-1 w-full max-w-[240px]"
+                                      preload="metadata"
+                                      controls
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    (String(c.media_type||'').toLowerCase().startsWith('image') || /\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/i.test(String(c.media_url||''))) ? (
+                                      <img
+                                        src={String(c.media_url||'')}
+                                        alt="aperçu image"
+                                        className="mt-1 max-w-[160px] max-h-36 object-contain rounded-md border"
+                                        loading="lazy"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    ) : (
+                                      (String(c.content_type||'').toLowerCase()==='echange' && !c.parent_comment_id) ? '🎧 Message audio' : '(sans contenu)'
+                                    )
+                                  )
+                                )
                               )
                             }</div>
                           </div>
