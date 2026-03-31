@@ -145,7 +145,9 @@ const AppContent = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const publicPaths = useMemo(() => ['/', '/invite', '/cgu', '/rgpd', '/mentions-legales'], []);
-  const isPublic = !session && publicPaths.includes(location.pathname);
+  let forcePublicLanding = false;
+  try { forcePublicLanding = (sessionStorage.getItem('ok_show_public_after_verif') === '1') && (location.pathname === '/'); } catch (_) {}
+  const isPublic = (forcePublicLanding && location.pathname === '/') || (!session && publicPaths.includes(location.pathname));
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const isSensitivePath = (p) => {
     if (!p) return false;
@@ -216,6 +218,16 @@ const AppContent = () => {
     navigator.serviceWorker.addEventListener('message', handler);
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, [navigate, toast]);
+
+  // Nettoyer le flag dès que l'on quitte la Landing
+  useEffect(() => {
+    let hasFlag = false;
+    try { hasFlag = sessionStorage.getItem('ok_show_public_after_verif') === '1'; } catch (_) {}
+    if (!hasFlag) return;
+    if (location.pathname !== '/') {
+      try { sessionStorage.removeItem('ok_show_public_after_verif'); } catch (_) {}
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!session?.access_token) return;

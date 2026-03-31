@@ -53,7 +53,7 @@ const VerificationSMS = () => {
             setVerificationStatus('success');
             toast({ title: 'Succès', description: '✅ Téléphone vérifié !' });
             setTimeout(() => {
-                navigate('/compte');
+                navigate('/');
             }, 2000);
         }
     };

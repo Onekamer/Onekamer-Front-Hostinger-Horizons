@@ -98,6 +98,7 @@ const MerciVerification = () => {
                 setStatus('success');
                 try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                 try { window.sessionStorage.setItem('ok_show_welcome_next', '1'); } catch (_) {}
+                try { window.sessionStorage.setItem('ok_show_public_after_verif', '1'); } catch (_) {}
                 setTimeout(() => { navigate('/'); }, 800);
             }
         });
@@ -109,6 +110,7 @@ const MerciVerification = () => {
                 if (s1?.session) {
                     setStatus('success');
                     try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
+                    try { window.sessionStorage.setItem('ok_show_public_after_verif', '1'); } catch (_) {}
                     setTimeout(() => { navigate('/'); }, 800);
                     return;
                 }
@@ -135,6 +137,7 @@ const MerciVerification = () => {
                         try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                         try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
                         try { window.sessionStorage.setItem('ok_show_welcome_next', '1'); } catch (_) {}
+                        try { window.sessionStorage.setItem('ok_show_public_after_verif', '1'); } catch (_) {}
                         setTimeout(() => { navigate('/'); }, 300);
                         return;
                     }
@@ -151,6 +154,7 @@ const MerciVerification = () => {
                         setStatus('success');
                         try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                         try { window.sessionStorage.setItem('ok_show_welcome_next', '1'); } catch (_) {}
+                        try { window.sessionStorage.setItem('ok_show_public_after_verif', '1'); } catch (_) {}
                         setTimeout(() => { navigate('/'); }, 800);
                         return;
                     }
@@ -162,6 +166,7 @@ const MerciVerification = () => {
                     setStatus('success');
                     try { window.localStorage.setItem('ok_reauth_next_due_ts', String(Date.now() + 30 * 24 * 60 * 60 * 1000)); } catch (_) {}
                     try { window.sessionStorage.setItem('ok_show_welcome_next', '1'); } catch (_) {}
+                    try { window.sessionStorage.setItem('ok_show_public_after_verif', '1'); } catch (_) {}
                     setTimeout(() => { navigate('/'); }, 800);
                     return;
                 }
