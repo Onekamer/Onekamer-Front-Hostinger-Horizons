@@ -10,6 +10,7 @@ const Landing = () => {
   const navigate = useNavigate()
   const { session } = useAuth()
   const isIOS = Capacitor.getPlatform() === 'ios'
+  const [isIOSSafari, setIsIOSSafari] = useState(false)
   const [vipIosPrice, setVipIosPrice] = useState(null)
   const [iapVipReady, setIapVipReady] = useState(false)
   const [iapVipChecked, setIapVipChecked] = useState(false)
@@ -56,6 +57,15 @@ const Landing = () => {
   }, [isIOS])
 
   useEffect(() => {
+    try {
+      const ua = navigator.userAgent || ''
+      const isiOSUA = /iP(hone|od|ad)/.test(ua)
+      const isSafariUA = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)
+      setIsIOSSafari(isiOSUA && isSafariUA)
+    } catch (_) {}
+  }, [])
+
+  useEffect(() => {
     let mounted = true
     const preloadStd = async () => {
       try {
@@ -100,7 +110,7 @@ const Landing = () => {
         <meta property="og:description" content="Actualités, rencontres, événements et opportunités de la diaspora camerounaise." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://onekamer.co" />
-        <meta name="apple-itunes-app" content="app-id=6757192496" />
+        <meta name="apple-itunes-app" content="app-id=6757192496, app-argument=https://onekamer.co/echange" />
       </Helmet>
 
       {/* Hero */}
@@ -128,6 +138,14 @@ const Landing = () => {
             >
               Télécharger sur l'App Store
             </a>
+            {isIOSSafari ? (
+              <a
+                href="https://onekamer.co/echange"
+                className="w-full sm:w-auto px-6 py-3 rounded-md bg-[#2BA84A] text-white font-semibold hover:bg-[#24903f] text-center"
+              >
+                Ouvrir l'app
+              </a>
+            ) : null}
           </div>
         </div>
         </div>
