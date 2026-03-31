@@ -21,9 +21,7 @@
           "/market/*",
           "/partenaires",
           "/partenaires/*",
-          "/ok-coins",
-          "/pay/okcoins/*",
-          "/pay/market/*"
+          "/ok-coins"
         ]
       }
     ]
