@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "25P5V8U498.com.onekamer.app",
+        "paths": [
+          "/invite",
+          "/invite/*",
+          "/echange",
+          "/echange/*",
+          "/evenements",
+          "/evenements/*",
+          "/annonces",
+          "/annonces/*",
+          "/faits-divers",
+          "/faits-divers/*"
+        ]
+      }
+    ]
+  }
+}
