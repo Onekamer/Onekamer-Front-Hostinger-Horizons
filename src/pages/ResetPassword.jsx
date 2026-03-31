@@ -11,45 +11,33 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
 const ResetPassword = () => {
+    const [email, setEmail] = useState('');
+    const [code, setCode] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [hasSession, setHasSession] = useState(true);
-    const [email, setEmail] = useState('');
 
     const navigate = useNavigate();
     const { toast } = useToast();
 
     useEffect(() => {
-        const init = async () => {
-            try {
-                const hash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : '';
-                const search = window.location.search?.startsWith('?') ? window.location.search.slice(1) : '';
-                const params = new URLSearchParams(hash || search);
-                const access_token = params.get('access_token');
-                const refresh_token = params.get('refresh_token');
-                if (access_token && refresh_token) {
-                    const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
-                    if (!error && data?.session) {
-                        setHasSession(true);
-                        try { window.history.replaceState({}, document.title, window.location.pathname); } catch (_) {}
-                        return;
-                    }
-                }
-                const { data } = await supabase.auth.getSession();
-                setHasSession(!!data?.session);
-            } catch (_) {
-                setHasSession(false);
-            }
-        };
-        init();
+        try {
+            const search = window.location.search?.startsWith('?') ? window.location.search.slice(1) : '';
+            const params = new URLSearchParams(search);
+            const em = params.get('email');
+            if (em) setEmail(em);
+        } catch {}
     }, []);
 
-    const handleResetPassword = async (e) => {
+    const handleVerifyAndReset = async (e) => {
         e.preventDefault();
-        if (!hasSession) {
-            setError("Lien expiré. Veuillez renvoyer l'e-mail de réinitialisation ci-dessous.");
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setError('Veuillez saisir un e-mail valide.');
+            return;
+        }
+        if (!code || code.length < 4) {
+            setError('Veuillez saisir le code reçu par e-mail.');
             return;
         }
         if (password !== confirmPassword) {
@@ -63,15 +51,21 @@ const ResetPassword = () => {
         setError('');
         setLoading(true);
         try {
-            const { error: updateError } = await supabase.auth.updateUser({ password });
-            if (updateError) {
-                toast({ title: 'Erreur', description: updateError.message, variant: 'destructive' });
+            const { data, error: vErr } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' });
+            if (vErr || !(data?.session || data?.user)) {
+                toast({ title: 'Échec de vérification', description: vErr?.message || 'Code invalide ou expiré.', variant: 'destructive' });
+                setLoading(false);
+                return;
+            }
+            const { error: uErr } = await supabase.auth.updateUser({ password });
+            if (uErr) {
+                toast({ title: 'Erreur', description: uErr.message, variant: 'destructive' });
             } else {
                 toast({ title: 'Succès', description: 'Votre mot de passe a été mis à jour avec succès ✅' });
                 navigate('/compte');
             }
         } catch (err) {
-            toast({ title: 'Erreur', description: err?.message || "Impossible de mettre à jour le mot de passe.", variant: 'destructive' });
+            toast({ title: 'Erreur', description: err?.message || 'Impossible de mettre à jour le mot de passe.', variant: 'destructive' });
         } finally {
             setLoading(false);
         }
@@ -86,12 +80,11 @@ const ResetPassword = () => {
         setError('');
         setLoading(true);
         try {
-            const redirectTo = `${window.location.origin}/reset-password`;
-            const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+            const { error: err } = await supabase.auth.resetPasswordForEmail(email);
             if (err) {
                 toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
             } else {
-                toast({ title: 'E-mail envoyé', description: 'Vérifiez votre boîte mail pour continuer.' });
+                toast({ title: 'Code envoyé', description: "Un code de réinitialisation a été envoyé à votre e-mail." });
             }
         } finally {
             setLoading(false);
@@ -107,43 +100,41 @@ const ResetPassword = () => {
                 <Card className="w-full max-w-md">
                     <CardHeader>
                         <CardTitle>Réinitialiser le mot de passe</CardTitle>
-                        <CardDescription>
-                            {hasSession ? 'Entrez votre nouveau mot de passe.' : 'Votre lien est invalide ou expiré. Renvoyez un e-mail pour continuer.'}
-                        </CardDescription>
+                        <CardDescription>Entrez l’e-mail, le code reçu et votre nouveau mot de passe.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {hasSession ? (
-                            <form onSubmit={handleResetPassword} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="new-password">Nouveau mot de passe</Label>
-                                    <Input id="new-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
-                                    <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                                </div>
-                                {error && <p className="text-sm text-red-500">{error}</p>}
-                                <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Mettre à jour le mot de passe
-                                </Button>
-                            </form>
-                        ) : (
-                            <form onSubmit={handleResend} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Votre e-mail</Label>
-                                    <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" />
-                                </div>
-                                {error && <p className="text-sm text-red-500">{error}</p>}
-                                <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Renvoyer l’e-mail de réinitialisation
-                                </Button>
-                                <Button type="button" variant="ghost" className="w-full" onClick={() => navigate('/auth')}>
-                                    Revenir à la connexion
-                                </Button>
-                            </form>
-                        )}
+                        <form onSubmit={handleVerifyAndReset} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Votre e-mail</Label>
+                                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="code">Code</Label>
+                                <Input id="code" type="text" required value={code} onChange={(e) => setCode(e.target.value.trim())} placeholder="123456" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                                <Input id="new-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                                <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                            </div>
+                            {error && <p className="text-sm text-red-500">{error}</p>}
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Valider
+                            </Button>
+                        </form>
+                        <div className="mt-4 space-y-2">
+                            <Button type="button" className="w-full" onClick={handleResend} disabled={loading}>
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Renvoyer le code
+                            </Button>
+                            <Button type="button" variant="ghost" className="w-full" onClick={() => navigate('/auth')}>
+                                Revenir à la connexion
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

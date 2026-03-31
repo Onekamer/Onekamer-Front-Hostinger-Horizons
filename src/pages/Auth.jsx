@@ -17,19 +17,18 @@ import React, { useState } from 'react';
         const [email, setEmail] = useState('');
         const [loading, setLoading] = useState(false);
         const { toast } = useToast();
+        const navigate = useNavigate();
 
         const handlePasswordReset = async (e) => {
             e.preventDefault();
             setLoading(true);
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/reset-password`,
-            });
+            const { error } = await supabase.auth.resetPasswordForEmail(email);
             setLoading(false);
             if (error) {
                 toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
             } else {
-                toast({ title: 'Succès', description: '✅ Un lien de réinitialisation a été envoyé à votre adresse email.' });
-                onBack();
+                toast({ title: 'Succès', description: '✅ Un code de réinitialisation vous a été envoyé par e‑mail.' });
+                try { navigate(`/reset-password?email=${encodeURIComponent(email)}`); } catch (_) { navigate('/reset-password'); }
             }
         };
 
@@ -37,7 +36,7 @@ import React, { useState } from 'react';
             <Card>
                 <CardHeader>
                     <CardTitle>Mot de passe oublié</CardTitle>
-                    <CardDescription>Entrez votre email pour recevoir un lien de réinitialisation.</CardDescription>
+                    <CardDescription>Entrez votre e‑mail pour recevoir un code de réinitialisation.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handlePasswordReset} className="space-y-4">
@@ -47,7 +46,7 @@ import React, { useState } from 'react';
                         </div>
                         <Button type="submit" className="w-full" disabled={loading}>
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Envoyer le lien
+                            Envoyer le code
                         </Button>
                         <Button variant="link" className="w-full" onClick={onBack}>Retour à la connexion</Button>
                     </form>
