@@ -138,14 +138,7 @@ const Landing = () => {
             >
               Télécharger sur l'App Store
             </a>
-            {isIOSSafari ? (
-              <a
-                href="https://onekamer.co/echange"
-                className="w-full sm:w-auto px-6 py-3 rounded-md bg-[#2BA84A] text-white font-semibold hover:bg-[#24903f] text-center"
-              >
-                Ouvrir l'app
-              </a>
-            ) : null}
+            
           </div>
         </div>
         </div>

@@ -298,13 +298,13 @@ const UserProfile = () => {
         const [{ data: userPosts }, { data: userComments }] = await Promise.all([
           supabase
             .from('posts')
-            .select('id, content, created_at')
+            .select('id, content, created_at, image_url, video_url')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(50),
           supabase
             .from('comments')
-            .select('id, content, created_at, content_type, content_id, parent_comment_id')
+            .select('id, content, created_at, content_type, content_id, parent_comment_id, media_url, media_type, audio_url')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(50),
@@ -755,7 +755,7 @@ const UserProfile = () => {
                             onClick={() => navigate(`/echange?postId=${encodeURIComponent(p.id)}`)}
                           >
                             <div className="text-sm text-gray-500">{new Date(p.created_at).toLocaleString('fr-FR')}</div>
-                            <div className="text-gray-800 whitespace-pre-wrap">{p.content || '(sans contenu)'}</div>
+                            <div className="text-gray-800 whitespace-pre-wrap">{p.content || (p.video_url ? '🎬 Vidéo' : (p.image_url ? '🖼️ Image' : '(sans contenu)'))}</div>
                           </div>
                         ))
                       )}
@@ -788,7 +788,14 @@ const UserProfile = () => {
                             }}
                           >
                             <div className="text-sm text-gray-500">{new Date(c.created_at).toLocaleString('fr-FR')}</div>
-                            <div className="text-gray-800 whitespace-pre-wrap">{c.content || '(sans contenu)'}</div>
+                            <div className="text-gray-800 whitespace-pre-wrap">{
+                              c.content || (
+                                (String(c.media_type||'').toLowerCase().startsWith('video') || /\.(mp4|webm|mov)(\?|$)/i.test(String(c.media_url||''))) ? '🎬 Vidéo' :
+                                (String(c.media_type||'').toLowerCase().startsWith('audio') || /\.(m4a|mp3|ogg|webm)(\?|$)/i.test(String(c.media_url||'')) || !!c.audio_url) ? '🎧 Audio' :
+                                (String(c.media_type||'').toLowerCase().startsWith('image') || /\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/i.test(String(c.media_url||''))) ? '🖼️ Image' :
+                                ((String(c.content_type||'').toLowerCase()==='echange' && !c.parent_comment_id) ? '🎧 Message audio' : '(sans contenu)')
+                              )
+                            }</div>
                           </div>
                         ))
                       )}
