@@ -299,7 +299,7 @@ const Home = () => {
                 {trending.map(item => (
                   <Card
                     key={`${item.type}-${item.id}`}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
                     onClick={() => {
                       const param = item.type === 'audio_post' ? 'audioId' : 'postId';
                       navigate(`/echange?${param}=${encodeURIComponent(item.id)}`);
@@ -326,7 +326,7 @@ const Home = () => {
                             <MediaDisplay
                               bucket="posts"
                               path={item.video_url}
-                              className="w-full rounded-md mt-2 aspect-[9/16] md:aspect-video max-h-[75vh] md:max-h-[80vh] overflow-hidden bg-black/5"
+                              className="w-full rounded-md mt-2 h-[50vh] h-[50svh] aspect-auto md:aspect-video md:h-auto max-h-[55svh] md:max-h-[65svh] overflow-hidden bg-black/5"
                               disableLightbox={true}
                               fitContain={true}
                               videoControls={false}
