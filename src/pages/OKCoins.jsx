@@ -131,7 +131,7 @@ const OKCoins = () => {
     ]);
     let donors = [];
     try {
-      const res = await fetch(`${API_PREFIX}/okcoins/top-donors?limit=3`);
+      const res = await fetch(`${API_PREFIX}/okcoins/top-donors?limit=10`);
       const data = await res.json().catch(() => ({}));
       donors = Array.isArray(data?.items) ? data.items : [];
     } catch {}
@@ -141,10 +141,19 @@ const OKCoins = () => {
     } else {
       setPacks(packsRes.data);
       setLevels(levelsRes.data);
-      const filtered = Array.isArray(donors)
-        ? donors.filter((d) => (d?.profiles?.okc_show_in_top_donors !== false))
-        : [];
-      setTopDonors(filtered);
+      let list = Array.isArray(donors) ? donors : [];
+      try {
+        const ids = list.map(d => d?.user_id).filter(Boolean);
+        if (ids.length > 0) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, okc_show_in_top_donors')
+            .in('id', ids);
+          const hidden = new Set((profs || []).filter(p => p?.okc_show_in_top_donors === false).map(p => p.id));
+          list = list.filter(d => d?.user_id && !hidden.has(d.user_id));
+        }
+      } catch (_) {}
+      setTopDonors(list.slice(0, 3));
     }
     setLoading(false);
   }, []);

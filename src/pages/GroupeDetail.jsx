@@ -431,45 +431,81 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
              groupe_fondateur_id: groupOnlyData.fondateur_id,
              groupe_image_url: groupOnlyData.image_url,
            }]);
-           setMessages([]);
         } else {
             setGroupData(data);
-            const uniqueMessages = new Map();
-            data.forEach(row => {
-                if (row.message_id && !uniqueMessages.has(row.message_id)) {
-                    uniqueMessages.set(row.message_id, row);
-                }
-            });
-            const baseMessages = Array.from(uniqueMessages.values());
-            const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
-            const visibleMessages = baseMessages.filter((m) => !m.sender_id || !blockedSet.has(String(m.sender_id)));
-            const trimmed = visibleMessages.slice(Math.max(0, visibleMessages.length - LIMIT));
-            setMessages(trimmed);
-            try { setOldestTs(trimmed.length ? trimmed[0].message_date : null); } catch(_) { setOldestTs(null); }
-            setHasMoreOld(visibleMessages.length > trimmed.length);
+        }
 
-            // Normaliser les auteurs supprimés (post-traitement)
-            try {
-              const ids = Array.from(new Set(baseMessages.map((m) => m.sender_id).filter(Boolean)));
-              if (ids.length > 0) {
-                const { data: profs } = await supabase
-                  .from('profiles')
-                  .select('id, is_deleted, is_official')
-                  .in('id', ids);
-                const byId = (profs || []).reduce((acc, p) => { acc[String(p.id)] = p; return acc; }, {});
-                setMessages((prev) => (prev || []).map((m) => {
-                  const p = byId[String(m.sender_id)];
-                  if (p && p.is_deleted === true) {
-                    return { ...m, sender_username: 'Compte supprimé', sender_avatar: null };
-                  }
-                  return p ? { ...m, sender_is_official: p.is_official } : m;
-                }));
+        // Charger les messages depuis la vue unique, puis reconstituer les infos expéditeur et likes
+        try {
+          const { data: msgDesc, error: msgErr } = await supabase
+            .from('vue_groupes_messages_uniques')
+            .select('message_id, message_date, sender_id, groupe_id, message_contenu, is_system_message')
+            .eq('groupe_id', groupId)
+            .order('message_date', { ascending: false })
+            .limit(LIMIT);
+          if (msgErr) {
+            console.warn('Erreur chargement messages uniques:', msgErr);
+            setMessages([]);
+            setOldestTs(null);
+            setHasMoreOld(false);
+          } else {
+            const msgsAsc = (msgDesc || []).slice().reverse();
+            const blockedSet = new Set((Array.isArray(profile?.blocked_user_ids) ? profile.blocked_user_ids : []).map(String));
+            const visible = msgsAsc.filter((m) => !m?.sender_id || !blockedSet.has(String(m.sender_id)));
+
+            const senderIds = Array.from(new Set(visible.map(m => m?.sender_id).filter(Boolean)));
+            let profMap = new Map();
+            if (senderIds.length > 0) {
+              const { data: profs } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url, is_deleted, is_official')
+                .in('id', senderIds);
+              if (Array.isArray(profs)) profMap = new Map(profs.map(p => [String(p.id), p]));
+            }
+
+            const msgIds = visible.map(m => m?.message_id).filter(Boolean);
+            let likeCounts = new Map();
+            if (msgIds.length > 0) {
+              const { data: likesRows } = await supabase
+                .from('group_message_likes')
+                .select('message_id')
+                .in('message_id', msgIds);
+              if (Array.isArray(likesRows)) {
+                likesRows.forEach(r => {
+                  const mid = r?.message_id; if (!mid) return;
+                  likeCounts.set(mid, (likeCounts.get(mid) || 0) + 1);
+                });
               }
-            } catch (_) {}
+            }
+
+            const normalized = visible.map((m) => {
+              const p = profMap.get(String(m?.sender_id)) || {};
+              const isDeleted = p?.is_deleted === true;
+              return {
+                message_id: m?.message_id,
+                message_contenu: m?.message_contenu ?? m?.contenu ?? '',
+                message_date: m?.message_date,
+                sender_id: m?.sender_id,
+                likes_count: likeCounts.get(m?.message_id) || 0,
+                sender_username: isDeleted ? 'Compte supprimé' : (p?.username || 'Utilisateur'),
+                sender_avatar: isDeleted ? null : (p?.avatar_url || null),
+                sender_is_official: p?.is_official,
+                is_system_message: Boolean(m?.is_system_message),
+              };
+            });
+            setMessages(normalized);
+            try { setOldestTs(normalized.length ? normalized[0].message_date : null); } catch(_) { setOldestTs(null); }
+            setHasMoreOld((msgDesc || []).length >= LIMIT);
+          }
+        } catch (e) {
+          console.error('Erreur chargement messages (vue unique):', e);
+          setMessages([]);
+          setOldestTs(null);
+          setHasMoreOld(false);
         }
 
         setLoading(false);
-    }, [groupId, user, session, navigate, toast]);
+    }, [groupId, user, session, navigate, toast, profile?.blocked_user_ids]);
 
       const loadOlder = useCallback(async () => {
         if (!groupId || !oldestTs || olderLoading || !hasMoreOld) return;
