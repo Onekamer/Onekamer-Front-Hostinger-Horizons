@@ -773,6 +773,44 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         mimeRef.current = null;
       };
 
+      const serializeEditorContent = () => {
+        const div = editableDivRef.current;
+        const fallback = (newMessage || '').trim();
+        if (!div) return fallback;
+        const parts = [];
+        const walk = (node) => {
+          if (!node) return;
+          const nt = node.nodeType;
+          if (nt === Node.TEXT_NODE) {
+            parts.push(node.nodeValue || '');
+            return;
+          }
+          if (nt !== Node.ELEMENT_NODE) return;
+          const el = node;
+          try {
+            if (el.classList && el.classList.contains('ref-tag')) {
+              const typ = el.getAttribute('data-type') || '';
+              const rid = el.getAttribute('data-id') || '';
+              parts.push(`[[ref:${typ}:${rid}]]`);
+              return;
+            }
+            if (el.classList && el.classList.contains('mention')) {
+              parts.push(el.textContent || '');
+              return;
+            }
+            if (el.tagName === 'BR') { parts.push('\n'); return; }
+            const children = Array.from(el.childNodes || []);
+            children.forEach(walk);
+            if (/^(DIV|P)$/i.test(el.tagName)) parts.push('\n');
+          } catch (_) {
+            const children = Array.from(el.childNodes || []);
+            children.forEach(walk);
+          }
+        };
+        Array.from(div.childNodes || []).forEach(walk);
+        return parts.join('').replace(/\u00A0/g, ' ').trim();
+      };
+
       const handleSendMessage = async () => {
         if (!user || sending) return;
         setSending(true);
@@ -860,9 +898,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           return;
         }
 
-        const currentText = (editableDivRef.current?.innerText || newMessage || '').trim();
-        if (!currentText) { setSending(false); return; }
-        const textToSend = currentText;
+        const textToSend = serializeEditorContent();
+        if (!textToSend) { setSending(false); return; }
         // UI optimiste: vider immédiatement le champ
         setNewMessage('');
         if (editableDivRef.current) editableDivRef.current.innerHTML = '';
@@ -978,21 +1015,28 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
         const before = textContent.substring(0, endOffset);
         const re = /(^|\s)#([^#\s\n]{1,30})$/;
         const m = before.match(re);
-        const token = `[[ref:${item.type}:${item.id}]]`;
-        const insert = m ? `${m[1]}${token} ` : ` ${token} `;
+        const pill = document.createElement('span');
+        pill.className = 'ref-tag inline-flex items-center px-2 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A] text-xs font-medium';
+        pill.setAttribute('contenteditable', 'false');
+        pill.setAttribute('data-type', item.type);
+        pill.setAttribute('data-id', item.id);
+        pill.textContent = toHashLabel(item.label);
         if (m) {
           const startIndex = before.lastIndexOf(m[0]);
           range.setStart(node, Math.max(0, startIndex));
           range.setEnd(node, endOffset);
           range.deleteContents();
         }
-        const textNode = document.createTextNode(insert);
-        range.insertNode(textNode);
-        range.setStartAfter(textNode);
+        range.insertNode(pill);
+        const space = document.createTextNode(' ');
+        range.setStartAfter(pill);
+        range.collapse(true);
+        range.insertNode(space);
+        range.setStartAfter(space);
         range.collapse(true);
         sel.removeAllRanges();
         sel.addRange(range);
-        setNewMessage(div.innerText);
+        setNewMessage(serializeEditorContent());
       };
 
       const processAndColorizeMention = async (e) => {

@@ -784,6 +784,34 @@ const Compte = () => {
                 }}
               />
             </div>
+            <div className="w-full flex justify-between items-center py-4 text-left">
+              <div>
+                <div className="font-medium">Apparaître dans le Top donateurs</div>
+                <div className="text-xs text-gray-500">Permet d’afficher votre profil dans le classement des donateurs.</div>
+              </div>
+              <Switch
+                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 border border-gray-300"
+                checked={okcShowInTop}
+                disabled={okcShowInTopSaving}
+                onCheckedChange={async (checked) => {
+                  try {
+                    setOkcShowInTopSaving(true);
+                    setOkcShowInTop(Boolean(checked));
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({ okc_show_in_top_donors: Boolean(checked), updated_at: new Date().toISOString() })
+                      .eq('id', user.id);
+                    if (error) throw error;
+                    await refreshProfile();
+                  } catch (e) {
+                    toast({ title: 'Erreur', description: e?.message || 'Erreur interne', variant: 'destructive' });
+                    setOkcShowInTop(profile?.okc_show_in_top_donors !== false);
+                  } finally {
+                    setOkcShowInTopSaving(false);
+                  }
+                }}
+              />
+            </div>
             <MenuItem onClick={() => navigate('/compte/modifier')} title="Mon profil" />
             <MenuItem onClick={() => navigate('/compte/notifications')} title="Notifications" />
             <MenuItem onClick={() => navigate('/compte/mon-qrcode')} title="Mon QR Code" />
