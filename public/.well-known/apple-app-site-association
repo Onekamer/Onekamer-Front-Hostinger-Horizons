@@ -14,7 +14,16 @@
           "/annonces",
           "/annonces/*",
           "/faits-divers",
-          "/faits-divers/*"
+          "/faits-divers/*",
+          "/marketplace",
+          "/marketplace/*",
+          "/market",
+          "/market/*",
+          "/partenaires",
+          "/partenaires/*",
+          "/ok-coins",
+          "/pay/okcoins/*",
+          "/pay/market/*"
         ]
       }
     ]
