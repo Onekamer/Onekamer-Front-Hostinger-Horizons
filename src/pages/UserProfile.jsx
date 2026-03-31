@@ -28,6 +28,106 @@ const Badge = ({ icon, label, colorClass }) => (
     <span>{label}</span>
   </div>
 );
+const toHashLabel = (name) => {
+  try {
+    const base = String(name || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_{2,}/g, '_');
+    return base ? `#${base}` : '#contenu';
+  } catch (_) {
+    return '#contenu';
+  }
+};
+
+const InlineRefTag = ({ typ, rid, href }) => {
+  const [label, setLabel] = React.useState('');
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        let out = '';
+        if (typ === 'evenement') {
+          const { data } = await supabase.from('evenements').select('title').eq('id', rid).maybeSingle();
+          out = data?.title || '';
+        } else if (typ === 'annonce') {
+          const { data } = await supabase.from('annonces').select('titre').eq('id', rid).maybeSingle();
+          out = data?.titre || '';
+        } else if (typ === 'partenaire') {
+          const { data } = await supabase.from('partenaires').select('name').eq('id', rid).maybeSingle();
+          out = data?.name || '';
+        } else if (typ === 'groupe') {
+          const { data } = await supabase.from('groupes').select('nom').eq('id', rid).maybeSingle();
+          out = data?.nom || '';
+        } else {
+          const { data } = await supabase.from('faits_divers').select('title').eq('id', rid).maybeSingle();
+          out = data?.title || '';
+        }
+        if (mounted) setLabel(out || '');
+      } catch (_) {}
+    };
+    load();
+    return () => { mounted = false; };
+  }, [typ, rid]);
+
+  const text = toHashLabel(label);
+  return (
+    <a href={href} className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A] text-xs font-medium">{text}</a>
+  );
+};
+
+const parseMentions = (text) => {
+  if (!text) return '';
+  const re = /(\[\[m:([^\]]{1,60})\]\])|(\[\[ref:([a-z_]+):([^\]]+)\]\])|(^|[\s])[@\uFF20](?:\u200B)?([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]{1,30})(?=$|[^A-Za-z0-9À-ÖØ-öø-ÿ'’._-])/g;
+  const out = [];
+  let lastIndex = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const start = m.index;
+    const full = m[0];
+    const isTokenM = !!m[1];
+    const isRef = !!m[3];
+    const before = (isTokenM || isRef) ? '' : (m[6] || '');
+    if (start > lastIndex) out.push(text.slice(lastIndex, start));
+    if (before) out.push(before);
+    if (isTokenM) {
+      const tokenStr = String(m[2] || '').trim();
+      const parts = tokenStr ? tokenStr.split(/\s+/) : [];
+      const first = parts[0] || '';
+      const remainder = parts.length > 1 ? parts.slice(1).join(' ') : '';
+      const u = first;
+      out.push(<span key={`tok-${start}-${u}`} className="mention text-[#2BA84A] font-semibold">@{u}</span>);
+      if (remainder) out.push(` ${remainder}`);
+    } else if (isRef) {
+      const typ = String(m[4] || '').toLowerCase();
+      const rid = String(m[5] || '');
+      const path = (
+        typ === 'evenement' ? `/evenements?eventId=${encodeURIComponent(rid)}` :
+        typ === 'annonce' ? `/annonces?annonceId=${encodeURIComponent(rid)}` :
+        typ === 'partenaire' ? `/partenaires?partnerId=${encodeURIComponent(rid)}` :
+        typ === 'groupe' ? `/groupes/${encodeURIComponent(rid)}` :
+        `/faits-divers?articleId=${encodeURIComponent(rid)}`
+      );
+      out.push(<InlineRefTag key={`ref-${start}-${typ}-${rid}`} typ={typ} rid={rid} href={path} />);
+    } else {
+      let u = m[7] || '';
+      if (!u) {
+        try {
+          const afterAt = full.replace(/^[^@\uFF20]*[@\uFF20](?:\u200B)?/, '');
+          const m2 = afterAt.match(/^([A-Za-z0-9À-ÖØ-öø-ÿ'’._-]{1,30})/);
+          if (m2 && m2[1]) u = m2[1];
+        } catch (_) {}
+      }
+      out.push(<span key={`${start}-${u}`} className="mention text-[#2BA84A] font-semibold">@{u}</span>);
+    }
+    lastIndex = start + full.length;
+  }
+  if (lastIndex < text.length) out.push(text.slice(lastIndex));
+  return out;
+};
 
 const UserProfile = () => {
   const { userId } = useParams();
@@ -118,6 +218,11 @@ const UserProfile = () => {
     if (p === 'free') return 'Free';
     return effectivePlan || 'Free';
   })();
+
+  const isOwner = (() => {
+    try { return String(authUser?.id || '') === String(userId || ''); } catch { return false; }
+  })();
+  const canViewContent = (profile?.profile_public !== false) || isOwner;
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -740,7 +845,9 @@ const UserProfile = () => {
                 </div>
 
                 <TabsContent value="posts" className="mt-4">
-                  {loadingPosts ? (
+                  {!canViewContent ? (
+                    <div className="text-center text-gray-500">Ce profil est privé. Les publications sont masquées.</div>
+                  ) : loadingPosts ? (
                     <div className="text-center text-gray-500">Chargement...</div>
                   ) : (
                     <div className="space-y-3">
@@ -757,7 +864,7 @@ const UserProfile = () => {
                             <div className="text-sm text-gray-500">{new Date(p.created_at).toLocaleString('fr-FR')}</div>
                             <div className="text-gray-800 whitespace-pre-wrap">
                               {p.content
-                                ? p.content
+                                ? parseMentions(p.content)
                                 : (
                                   p.image_url ? (
                                     <img
@@ -792,7 +899,9 @@ const UserProfile = () => {
                 </TabsContent>
 
                 <TabsContent value="comments" className="mt-4">
-                  {loadingComments ? (
+                  {!canViewContent ? (
+                    <div className="text-center text-gray-500">Ce profil est privé. Les commentaires sont masqués.</div>
+                  ) : loadingComments ? (
                     <div className="text-center text-gray-500">Chargement...</div>
                   ) : (
                     <div className="space-y-3">
@@ -817,7 +926,7 @@ const UserProfile = () => {
                           >
                             <div className="text-sm text-gray-500">{new Date(c.created_at).toLocaleString('fr-FR')}</div>
                             <div className="text-gray-800 whitespace-pre-wrap">{
-                              c.content || (
+                              c.content ? parseMentions(c.content) : (
                                 (String(c.media_type||'').toLowerCase().startsWith('video') || /\.(mp4|webm|mov)(\?|$)/i.test(String(c.media_url||''))) ? (
                                   <video
                                     src={String(c.media_url||'')}

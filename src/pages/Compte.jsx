@@ -32,6 +32,8 @@ const Compte = () => {
   const [followListSaving, setFollowListSaving] = useState(false);
   const [rencontreVisible, setRencontreVisible] = useState(true);
   const [rencontreSaving, setRencontreSaving] = useState(false);
+  const [okcShowInTop, setOkcShowInTop] = useState(true);
+  const [okcShowInTopSaving, setOkcShowInTopSaving] = useState(false);
   const [subInfo, setSubInfo] = useState(null);
   const [okcBadges, setOkcBadges] = useState([]);
   const [userBadgeIds, setUserBadgeIds] = useState(() => new Set());
@@ -418,6 +420,7 @@ const Compte = () => {
     setOnlineVisible(profile?.show_online_status !== false);
     setProfilePublic(profile?.profile_public !== false);
     setFollowListPublic(profile?.follow_list_is_public !== false);
+    setOkcShowInTop(profile?.okc_show_in_top_donors !== false);
   }, [profile?.show_online_status]);
 
   useEffect(() => {
@@ -560,6 +563,7 @@ const Compte = () => {
                   disableLightbox={true}
                 />
               </div>
+
             ) : (
               <AvatarFallback className="text-3xl bg-gray-200">{profile.username?.charAt(0).toUpperCase()}</AvatarFallback>
             )}

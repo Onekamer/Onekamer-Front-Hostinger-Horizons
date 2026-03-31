@@ -26,6 +26,97 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
     import DotsLoader from '@/components/ui/DotsLoader';
     import { compressVideoIfIOS } from '@/lib/iosVideoCompression';
 
+    // Helpers cross‑contenu (hashtags) pour [[ref:type:id]] sans modifier le style des mentions @
+    const toHashLabel = (name) => {
+      try {
+        const base = String(name || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^A-Za-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .replace(/_{2,}/g, '_');
+        return base ? `#${base}` : '#contenu';
+      } catch (_) {
+        return '#contenu';
+      }
+    };
+
+    const InlineRefTag = ({ typ, rid, href }) => {
+      const [label, setLabel] = React.useState('');
+      React.useEffect(() => {
+        let mounted = true;
+        const load = async () => {
+          try {
+            let out = '';
+            if (typ === 'evenement') {
+              const { data } = await supabase.from('evenements').select('title').eq('id', rid).maybeSingle();
+              out = data?.title || '';
+            } else if (typ === 'annonce') {
+              const { data } = await supabase.from('annonces').select('titre').eq('id', rid).maybeSingle();
+              out = data?.titre || '';
+            } else if (typ === 'partenaire') {
+              const { data } = await supabase.from('partenaires').select('name').eq('id', rid).maybeSingle();
+              out = data?.name || '';
+            } else if (typ === 'groupe') {
+              const { data } = await supabase.from('groupes').select('nom').eq('id', rid).maybeSingle();
+              out = data?.nom || '';
+            } else {
+              const { data } = await supabase.from('faits_divers').select('title').eq('id', rid).maybeSingle();
+              out = data?.title || '';
+            }
+            if (mounted) setLabel(out || '');
+          } catch (_) {}
+        };
+        load();
+        return () => { mounted = false; };
+      }, [typ, rid]);
+      const text = toHashLabel(label);
+      return (
+        <a href={href} className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#2BA84A]/10 text-[#2BA84A] text-xs font-medium">{text}</a>
+      );
+    };
+
+    const escapeHtml = (s) => String(s || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    const highlightMentionsHtml = (s) => {
+      const esc = escapeHtml(s);
+      return esc.replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g, (m, pre, u) => `${pre}<span class=\"mention\">@${u}</span>`);
+    };
+
+    // Transforme [[ref:type:id]] en pastilles cliquables, conserve mentions via innerHTML par segment
+    const parseGroupRefsToNodes = (text) => {
+      if (!text) return null;
+      const re = /(\[\[ref:([a-z_]+):([^\]]+)\]\])/g;
+      const out = [];
+      let last = 0;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const start = m.index;
+        const full = m[1];
+        const typ = String(m[2] || '').toLowerCase();
+        const rid = String(m[3] || '');
+        if (start > last) {
+          const seg = text.slice(last, start);
+          out.push(<span key={`seg-${last}`} dangerouslySetInnerHTML={{ __html: highlightMentionsHtml(seg) }} />);
+        }
+        const href = (
+          typ === 'evenement' ? `/evenements?eventId=${encodeURIComponent(rid)}` :
+          typ === 'annonce' ? `/annonces?annonceId=${encodeURIComponent(rid)}` :
+          typ === 'partenaire' ? `/partenaires?partnerId=${encodeURIComponent(rid)}` :
+          typ === 'groupe' ? `/groupes/${encodeURIComponent(rid)}` :
+          `/faits-divers?articleId=${encodeURIComponent(rid)}`
+        );
+        out.push(<InlineRefTag key={`ref-${start}-${typ}-${rid}`} typ={typ} rid={rid} href={href} />);
+        last = start + full.length;
+      }
+      if (last < text.length) {
+        const seg = text.slice(last);
+        out.push(<span key={`seg-${last}`} dangerouslySetInnerHTML={{ __html: highlightMentionsHtml(seg) }} />);
+      }
+      return out;
+    };
+
     const AudioPlayer = ({ src, initialDuration = 0, mimeType }) => {
       const audioRef = useRef(null);
       const [isPlaying, setIsPlaying] = useState(false);
@@ -171,9 +262,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
           const isMediaPath = c && c.includes('/');
           if (isMediaPath) return <MediaDisplay bucket="groupes" path={c} alt="Média partagé" className={`${baseVid} cursor-pointer`} />;
         } catch {}
-        const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const withMentions = esc(c).replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9._-]{0,30})/g, (m, pre, u) => `${pre}<span class=\"mention\">@${u}</span>`);
-        return <p className="text-gray-800" dangerouslySetInnerHTML={{ __html: withMentions }} />;
+        return <p className="text-gray-800 whitespace-pre-wrap">{parseGroupRefsToNodes(c)}</p>;
       };
 
       const isMyMessage = msg.sender_id === currentUserId;
