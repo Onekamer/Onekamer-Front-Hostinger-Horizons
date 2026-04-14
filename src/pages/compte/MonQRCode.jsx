@@ -32,6 +32,17 @@ const MonQRCode = () => {
   const [isFreeEvent, setIsFreeEvent] = useState(null);
   const [eventInfoLoading, setEventInfoLoading] = useState(false);
 
+  const goToMyQrs = () => {
+    try {
+      const el = document.getElementById('ok-my-qrs');
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    } catch {}
+    navigate('/compte/mon-qrcode');
+  };
+
   const formatMinorAmount = (minor, currency) => {
     const cur = (currency || '').toLowerCase();
     const amount = typeof minor === 'number' ? minor : 0;
@@ -340,6 +351,9 @@ const MonQRCode = () => {
                   <div className="text-gray-700 mt-1">
                     Vous pourrez le retrouver à tout moment dans <span className="font-semibold">Compte › Mon QR Code</span> ou depuis la page de l’événement via le bouton <span className="font-semibold">Mon QRcode</span>.
                   </div>
+                  <div className="mt-2">
+                    <Button size="sm" variant="outline" onClick={goToMyQrs}>Voir mes QR Codes</Button>
+                  </div>
                 </div>
               )}
               <div className="w-full flex justify-center">
@@ -368,7 +382,7 @@ const MonQRCode = () => {
           </Card>
         )}
 
-        <Card>
+        <Card id="ok-my-qrs">
           <CardHeader>
             <CardTitle>Mes QR Codes</CardTitle>
           </CardHeader>
