@@ -97,6 +97,7 @@ import React, { useState, useEffect, useCallback } from 'react';
       const [interestLoading, setInterestLoading] = useState(true);
       const [interested, setInterested] = useState(false);
       const [interestCount, setInterestCount] = useState(0);
+      const [hasMyQr, setHasMyQr] = useState(false);
 
       useEffect(() => {
         let mounted = true;
@@ -113,6 +114,28 @@ import React, { useState, useEffect, useCallback } from 'react';
             }
           } catch {}
           if (mounted) setInterestLoading(false);
+        })();
+        return () => { mounted = false };
+      }, [user, session, apiPrefix, event?.id]);
+
+      useEffect(() => {
+        let mounted = true;
+        (async () => {
+          try {
+            if (!user || !apiPrefix) { if (mounted) setHasMyQr(false); return; }
+            const token = session?.access_token;
+            if (!token) { if (mounted) setHasMyQr(false); return; }
+            const res = await fetch(`${apiPrefix}/qrcode/my`, { headers: { Authorization: `Bearer ${token}` } });
+            const data = await res.json().catch(() => ({}));
+            if (mounted && res.ok && Array.isArray(data?.items)) {
+              const ok = data.items.some((r) => r?.event_id === event.id && String(r?.status || '').toLowerCase() === 'active');
+              setHasMyQr(!!ok);
+            } else if (mounted) {
+              setHasMyQr(false);
+            }
+          } catch {
+            if (mounted) setHasMyQr(false);
+          }
         })();
         return () => { mounted = false };
       }, [user, session, apiPrefix, event?.id]);
@@ -177,6 +200,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 
       const reservationLink = getReservationLink();
       const depositEnabled = false;
+      const isFree = (() => {
+        try { const p = parseFloat(event?.price); return !isFinite(p) || p <= 0; } catch { return false; }
+      })();
 
       const handleCheckout = async (paymentMode) => {
         try {
@@ -291,12 +317,14 @@ import React, { useState, useEffect, useCallback } from 'react';
                 />
 
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <Button
-                      className="w-full sm:flex-1 bg-[#E0222A] hover:bg-[#E0222A]/90 text-white"
-                      onClick={() => navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(event.id)}`)}
-                    >
-                      <Ticket className="h-4 w-4 mr-2" /> Mon QRcode
-                    </Button>
+                    {hasMyQr && (
+                      <Button
+                        className="w-full sm:flex-1 bg-[#E0222A] hover:bg-[#E0222A]/90 text-white"
+                        onClick={() => navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(event.id)}`)}
+                      >
+                        <Ticket className="h-4 w-4 mr-2" /> Mon QRcode
+                      </Button>
+                    )}
                     {reservationLink ? (
                       <Button asChild variant="outline" className="w-full sm:flex-1">
                         <a href={reservationLink} target="_blank" rel="noopener noreferrer">
@@ -305,13 +333,23 @@ import React, { useState, useEffect, useCallback } from 'react';
                       </Button>
                     ) : (
                       <>
-                        <Button
-                          variant="outline"
-                          className="w-full sm:flex-1"
-                          onClick={() => handleCheckout('full')}
-                        >
-                          <Ticket className="h-4 w-4 mr-2" /> Réserver mon billet
-                        </Button>
+                        {isFree ? (
+                          <Button
+                            variant="outline"
+                            className="w-full sm:flex-1"
+                            onClick={() => navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(event.id)}`)}
+                          >
+                            <Ticket className="h-4 w-4 mr-2" /> Réserver mon billet
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="w-full sm:flex-1"
+                            onClick={() => handleCheckout('full')}
+                          >
+                            <Ticket className="h-4 w-4 mr-2" /> Réserver mon billet
+                          </Button>
+                        )}
                         {depositEnabled && (
                           <Button
                             variant="outline"
