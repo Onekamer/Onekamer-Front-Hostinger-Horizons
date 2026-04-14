@@ -27,6 +27,8 @@ const MonQRCode = () => {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [myQrs, setMyQrs] = useState([]);
   const [didPrefillFromEventId, setDidPrefillFromEventId] = useState(false);
+  const [eventTitle, setEventTitle] = useState("");
+  const [thanks, setThanks] = useState(false);
 
   const formatMinorAmount = (minor, currency) => {
     const cur = (currency || '').toLowerCase();
@@ -101,6 +103,8 @@ const MonQRCode = () => {
       const query = new URLSearchParams(location.search);
       const qEventId = query.get('eventId');
       if (qEventId) setEventId(qEventId);
+      const qThanks = query.get('thanks');
+      setThanks(String(qThanks || '') === '1');
     } catch {}
   }, [location.search]);
 
@@ -117,6 +121,7 @@ const MonQRCode = () => {
         if (!res.ok) return;
         if (data?.title) {
           setSearch(String(data.title));
+          setEventTitle(String(data.title));
           setSuggestions([
             {
               id: data.id,
@@ -134,6 +139,19 @@ const MonQRCode = () => {
     run();
     return () => ctrl.abort();
   }, [eventId, didPrefillFromEventId]);
+
+  // Après redirection Stripe (thanks=1), auto-sélectionner le QR correspondant si présent
+  useEffect(() => {
+    if (!thanks || !eventId) return;
+    if (!Array.isArray(myQrs) || myQrs.length === 0) return;
+    const row = myQrs.find((r) => r?.event_id === eventId);
+    if (row) {
+      setQrImage(row.qrImage || null);
+      setStatus(row.status || null);
+      setValue(row.qrcode_value || null);
+      setSelectedPayment(row.payment || null);
+    }
+  }, [thanks, eventId, myQrs]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -271,24 +289,29 @@ const MonQRCode = () => {
               {submitting ? 'Génération…' : '🎟 Obtenir mon QR Code'}
             </Button>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Button onClick={() => onPay('full')} disabled={paying || !eventId} className="bg-[#2BA84A] text-white w-full">
                 {paying ? 'Redirection…' : 'Payer maintenant'}
-              </Button>
-              <Button onClick={() => onPay('deposit')} disabled={paying || !eventId} variant="outline" className="w-full">
-                {paying ? 'Redirection…' : 'Payer acompte'}
               </Button>
             </div>
             {error && <div className="text-sm text-red-600">{error}</div>}
           </CardContent>
         </Card>
 
-        {qrImage && (
+        {(qrImage || thanks) && (
           <Card>
             <CardHeader>
               <CardTitle>QR Code</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              {thanks && (
+                <div className="rounded-md border border-[#CDE1D5] bg-[#CDE1D5] text-[#2BA84A] p-3 text-sm">
+                  Merci {user?.email || 'membre'}, votre réservation pour "{eventTitle || 'votre événement'}" a bien été prise en compte. Voici votre QR Code.
+                  <div className="text-gray-700 mt-1">
+                    Vous pourrez le retrouver à tout moment dans <span className="font-semibold">Compte › Mon QR Code</span> ou depuis la page de l’événement via le bouton <span className="font-semibold">Mon QRcode</span>.
+                  </div>
+                </div>
+              )}
               <div className="w-full flex justify-center">
                 <img src={qrImage} alt="QR Code" className="w-64 h-64 bg-white p-2 rounded" />
               </div>
