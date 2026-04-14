@@ -176,9 +176,7 @@ import React, { useState, useEffect, useCallback } from 'react';
       }
 
       const reservationLink = getReservationLink();
-      const depositEnabled = (() => {
-        try { return Number(event?.deposit_percent) > 0; } catch { return false; }
-      })();
+      const depositEnabled = false;
 
       const handleCheckout = async (paymentMode) => {
         try {
