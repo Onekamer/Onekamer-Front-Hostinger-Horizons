@@ -87,6 +87,8 @@ import MarketplaceInvoices from '@/pages/MarketplaceInvoices';
 import { iosPush } from "@/lib/push/iosPush";
 
 const SPONSORED_POSTS_ENABLED = false;
+// Désactivation temporaire de la réauthentification par code (OTP)
+const REAUTH_TEMP_DISABLED = true;
 
 const AppLayout = () => {
   const { profile } = useAuth();
@@ -322,6 +324,7 @@ const AppContent = () => {
 
   // Garde de réauthentification: globale (toutes pages privées) si OTP périmé
   useEffect(() => {
+    if (REAUTH_TEMP_DISABLED) return; // désactivée temporairement
     if (!session) return;
     const path = location.pathname || '';
     const allow = new Set([
@@ -349,6 +352,7 @@ const AppContent = () => {
 
   // Garde de réauthentification: chemins sensibles, admins uniquement
   useEffect(() => {
+    if (REAUTH_TEMP_DISABLED) return; // désactivée temporairement
     if (!session) return;
     const path = location.pathname || '';
     if (path === '/reauth') return;

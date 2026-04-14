@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import OtpInput from '@/components/OtpInput';
 
+const REAUTH_TEMP_DISABLED = true;
+
 const Reauthenticate = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('idle');
@@ -25,6 +27,20 @@ const Reauthenticate = () => {
   const autoTriedTokenRef = useRef('');
   const [flow, setFlow] = useState('reauth');
   const [linkProcessing, setLinkProcessing] = useState(false);
+
+  // Désactivation temporaire: on valide immédiatement et on met un délai long
+  useEffect(() => {
+    if (!REAUTH_TEMP_DISABLED) return;
+    try {
+      const years = 10;
+      const nextDue = Date.now() + years * 365 * 24 * 60 * 60 * 1000;
+      window.localStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
+      window.sessionStorage.setItem('ok_reauth_next_due_ts', String(nextDue));
+    } catch (_) {}
+    setStatus('success');
+    const t = setTimeout(() => { try { navigate('/compte', { replace: true }); } catch (_) { navigate('/compte'); } }, 200);
+    return () => clearTimeout(t);
+  }, [navigate]);
 
   const sendEmailOtp = async (mail) => {
     const redirectTo = `${window.location.origin}/reauth`;
