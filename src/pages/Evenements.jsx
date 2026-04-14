@@ -150,8 +150,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 
       const getReservationLink = () => {
         if (event.site_web) return event.site_web;
-        if (event.telephone) return `tel:${event.telephone}`;
-        if (event.email) return `mailto:${event.email}`;
         return null;
       };
 
@@ -178,6 +176,28 @@ import React, { useState, useEffect, useCallback } from 'react';
       }
 
       const reservationLink = getReservationLink();
+      const depositEnabled = (() => {
+        try { return Number(event?.deposit_percent) > 0; } catch { return false; }
+      })();
+
+      const handleCheckout = async (paymentMode) => {
+        try {
+          if (!session?.access_token) {
+            toast({ title: 'Connexion requise', description: "Veuillez vous connecter pour réserver et payer votre billet.", variant: 'destructive' });
+            return;
+          }
+          const res = await fetch(`${apiPrefix}/events/${encodeURIComponent(String(event.id))}/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ payment_mode: paymentMode === 'deposit' ? 'deposit' : 'full' }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.url) throw new Error(data?.error || "Impossible d'initialiser le paiement");
+          window.location.href = data.url;
+        } catch (e) {
+          toast({ title: 'Paiement', description: e?.message || 'Erreur lors de la création du paiement.', variant: 'destructive' });
+        }
+      };
 
       return (
         <motion.div
@@ -279,12 +299,31 @@ import React, { useState, useEffect, useCallback } from 'react';
                     >
                       <Ticket className="h-4 w-4 mr-2" /> Mon QRcode
                     </Button>
-                    {reservationLink && (
+                    {reservationLink ? (
                       <Button asChild variant="outline" className="w-full sm:flex-1">
                         <a href={reservationLink} target="_blank" rel="noopener noreferrer">
                           <Ticket className="h-4 w-4 mr-2" /> Réserver mon billet
                         </a>
                       </Button>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="w-full sm:flex-1"
+                          onClick={() => handleCheckout('full')}
+                        >
+                          <Ticket className="h-4 w-4 mr-2" /> Réserver mon billet
+                        </Button>
+                        {depositEnabled && (
+                          <Button
+                            variant="outline"
+                            className="w-full sm:flex-1"
+                            onClick={() => handleCheckout('deposit')}
+                          >
+                            <Ticket className="h-4 w-4 mr-2" /> Payer un acompte
+                          </Button>
+                        )}
+                      </>
                     )}
                     <Button variant="outline" className="w-full sm:flex-1" onClick={handleAddToCalendar}><Calendar className="h-4 w-4 mr-2" /> Ajouter au calendrier</Button>
                 </div>
