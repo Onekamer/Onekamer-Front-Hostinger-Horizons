@@ -17,7 +17,7 @@ function useQuery() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
-function PayForm({ clientSecret, eventId }) {
+function PayForm({ clientSecret, eventId, session }) {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -36,8 +36,18 @@ function PayForm({ clientSecret, eventId }) {
         return;
       }
       if (paymentIntent && paymentIntent.status === 'succeeded') {
-        toast({ title: 'Paiement réussi', description: 'Votre billet a été activé.' });
-        navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(eventId)}`);
+        try {
+          if (session?.access_token) {
+            await fetch(`${API_PREFIX}/qrcode/generate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ event_id: eventId }),
+            }).catch(() => {});
+          }
+        } finally {
+          toast({ title: 'Paiement réussi', description: 'Votre billet a été activé.' });
+          navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(eventId)}&thanks=1`);
+        }
       }
     } finally {
       setSubmitting(false);
@@ -64,6 +74,32 @@ export default function PayEvent() {
   const [pk, setPk] = useState(null);
   const [loading, setLoading] = useState(true);
   const [eventInfo, setEventInfo] = useState(null);
+  const amountText = useMemo(() => {
+    try {
+      if (!eventInfo) return '';
+      const currency = String(eventInfo.currency || 'eur').toUpperCase();
+      const isZeroDecimal = currency === 'XAF';
+      let amountMajor = 0;
+      if (typeof eventInfo.price_amount === 'number' && eventInfo.price_amount > 0) {
+        amountMajor = eventInfo.price_amount;
+      } else if (typeof eventInfo.price === 'string') {
+        const s = eventInfo.price.replace(',', '.');
+        const m = s.match(/([0-9]+(?:\.[0-9]+)?)/);
+        amountMajor = m ? parseFloat(m[1]) : 0;
+      }
+      if (!Number.isFinite(amountMajor) || amountMajor <= 0) return '';
+      if (paymentMode === 'deposit') {
+        const dp = Number(eventInfo.deposit_percent || 0);
+        if (dp > 0) {
+          amountMajor = Math.max(1, Math.round((amountMajor * dp) / 100));
+        }
+      }
+      const formatted = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, minimumFractionDigits: isZeroDecimal ? 0 : 2, maximumFractionDigits: isZeroDecimal ? 0 : 2 }).format(amountMajor);
+      return `Montant à payer: ${formatted}`;
+    } catch {
+      return '';
+    }
+  }, [eventInfo, paymentMode]);
 
   useEffect(() => {
     const run = async () => {
@@ -90,7 +126,12 @@ export default function PayEvent() {
           body: JSON.stringify({ payment_mode: paymentMode }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.clientSecret) throw new Error(data?.error || 'Erreur création paiement');
+        if (!res.ok) throw new Error(data?.error || 'Erreur création paiement');
+        if (data?.alreadyPaid) {
+          navigate(`/compte/mon-qrcode?eventId=${encodeURIComponent(eventId)}`);
+          return;
+        }
+        if (!data?.clientSecret) throw new Error('Client secret manquant');
         setClientSecret(data.clientSecret);
       } catch (e) {
         console.error(e);
@@ -144,13 +185,16 @@ export default function PayEvent() {
                 {eventInfo.title} — {eventInfo.date} • {eventInfo.location}
               </div>
             )}
+            {amountText && (
+              <div className="text-sm font-medium mb-2">{amountText}</div>
+            )}
             {loading && <div>Chargement…</div>}
             {!loading && (!stripePromise || !clientSecret) && (
               <div className="text-sm text-red-600">Impossible d’initialiser le paiement.</div>
             )}
             {stripePromise && clientSecret && (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <PayForm clientSecret={clientSecret} eventId={eventId} />
+                <PayForm clientSecret={clientSecret} eventId={eventId} session={session} />
               </Elements>
             )}
           </CardContent>

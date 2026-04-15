@@ -172,7 +172,13 @@ import React, { useState, useEffect, useCallback } from 'react';
       };
 
       const getReservationLink = () => {
-        if (event.site_web) return event.site_web;
+        if (event.site_web) {
+          const u = String(event.site_web || '').toLowerCase();
+          if (u.includes('checkout.stripe.com') || u.includes('stripe.com')) {
+            return null;
+          }
+          return event.site_web;
+        }
         return null;
       };
 
@@ -345,16 +351,16 @@ import React, { useState, useEffect, useCallback } from 'react';
                           <Button
                             variant="outline"
                             className="w-full sm:flex-1"
-                            onClick={() => handleCheckout('full')}
+                            onClick={() => navigate(`/pay/events/${encodeURIComponent(event.id)}?mode=full`)}
                           >
-                            <Ticket className="h-4 w-4 mr-2" /> Réserver mon billet
+                            <Ticket className="h-4 w-4 mr-2" /> {hasMyQr ? 'Payer un autre billet' : 'Réserver mon billet'}
                           </Button>
                         )}
                         {depositEnabled && (
                           <Button
                             variant="outline"
                             className="w-full sm:flex-1"
-                            onClick={() => handleCheckout('deposit')}
+                            onClick={() => navigate(`/pay/events/${encodeURIComponent(event.id)}?mode=deposit`)}
                           >
                             <Ticket className="h-4 w-4 mr-2" /> Payer un acompte
                           </Button>

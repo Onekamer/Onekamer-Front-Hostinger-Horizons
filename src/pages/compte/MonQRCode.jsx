@@ -82,7 +82,7 @@ const MonQRCode = () => {
   };
 
   const getPaymentLabel = (p) => {
-    const s = p?.status;
+    const s = p?.status || p?.payment_status;
     if (s === 'paid') return 'PAYÉ';
     if (s === 'deposit_paid') return 'ACOMPTE PAYÉ';
     if (s === 'unpaid') return 'DOIT PAYER';
@@ -199,6 +199,14 @@ const MonQRCode = () => {
       setSelectedPayment(row.payment || null);
     }
   }, [thanks, eventId, myQrs]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    if (!Array.isArray(myQrs) || myQrs.length === 0) return;
+    const row = myQrs.find((r) => r?.event_id === eventId);
+    if (!row) return;
+    setSelectedPayment(row.payment || null);
+  }, [eventId, myQrs]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -338,7 +346,7 @@ const MonQRCode = () => {
             {eventId && isFreeEvent === false && (
               <div className="grid grid-cols-1 gap-2">
                 <Button onClick={() => onPay('full')} disabled={paying || eventInfoLoading} className="bg-[#2BA84A] text-white w-full">
-                  {paying ? 'Redirection…' : 'Payer maintenant'}
+                  {paying ? 'Redirection…' : (selectedPayment && (selectedPayment.status === 'paid' || selectedPayment.status === 'deposit_paid') ? 'Payer un autre billet' : 'Payer maintenant')}
                 </Button>
               </div>
             )}
