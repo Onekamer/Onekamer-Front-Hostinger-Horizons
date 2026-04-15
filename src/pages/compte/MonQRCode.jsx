@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { ArrowLeft } from 'lucide-react';
+import { isEventFree } from '@/utils/isEventFree';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -26,6 +27,15 @@ const MonQRCode = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [myQrs, setMyQrs] = useState([]);
+  const myQrsGrouped = useMemo(() => {
+    const groups = {};
+    (Array.isArray(myQrs) ? myQrs : []).forEach((row) => {
+      const eid = row?.event_id || 'unknown';
+      if (!groups[eid]) groups[eid] = { event: row?.evenements || null, items: [] };
+      groups[eid].items.push(row);
+    });
+    return groups;
+  }, [myQrs]);
   const [didPrefillFromEventId, setDidPrefillFromEventId] = useState(false);
   const [eventTitle, setEventTitle] = useState("");
   const [thanks, setThanks] = useState(false);
@@ -128,12 +138,11 @@ const MonQRCode = () => {
       if (!API_PREFIX || !eventId) { setIsFreeEvent(null); return; }
       setEventInfoLoading(true);
       try {
-        const res = await fetch(`${API_PREFIX}/events/${encodeURIComponent(eventId)}`, { signal: ctrl.signal });
+        const ts = Date.now();
+        const res = await fetch(`${API_PREFIX}/events/${encodeURIComponent(eventId)}?ts=${ts}`, { signal: ctrl.signal, cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { setIsFreeEvent(null); return; }
-        const amount = typeof data?.price_amount === 'number' ? data.price_amount : null;
-        const currency = data?.currency ? String(data.currency).toLowerCase() : null;
-        const free = !amount || amount <= 0 || !currency;
+        const free = isEventFree(data);
         setIsFreeEvent(free);
       } catch {
         setIsFreeEvent(null);
@@ -153,7 +162,8 @@ const MonQRCode = () => {
       if (didPrefillFromEventId) return;
 
       try {
-        const res = await fetch(`${API_PREFIX}/events/${encodeURIComponent(eventId)}`, { signal: ctrl.signal });
+        const ts = Date.now();
+        const res = await fetch(`${API_PREFIX}/events/${encodeURIComponent(eventId)}?ts=${ts}`, { signal: ctrl.signal, cache: 'no-store' });
         const data = await res.json();
         if (!res.ok) return;
         if (data?.title) {
@@ -318,10 +328,7 @@ const MonQRCode = () => {
                 </div>
               )}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Identifiant de l'événement</label>
-              <Input value={eventId} onChange={(e) => setEventId(e.target.value)} placeholder="Ex: 0f8c...-uuid" />
-            </div>
+            {/* Champ identifiant masqué pour éviter l’exposition d’un ID interne */}
             {eventId && isFreeEvent === true && (
               <Button disabled={submitting || eventInfoLoading} onClick={onGenerate} className="bg-[#2BA84A] text-white w-full">
                 {submitting ? 'Génération…' : '🎟 Obtenir mon QR Code'}
@@ -384,67 +391,75 @@ const MonQRCode = () => {
 
         <Card id="ok-my-qrs">
           <CardHeader>
-            <CardTitle>Mes QR Codes</CardTitle>
+            <CardTitle>
+              {`Mes QR Codes${Array.isArray(myQrs) && myQrs.length ? ` (${myQrs.length})` : ''}`}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {myQrs.length === 0 && (
               <div className="text-sm text-gray-600">Aucun QR Code enregistré pour l'instant.</div>
             )}
-            {myQrs.map((row) => (
-              <div key={row.id} className="flex flex-col md:flex-row md:items-center gap-3 border rounded-lg p-3">
-                {row.qrImage ? (
-                  <img src={row.qrImage} alt="QR" className="w-20 h-20 bg-white p-1 rounded" />
-                ) : (
-                  <div className="w-20 h-20 bg-gray-100 rounded" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">
-                    {row.evenements?.title || 'Événement'}
-                    {(row.status === 'expired' || isExpiredDate(row.evenements?.date)) && (
-                      <span className="ml-2 text-[10px] font-semibold text-red-700">Expiré</span>
+            {Object.entries(myQrsGrouped).map(([eid, group]) => (
+              <div key={eid} className="space-y-2">
+                <div className="text-sm font-semibold">
+                  {(group?.event?.title || 'Événement')} {Array.isArray(group?.items) ? `(${group.items.length})` : ''}
+                </div>
+                <div className="text-xs text-gray-500">{group?.event?.date} • {group?.event?.location}</div>
+                {group.items.map((row) => (
+                  <div key={row.id} className="flex flex-col md:flex-row md:items-center gap-3 border rounded-lg p-3">
+                    {row.qrImage ? (
+                      <img src={row.qrImage} alt="QR" className="w-20 h-20 bg-white p-1 rounded" />
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-100 rounded" />
                     )}
-                  </div>
-                  <div className="text-xs text-gray-500">{row.evenements?.date} • {row.evenements?.location}</div>
-                  <div className="text-xs">Statut: <span className="font-medium capitalize">{row.status}</span></div>
-                  {row.payment && (
-                    <div className="text-xs">
-                      Paiement: <span className="font-medium">{getPaymentLabel(row.payment) || '—'}</span>
-                      {typeof row.payment?.remaining === 'number' && row.payment.remaining > 0 && (
-                        <span className="ml-2 text-gray-600">• reste {formatMinorAmount(row.payment.remaining, row.payment.currency)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium">
+                        {(row.status === 'expired' || isExpiredDate(group?.event?.date)) && (
+                          <span className="text-[10px] font-semibold text-red-700 mr-2">Expiré</span>
+                        )}
+                        Statut: <span className="font-medium capitalize">{row.status}</span>
+                      </div>
+                      {row.payment && (
+                        <div className="text-xs">
+                          Paiement: <span className="font-medium">{getPaymentLabel(row.payment) || '—'}</span>
+                          {typeof row.payment?.remaining === 'number' && row.payment.remaining > 0 && (
+                            <span className="ml-2 text-gray-600">• reste {formatMinorAmount(row.payment.remaining, row.payment.currency)}</span>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-                <div className="flex w-full md:w-auto flex-row md:flex-col gap-2 md:ml-auto md:items-end shrink-0">
-                  <Button size="sm" className="whitespace-nowrap" variant="outline" onClick={() => { setEventId(row.event_id); setQrImage(row.qrImage || null); setStatus(row.status); setValue(row.qrcode_value); setSelectedPayment(row.payment || null); }}>
-                    Ouvrir
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="whitespace-nowrap"
-                    onClick={async () => {
-                      if (!API_PREFIX || !session?.access_token) return;
-                      const ok = window.confirm('Supprimer ce QR Code ?');
-                      if (!ok) return;
-                      try {
-                        const res = await fetch(`${API_PREFIX}/qrcode/${row.id}`, {
-                          method: 'DELETE',
-                          headers: { Authorization: `Bearer ${session.access_token}` },
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok || data?.deleted !== true) throw new Error(data?.error || 'Suppression échouée');
-                        setMyQrs((prev) => prev.filter((x) => x.id !== row.id));
-                        if (value === row.qrcode_value) { setQrImage(null); setStatus(null); setValue(null); }
-                        if (user?.id && row.event_id) { const key = `qr_${user.id}_${row.event_id}`; try { localStorage.removeItem(key); } catch {} }
-                      } catch (e) {
-                        alert(e?.message || 'Erreur lors de la suppression');
-                      }
-                    }}
-                  >
-                    Supprimer
-                  </Button>
-                </div>
+                    <div className="flex w-full md:w-auto flex-row md:flex-col gap-2 md:ml-auto md:items-end shrink-0">
+                      <Button size="sm" className="whitespace-nowrap" variant="outline" onClick={() => { setEventId(row.event_id); setQrImage(row.qrImage || null); setStatus(row.status); setValue(row.qrcode_value); setSelectedPayment(row.payment || null); }}>
+                        Ouvrir
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="whitespace-nowrap"
+                        onClick={async () => {
+                          if (!API_PREFIX || !session?.access_token) return;
+                          const ok = window.confirm('Supprimer ce QR Code ?');
+                          if (!ok) return;
+                          try {
+                            const res = await fetch(`${API_PREFIX}/qrcode/${row.id}`, {
+                              method: 'DELETE',
+                              headers: { Authorization: `Bearer ${session.access_token}` },
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok || data?.deleted !== true) throw new Error(data?.error || 'Suppression échouée');
+                            setMyQrs((prev) => prev.filter((x) => x.id !== row.id));
+                            if (value === row.qrcode_value) { setQrImage(null); setStatus(null); setValue(null); }
+                            if (user?.id && row.event_id) { const key = `qr_${user.id}_${row.event_id}`; try { localStorage.removeItem(key); } catch {} }
+                          } catch (e) {
+                            alert(e?.message || 'Erreur lors de la suppression');
+                          }
+                        }}
+                      >
+                        Supprimer
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </CardContent>
