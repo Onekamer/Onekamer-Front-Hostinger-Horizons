@@ -323,7 +323,7 @@ const MonQRCode = () => {
         </Button>
         <Card>
           <CardHeader>
-            <CardTitle>Mon QR Code</CardTitle>
+            <CardTitle>QR Code</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -347,7 +347,7 @@ const MonQRCode = () => {
               )}
             </div>
             {/* Champ identifiant masqué pour éviter l’exposition d’un ID interne */}
-            {eventId && isFreeEvent === true && (
+            {eventId && (isFreeEvent === true || (selectedPayment && selectedPayment.status === 'free')) && (
               <Button disabled={submitting || eventInfoLoading} onClick={onGenerate} className="bg-[#2BA84A] text-white w-full">
                 {submitting ? 'Génération…' : (hasMyQrForCurrent ? '🎟 Obtenir un autre QR Code' : '🎟 Obtenir un QR Code')}
               </Button>
@@ -451,7 +451,8 @@ const MonQRCode = () => {
                         <div className="text-xs">
                           {(() => {
                             const base = getPaymentLabel(row.payment);
-                            const isPaidFallback = base === 'GRATUIT' && ((typeof row.payment?.amount_total === 'number' && row.payment.amount_total > 0) || (typeof group?.event?.price_amount === 'number' && group.event.price_amount > 0));
+                            const eventLooksPaid = (typeof group?.event?.price_amount === 'number' && group.event.price_amount > 0) || (typeof group?.event?.price === 'string' && group.event.price.toLowerCase().includes('gratuit') === false);
+                            const isPaidFallback = base === 'GRATUIT' && ( (typeof row.payment?.amount_total === 'number' && row.payment.amount_total > 0) || eventLooksPaid );
                             const label = isPaidFallback ? 'PAYÉ' : (base || '—');
                             const total = (typeof row.payment?.amount_total === 'number' && row.payment.amount_total > 0) ? ` • total ${formatMinorAmount(row.payment.amount_total, row.payment.currency)}` : '';
                             return (
