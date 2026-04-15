@@ -5,11 +5,24 @@ export function isEventFree(event) {
     if (amount > 0) return false;
     return true;
   }
-  const priceStr = (event.price || event.price_label || '').toString().trim().toLowerCase();
+  const raw = (event.price || event.price_label || '').toString();
+  const priceStr = raw.trim().toLowerCase();
   if (priceStr) {
     if (priceStr.includes('gratuit') || priceStr.includes('free')) return true;
-    const zeroLike = /(^|\s)0+([.,]0+)?(\s|$)/.test(priceStr);
-    if (zeroLike) return true;
+    const cleaned = raw
+      .toString()
+      .replace(/[\s\u00A0\u202F]/g, '') // espaces, NBSP, espaces fines
+      .replace(/[^0-9.,-]/g, '') // retire lettres/devise
+      .replace(',', '.');
+    if (cleaned) {
+      const parts = cleaned.split('.');
+      const normalized = parts.length > 2 ? (parts.slice(0, -1).join('') + '.' + parts[parts.length - 1]) : cleaned;
+      const n = parseFloat(normalized);
+      if (Number.isFinite(n)) {
+        if (n === 0) return true;
+        if (n > 0) return false;
+      }
+    }
   }
   return false;
 }

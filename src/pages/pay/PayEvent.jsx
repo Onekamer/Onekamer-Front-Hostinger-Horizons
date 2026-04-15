@@ -8,6 +8,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { toast } from '@/components/ui/use-toast';
 import { ArrowLeft } from 'lucide-react';
+import MediaDisplay from '@/components/MediaDisplay';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`) : '';
@@ -175,8 +176,18 @@ export default function PayEvent() {
           </CardHeader>
           <CardContent>
             {eventInfo && (
-              <div className="text-sm text-gray-600 mb-2">
-                {eventInfo.title} — {eventInfo.date} • {eventInfo.location}
+              <div className="text-sm text-gray-600 mb-2 flex items-start gap-3">
+                <div className="w-12 h-12 rounded overflow-hidden shrink-0 bg-gray-100">
+                  {Array.isArray(eventInfo.image_urls) && eventInfo.image_urls.length > 0 ? (
+                    <img src={eventInfo.image_urls[0]} alt={eventInfo.title} className="w-12 h-12 object-cover" />
+                  ) : (
+                    <MediaDisplay bucket="evenements" path={eventInfo.media_url} alt={eventInfo.title} className="w-12 h-12 object-cover" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate">{eventInfo.title}</div>
+                  <div className="text-xs text-gray-500 truncate">{eventInfo.date} • {eventInfo.location}</div>
+                </div>
               </div>
             )}
             {amountText && (
