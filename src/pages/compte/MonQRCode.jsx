@@ -375,7 +375,7 @@ const MonQRCode = () => {
                 <div className="rounded-md border border-[#CDE1D5] bg-[#CDE1D5] text-[#2BA84A] p-3 text-sm">
                   Merci {user?.email || 'membre'}, votre réservation pour "{eventTitle || 'votre événement'}" a bien été prise en compte. Voici votre QR Code.
                   <div className="text-gray-700 mt-1">
-                    Vous pourrez le retrouver à tout moment dans <span className="font-semibold">Compte › Mon QR Code</span> ou depuis la page de l’événement via le bouton <span className="font-semibold">Mon QRcode</span>.
+                    Vous pourrez le retrouver à tout moment dans <span className="font-semibold">Compte › Mes QR Codes</span> ou depuis la page de l’événement via le bouton <span className="font-semibold">Mon QRcode</span>.
                   </div>
                   <div className="mt-2">
                     <Button size="sm" variant="outline" onClick={goToMyQrs}>Voir mes QR Codes</Button>
@@ -386,10 +386,14 @@ const MonQRCode = () => {
                 <img src={qrImage} alt="QR Code" className="w-64 h-64 bg-white p-2 rounded" />
               </div>
               <div className="text-sm text-center">
-                Statut: <span className="font-medium capitalize">{status}</span>
-                {status === 'expired' && (
-                  <span className="ml-2 text-xs font-semibold text-red-600">Expiré</span>
-                )}
+                {(() => {
+                  const expired = status === 'expired';
+                  return (
+                    <>
+                      Statut: <span className={`font-medium ${expired ? 'text-red-600' : ''} capitalize`}>{expired ? 'expiré' : status}</span>
+                    </>
+                  );
+                })()}
               </div>
               {selectedPayment && (
                 <div className="text-sm text-center">
@@ -442,10 +446,14 @@ const MonQRCode = () => {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium">
-                        {(row.status === 'expired' || isExpiredDate(group?.event?.date)) && (
-                          <span className="text-[10px] font-semibold text-red-700 mr-2">Expiré</span>
-                        )}
-                        Statut: <span className="font-medium capitalize">{row.status}</span>
+                        {(() => {
+                          const expired = (row.status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
+                          return (
+                            <>
+                              Statut: <span className={`font-medium ${expired ? 'text-red-700' : ''} capitalize`}>{expired ? 'expiré' : row.status}</span>
+                            </>
+                          );
+                        })()}
                       </div>
                       {row.payment && (
                         <div className="text-xs">
