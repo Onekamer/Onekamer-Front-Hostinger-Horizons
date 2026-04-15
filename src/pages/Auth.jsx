@@ -7,7 +7,7 @@ import React, { useState } from 'react';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { useToast } from '@/components/ui/use-toast';
-    import { useNavigate } from 'react-router-dom';
+    import { useNavigate, useLocation } from 'react-router-dom';
     import { Loader2 } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
 
@@ -59,6 +59,7 @@ const AuthPage = () => {
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
@@ -98,7 +99,17 @@ const AuthPage = () => {
     const { error } = await signIn({ email: loginEmail, password: loginPassword });
     if (!error) {
       toast({ title: 'Connexion réussie !', description: 'Bienvenue à nouveau !' });
-      navigate('/compte');
+      try {
+        const params = new URLSearchParams(location.search || '');
+        const next = params.get('next');
+        if (next && /^\//.test(next)) {
+          navigate(next);
+        } else {
+          navigate('/compte');
+        }
+      } catch (_) {
+        navigate('/compte');
+      }
     }
     setLoading(false);
   };
@@ -197,6 +208,9 @@ const AuthPage = () => {
         <meta name="description" content="Rejoignez la communauté OneKamer.co ou connectez-vous à votre compte." />
       </Helmet>
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-full max-w-md text-center text-sm text-gray-700 px-4">
+          OneKamer est une communauté. Pour accéder aux contenus, connectez-vous ou créez un compte.
+        </div>
         <Tabs defaultValue="login" className="w-full max-w-md">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">Connexion</TabsTrigger>

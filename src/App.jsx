@@ -319,8 +319,11 @@ const AppContent = () => {
     if (location.pathname.startsWith('/forfaits')) return;
     if (location.pathname.startsWith('/aide')) return;
 
-    navigate('/auth', { replace: true });
-  }, [loading, session, location.pathname, navigate, publicPaths]);
+    // Conserver la destination demandée
+    const qs = location.search || '';
+    const next = encodeURIComponent(location.pathname + qs);
+    navigate(`/auth?next=${next}`, { replace: true });
+  }, [loading, session, location.pathname, location.search, navigate, publicPaths]);
 
   // Garde de réauthentification: globale (toutes pages privées) si OTP périmé
   useEffect(() => {

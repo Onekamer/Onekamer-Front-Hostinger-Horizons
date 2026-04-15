@@ -8,7 +8,12 @@ export function isEventFree(event) {
   const raw = (event.price || event.price_label || '').toString();
   const priceStr = raw.trim().toLowerCase();
   if (priceStr) {
-    if (priceStr.includes('gratuit') || priceStr.includes('free')) return true;
+    if (
+      priceStr.includes('gratuit') ||
+      priceStr.includes('free') ||
+      priceStr.includes('entrée libre') ||
+      priceStr.includes('entree libre')
+    ) return true;
     const cleaned = raw
       .toString()
       .replace(/[\s\u00A0\u202F]/g, '') // espaces, NBSP, espaces fines
