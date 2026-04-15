@@ -85,6 +85,7 @@ import MarketplaceOrders from '@/pages/MarketplaceOrders';
 import MarketplaceOrderDetail from '@/pages/MarketplaceOrderDetail';
 import MarketplaceInvoices from '@/pages/MarketplaceInvoices';
 import { iosPush } from "@/lib/push/iosPush";
+import Redirector from '@/pages/Redirector';
 
 const SPONSORED_POSTS_ENABLED = false;
 // Désactivation temporaire de la réauthentification par code (OTP)
@@ -392,6 +393,7 @@ const AppContent = () => {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/invite" element={<Invite />} />
+          <Route path="/r" element={<Redirector />} />
           <Route path="/cgu" element={<CguPage />} />
           <Route path="/rgpd" element={<RgpdPage />} />
           <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
@@ -425,6 +427,7 @@ const AppContent = () => {
           <Route path="/market/invoices" element={<MarketplaceInvoices />} />
           <Route path="/echange" element={<Echange />} />
           <Route path="/evenements" element={<Evenements />} />
+          <Route path="/r" element={<Redirector />} />
           <Route path="/rencontre" element={<Rencontre />} />
           <Route path="/rencontre/messages" element={<RencontreMessages />} />
           <Route path="/rencontre/messages/:conversationId" element={<ConversationDetail />} />
