@@ -36,6 +36,16 @@ const MonQRCode = () => {
     });
     return groups;
   }, [myQrs]);
+  const hasMyQrForCurrent = useMemo(() => {
+    if (!eventId) return false;
+    return Array.isArray(myQrs) && myQrs.some((r) => String(r?.event_id) === String(eventId));
+  }, [myQrs, eventId]);
+  const currentPayment = useMemo(() => {
+    if (selectedPayment) return selectedPayment;
+    if (!eventId || !Array.isArray(myQrs)) return null;
+    const row = myQrs.find((r) => String(r?.event_id) === String(eventId));
+    return row?.payment || null;
+  }, [selectedPayment, myQrs, eventId]);
   const [didPrefillFromEventId, setDidPrefillFromEventId] = useState(false);
   const [eventTitle, setEventTitle] = useState("");
   const [thanks, setThanks] = useState(false);
@@ -339,15 +349,16 @@ const MonQRCode = () => {
             {/* Champ identifiant masqué pour éviter l’exposition d’un ID interne */}
             {eventId && isFreeEvent === true && (
               <Button disabled={submitting || eventInfoLoading} onClick={onGenerate} className="bg-[#2BA84A] text-white w-full">
-                {submitting ? 'Génération…' : '🎟 Obtenir mon QR Code'}
+                {submitting ? 'Génération…' : (hasMyQrForCurrent ? '🎟 Obtenir un autre QR Code' : '🎟 Obtenir un QR Code')}
               </Button>
             )}
 
             {eventId && isFreeEvent === false && (
               <div className="grid grid-cols-1 gap-2">
                 <Button onClick={() => onPay('full')} disabled={paying || eventInfoLoading} className="bg-[#2BA84A] text-white w-full">
-                  {paying ? 'Redirection…' : (selectedPayment && (selectedPayment.status === 'paid' || selectedPayment.status === 'deposit_paid') ? 'Payer un autre billet' : 'Payer maintenant')}
+                  {paying ? 'Redirection…' : ((currentPayment && (currentPayment.status === 'paid' || currentPayment.status === 'deposit_paid')) || hasMyQrForCurrent ? 'Payer un autre billet' : 'Payer maintenant')}
                 </Button>
+                <div className="text-xs text-gray-500">Billets non échangeables, non remboursables.</div>
               </div>
             )}
             {error && <div className="text-sm text-red-600">{error}</div>}
@@ -382,12 +393,21 @@ const MonQRCode = () => {
               </div>
               {selectedPayment && (
                 <div className="text-sm text-center">
-                  Statut paiement: <span className="font-medium">{getPaymentLabel(selectedPayment) || '—'}</span>
-                  {typeof selectedPayment?.remaining === 'number' && selectedPayment.remaining > 0 && (
-                    <span className="ml-2 text-xs text-gray-600">
-                      (reste: {formatMinorAmount(selectedPayment.remaining, selectedPayment.currency || selectedPayment?.currency)})
-                    </span>
-                  )}
+                  {(() => {
+                    const base = getPaymentLabel(selectedPayment);
+                    const isPaidFallback = base === 'GRATUIT' && ((typeof selectedPayment?.amount_total === 'number' && selectedPayment.amount_total > 0) || isFreeEvent === false);
+                    const label = isPaidFallback ? 'PAYÉ' : (base || '—');
+                    const total = (typeof selectedPayment?.amount_total === 'number' && selectedPayment.amount_total > 0) ? ` • total: ${formatMinorAmount(selectedPayment.amount_total, selectedPayment.currency || selectedPayment?.currency)}` : '';
+                    return (
+                      <>
+                        Statut paiement: <span className="font-medium">{label}</span>
+                        {total && <span className="ml-1 text-xs text-gray-600">{total}</span>}
+                        {typeof selectedPayment?.remaining === 'number' && selectedPayment.remaining > 0 && (
+                          <span className="ml-2 text-xs text-gray-600">(reste: {formatMinorAmount(selectedPayment.remaining, selectedPayment.currency || selectedPayment?.currency)})</span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
               {value && (
@@ -429,10 +449,21 @@ const MonQRCode = () => {
                       </div>
                       {row.payment && (
                         <div className="text-xs">
-                          Paiement: <span className="font-medium">{getPaymentLabel(row.payment) || '—'}</span>
-                          {typeof row.payment?.remaining === 'number' && row.payment.remaining > 0 && (
-                            <span className="ml-2 text-gray-600">• reste {formatMinorAmount(row.payment.remaining, row.payment.currency)}</span>
-                          )}
+                          {(() => {
+                            const base = getPaymentLabel(row.payment);
+                            const isPaidFallback = base === 'GRATUIT' && ((typeof row.payment?.amount_total === 'number' && row.payment.amount_total > 0) || (typeof group?.event?.price_amount === 'number' && group.event.price_amount > 0));
+                            const label = isPaidFallback ? 'PAYÉ' : (base || '—');
+                            const total = (typeof row.payment?.amount_total === 'number' && row.payment.amount_total > 0) ? ` • total ${formatMinorAmount(row.payment.amount_total, row.payment.currency)}` : '';
+                            return (
+                              <>
+                                Paiement: <span className="font-medium">{label}</span>
+                                {total && <span className="ml-1 text-gray-600">{total}</span>}
+                                {typeof row.payment?.remaining === 'number' && row.payment.remaining > 0 && (
+                                  <span className="ml-2 text-gray-600">• reste {formatMinorAmount(row.payment.remaining, row.payment.currency)}</span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

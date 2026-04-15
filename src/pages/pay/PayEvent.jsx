@@ -69,7 +69,7 @@ export default function PayEvent() {
   const { session } = useAuth();
   const q = useQuery();
   const navigate = useNavigate();
-  const paymentMode = (q.get('mode') === 'deposit') ? 'deposit' : 'full';
+  const paymentMode = 'full';
   const [clientSecret, setClientSecret] = useState(null);
   const [pk, setPk] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,14 +88,8 @@ export default function PayEvent() {
         amountMajor = m ? parseFloat(m[1]) : 0;
       }
       if (!Number.isFinite(amountMajor) || amountMajor <= 0) return '';
-      if (paymentMode === 'deposit') {
-        const dp = Number(eventInfo.deposit_percent || 0);
-        if (dp > 0) {
-          amountMajor = Math.max(1, Math.round((amountMajor * dp) / 100));
-        }
-      }
       const formatted = new Intl.NumberFormat('fr-FR', { style: 'currency', currency, minimumFractionDigits: isZeroDecimal ? 0 : 2, maximumFractionDigits: isZeroDecimal ? 0 : 2 }).format(amountMajor);
-      return `Montant à payer: ${formatted}`;
+      return `Prix total: ${formatted}`;
     } catch {
       return '';
     }
@@ -177,7 +171,7 @@ export default function PayEvent() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Paiement Évènement {paymentMode === 'deposit' ? '(Acompte)' : '(Total)'}</CardTitle>
+            <CardTitle>Paiement Évènement</CardTitle>
           </CardHeader>
           <CardContent>
             {eventInfo && (
@@ -188,6 +182,7 @@ export default function PayEvent() {
             {amountText && (
               <div className="text-sm font-medium mb-2">{amountText}</div>
             )}
+            <div className="text-xs text-gray-500 mb-3">Billets non échangeables, non remboursables.</div>
             {loading && <div>Chargement…</div>}
             {!loading && (!stripePromise || !clientSecret) && (
               <div className="text-sm text-red-600">Impossible d’initialiser le paiement.</div>
