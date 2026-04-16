@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -314,6 +314,9 @@ const CreateEvenement = () => {
       setUploadProgress(100);
 
       const payload = { ...formData, media_url: mediaUrl, media_type: mediaType, price: parseFloat(formData.price) || 0 };
+      // end_date / end_time réellement optionnels → envoyer null si vides
+      if (!payload.end_date) payload.end_date = null;
+      if (!payload.end_time) payload.end_time = null;
       if (imageUrls && imageUrls.length) payload.image_urls = imageUrls;
 
       if (isEditMode) {
@@ -431,6 +434,31 @@ const CreateEvenement = () => {
                   <div className="space-y-2"><Label htmlFor="end_date">Date de fin (optionnel)</Label><Input id="end_date" type="date" value={formData.end_date} onChange={handleInputChange} /></div>
                   <div className="space-y-2"><Label htmlFor="end_time">Heure de fin (optionnel)</Label><div className="relative"><Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" /><Input id="end_time" type="time" className="pl-10" value={formData.end_time} onChange={handleInputChange} /></div></div>
                 </div>
+                {useMemo(() => {
+                  const d = formData.date?.trim();
+                  const t = formData.time?.trim();
+                  const de = formData.end_date?.trim();
+                  const te = formData.end_time?.trim();
+                  if (!d || !de) return null;
+                  try {
+                    const start = new Date(`${d}T${t || '00:00'}:00`);
+                    const end = new Date(`${de}T${te || '00:00'}:00`);
+                    const ms = end - start;
+                    if (!Number.isFinite(ms) || ms <= 0) return null;
+                    const totalMin = Math.floor(ms / 60000);
+                    const days = Math.floor(totalMin / (60 * 24));
+                    const hours = Math.floor((totalMin % (60 * 24)) / 60);
+                    const mins = totalMin % 60;
+                    const parts = [];
+                    if (days > 0) parts.push(`${days} j`);
+                    if (hours > 0) parts.push(`${hours} h`);
+                    if (mins > 0) parts.push(`${mins} min`);
+                    const label = parts.length ? parts.join(' ') : 'moins d\'une heure';
+                    return (
+                      <div className="text-xs text-gray-600 -mt-2">Durée estimée: {label}</div>
+                    );
+                  } catch (_) { return null; }
+                }, [formData.date, formData.time, formData.end_date, formData.end_time])}
                 <div className="space-y-2">
                   <Label htmlFor="location">Lieu *</Label>
                   {isLoaded ? (
