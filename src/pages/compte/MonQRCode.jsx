@@ -444,6 +444,7 @@ const MonQRCode = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="text-xs text-gray-600">1 QR code = 1 billet</div>
             {myQrs.length === 0 && (
               <div className="text-sm text-gray-600">Aucun QR Code enregistré pour l'instant.</div>
             )}
