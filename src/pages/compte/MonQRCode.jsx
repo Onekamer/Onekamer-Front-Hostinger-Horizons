@@ -384,15 +384,25 @@ const MonQRCode = () => {
                 </div>
               )}
               <div className="w-full flex justify-center">
-                <img
-                  src={qrImage}
-                  alt="QR Code"
-                  className={`w-64 h-64 bg-white p-2 rounded ${((String((selectedPayment?.status || selectedPayment?.payment_status) || '').toLowerCase() === 'refunded') || status === 'expired') ? 'grayscale opacity-60' : ''}`}
-                />
+                {(() => {
+                  const group = myQrsGrouped?.[eventId] || null;
+                  const expiredByDate = isExpiredDate(group?.event?.end_date || group?.event?.date);
+                  const isRefunded = String((selectedPayment?.status || selectedPayment?.payment_status) || '').toLowerCase() === 'refunded';
+                  const expiredDetailed = (status === 'expired') || expiredByDate;
+                  const gray = isRefunded || expiredDetailed;
+                  return (
+                    <img
+                      src={qrImage}
+                      alt="QR Code"
+                      className={`w-64 h-64 bg-white p-2 rounded ${gray ? 'grayscale opacity-60' : ''}`}
+                    />
+                  );
+                })()}
               </div>
               <div className="text-sm text-center">
                 {(() => {
-                  const expired = status === 'expired';
+                  const group = myQrsGrouped?.[eventId] || null;
+                  const expired = (status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
                   return (
                     <>
                       Statut: <span className={`font-medium ${expired ? 'text-red-600' : ''} capitalize`}>{expired ? 'expiré' : status}</span>
@@ -422,6 +432,7 @@ const MonQRCode = () => {
               {value && (
                 <div className="text-xs text-center text-gray-500 break-all">{value}</div>
               )}
+              <div className="text-xs text-center text-gray-600">1 QR code = 1 billet</div>
             </CardContent>
           </Card>
         )}
