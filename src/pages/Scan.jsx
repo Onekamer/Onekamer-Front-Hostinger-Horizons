@@ -10,8 +10,8 @@ const API_PREFIX = API_BASE_URL ? (API_BASE_URL.endsWith('/api') ? API_BASE_URL 
 
 const formatMinorAmount = (minor, currency) => {
   const cur = (currency || '').toLowerCase();
-  const amount = typeof minor === 'number' ? minor : 0;
-  const major = ['eur', 'usd', 'cad'].includes(cur) ? amount / 100 : amount;
+  const amount = Number(minor) || 0;
+  const major = amount;
   try {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
@@ -26,6 +26,7 @@ const getPaymentLabel = (p) => {
   const s = p?.status;
   if (s === 'paid') return 'PAYÉ';
   if (s === 'deposit_paid') return 'ACOMPTE PAYÉ';
+  if (s === 'refunded') return 'REMBOURSÉ';
   if (s === 'unpaid') return 'DOIT PAYER';
   if (s === 'free') return 'GRATUIT';
   return null;
