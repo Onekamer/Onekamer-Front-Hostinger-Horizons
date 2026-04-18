@@ -65,8 +65,8 @@ const MonQRCode = () => {
 
   const formatMinorAmount = (minor, currency) => {
     const cur = (currency || '').toLowerCase();
-    const amount = typeof minor === 'number' ? minor : 0;
-    const major = ['eur', 'usd', 'cad'].includes(cur) ? amount / 100 : amount;
+    const amount = Number(minor) || 0;
+    const major = amount;
     try {
       return new Intl.NumberFormat('fr-FR', {
         style: 'currency',
@@ -95,6 +95,7 @@ const MonQRCode = () => {
     const s = p?.status || p?.payment_status;
     if (s === 'paid') return 'PAYÉ';
     if (s === 'deposit_paid') return 'ACOMPTE PAYÉ';
+    if (s === 'refunded') return 'REMBOURSÉ';
     if (s === 'unpaid') return 'DOIT PAYER';
     if (s === 'free') return 'GRATUIT';
     return null;
@@ -383,7 +384,11 @@ const MonQRCode = () => {
                 </div>
               )}
               <div className="w-full flex justify-center">
-                <img src={qrImage} alt="QR Code" className="w-64 h-64 bg-white p-2 rounded" />
+                <img
+                  src={qrImage}
+                  alt="QR Code"
+                  className={`w-64 h-64 bg-white p-2 rounded ${((String((selectedPayment?.status || selectedPayment?.payment_status) || '').toLowerCase() === 'refunded') || status === 'expired') ? 'grayscale opacity-60' : ''}`}
+                />
               </div>
               <div className="text-sm text-center">
                 {(() => {
@@ -440,7 +445,11 @@ const MonQRCode = () => {
                 {group.items.map((row) => (
                   <div key={row.id} className="flex flex-col md:flex-row md:items-center gap-3 border rounded-lg p-3">
                     {row.qrImage ? (
-                      <img src={row.qrImage} alt="QR" className="w-20 h-20 bg-white p-1 rounded" />
+                      <img
+                        src={row.qrImage}
+                        alt="QR"
+                        className={`w-20 h-20 bg-white p-1 rounded ${(((row.status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date) || String((row?.payment?.status || row?.payment?.payment_status) || '').toLowerCase() === 'refunded') ? 'grayscale opacity-60' : '')}`}
+                      />
                     ) : (
                       <div className="w-20 h-20 bg-gray-100 rounded" />
                     )}
