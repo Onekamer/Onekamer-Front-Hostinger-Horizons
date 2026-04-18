@@ -388,8 +388,9 @@ const MonQRCode = () => {
                   const group = myQrsGrouped?.[eventId] || null;
                   const expiredByDate = isExpiredDate(group?.event?.end_date || group?.event?.date);
                   const isRefunded = String((selectedPayment?.status || selectedPayment?.payment_status) || '').toLowerCase() === 'refunded';
+                  const refundedByStatus = String(status || '').toLowerCase() === 'refunded';
                   const expiredDetailed = (status === 'expired') || expiredByDate;
-                  const gray = isRefunded || expiredDetailed;
+                  const gray = isRefunded || refundedByStatus || expiredDetailed;
                   return (
                     <img
                       src={qrImage}
@@ -403,9 +404,11 @@ const MonQRCode = () => {
                 {(() => {
                   const group = myQrsGrouped?.[eventId] || null;
                   const expired = (status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
+                  const s = String(status || '').toLowerCase();
+                  const label = s === 'refunded' ? 'remboursé' : (s === 'expired' || expired ? 'expiré' : status);
                   return (
                     <>
-                      Statut: <span className={`font-medium ${expired ? 'text-red-600' : ''} capitalize`}>{expired ? 'expiré' : status}</span>
+                      Statut: <span className={`font-medium ${expired ? 'text-red-600' : ''} capitalize`}>{label}</span>
                     </>
                   );
                 })()}
@@ -414,8 +417,9 @@ const MonQRCode = () => {
                 <div className="text-sm text-center">
                   {(() => {
                     const base = getPaymentLabel(selectedPayment);
+                    const isQrRefunded = String(status || '').toLowerCase() === 'refunded';
                     const isPaidFallback = base === 'GRATUIT' && ((typeof selectedPayment?.amount_total === 'number' && selectedPayment.amount_total > 0) || isFreeEvent === false);
-                    const label = isPaidFallback ? 'PAYÉ' : (base || '—');
+                    const label = isQrRefunded ? 'REMBOURSÉ' : (isPaidFallback ? 'PAYÉ' : (base || '—'));
                     const total = (typeof selectedPayment?.amount_total === 'number' && selectedPayment.amount_total > 0) ? ` • total: ${formatMinorAmount(selectedPayment.amount_total, selectedPayment.currency || selectedPayment?.currency)}` : '';
                     return (
                       <>
@@ -460,7 +464,7 @@ const MonQRCode = () => {
                       <img
                         src={row.qrImage}
                         alt="QR"
-                        className={`w-20 h-20 bg-white p-1 rounded ${(((row.status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date) || String((row?.payment?.status || row?.payment?.payment_status) || '').toLowerCase() === 'refunded') ? 'grayscale opacity-60' : '')}`}
+                        className={`w-20 h-20 bg-white p-1 rounded ${(((row.status === 'expired') || String(row.status || '').toLowerCase() === 'refunded' || isExpiredDate(group?.event?.end_date || group?.event?.date) || String((row?.payment?.status || row?.payment?.payment_status) || '').toLowerCase() === 'refunded') ? 'grayscale opacity-60' : '')}`}
                       />
                     ) : (
                       <div className="w-20 h-20 bg-gray-100 rounded" />
@@ -469,9 +473,11 @@ const MonQRCode = () => {
                       <div className="text-sm font-medium">
                         {(() => {
                           const expired = (row.status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
+                          const s = String(row.status || '').toLowerCase();
+                          const label = s === 'refunded' ? 'remboursé' : (expired ? 'expiré' : row.status);
                           return (
                             <>
-                              Statut: <span className={`font-medium ${expired ? 'text-red-700' : ''} capitalize`}>{expired ? 'expiré' : row.status}</span>
+                              Statut: <span className={`font-medium ${expired ? 'text-red-700' : ''} capitalize`}>{label}</span>
                             </>
                           );
                         })()}
@@ -483,7 +489,8 @@ const MonQRCode = () => {
                             const eventLooksFree = isEventFree(group?.event || {});
                             const eventLooksPaid = !eventLooksFree;
                             const isPaidFallback = base === 'GRATUIT' && ( (typeof row.payment?.amount_total === 'number' && row.payment.amount_total > 0) || eventLooksPaid );
-                            const label = isPaidFallback ? 'PAYÉ' : (base || '—');
+                            const isQrRefunded = String(row.status || '').toLowerCase() === 'refunded';
+                            const label = isQrRefunded ? 'REMBOURSÉ' : (isPaidFallback ? 'PAYÉ' : (base || '—'));
                             const total = (typeof row.payment?.amount_total === 'number' && row.payment.amount_total > 0) ? ` • total ${formatMinorAmount(row.payment.amount_total, row.payment.currency)}` : '';
                             return (
                               <>
