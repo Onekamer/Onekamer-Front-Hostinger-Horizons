@@ -356,7 +356,7 @@ const MonQRCode = () => {
             {eventId && isFreeEvent === false && (
               <div className="grid grid-cols-1 gap-2">
                 <Button onClick={() => onPay('full')} disabled={paying || eventInfoLoading} className="bg-[#2BA84A] text-white w-full">
-                  {paying ? 'Redirection…' : ((currentPayment && (currentPayment.status === 'paid' || currentPayment.status === 'deposit_paid')) || hasMyQrForCurrent ? 'Payer un autre billet' : 'Payer maintenant')}
+                  {paying ? 'Redirection…' : (hasMyQrForCurrent ? 'Payer un autre billet' : 'Payer maintenant')}
                 </Button>
                 <div className="text-xs text-gray-500">Billets non échangeables, non remboursables.</div>
               </div>
