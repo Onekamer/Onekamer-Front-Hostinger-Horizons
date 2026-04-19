@@ -205,7 +205,14 @@ import React, { useState, useEffect, useCallback } from 'react';
       }
 
       const reservationLink = getReservationLink();
-      const depositEnabled = false;
+      const depositEnabled = (() => {
+        try {
+          const dp = Number(event?.deposit_percent);
+          return Number.isFinite(dp) && dp > 0;
+        } catch {
+          return false;
+        }
+      })();
       const isFree = (() => {
         try { const p = parseFloat(event?.price); return !isFinite(p) || p <= 0; } catch { return false; }
       })();
