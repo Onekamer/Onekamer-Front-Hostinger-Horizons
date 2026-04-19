@@ -28,6 +28,7 @@ const MonQRCode = () => {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [myQrs, setMyQrs] = useState([]);
   const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
   const myQrsGrouped = useMemo(() => {
     const groups = {};
     (Array.isArray(myQrs) ? myQrs : []).forEach((row) => {
@@ -463,17 +464,28 @@ const MonQRCode = () => {
             )}
             {Object.entries(myQrsGrouped).map(([eid, group]) => (
               <div key={eid} className="space-y-2">
-                <div className="text-sm font-semibold">
-                  {(group?.event ? group.event.title : 'Événement supprimé')} {Array.isArray(group?.items) ? `(${group.items.length})` : ''}
-                </div>
-                <div className="text-xs text-gray-500">{group?.event ? `${group.event.date} • ${group.event.location}` : '—'}</div>
-                {group.items.map((row) => (
+                {(() => {
+                  const allItems = Array.isArray(group?.items) ? group.items : [];
+                  const displayItems = includeDeleted ? allItems : allItems.filter((r) => String(r?.status || '').toLowerCase() !== 'deleted');
+                  const open = !!expandedGroups[eid];
+                  return (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">
+                          {(group?.event ? group.event.title : 'Événement supprimé')} {`(${displayItems.length})`}
+                        </div>
+                        <button onClick={() => setExpandedGroups((prev) => ({ ...prev, [eid]: !prev[eid] }))} className="text-xs text-[#2BA84A]">
+                          {open ? 'Réduire' : 'Voir'}
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-500">{group?.event ? `${group.event.date} • ${group.event.location}` : '—'}</div>
+                      {open && displayItems.map((row) => (
                   <div key={row.id} className="flex flex-col md:flex-row md:items-center gap-3 border rounded-lg p-3">
                     {row.qrImage ? (
                       <img
                         src={row.qrImage}
                         alt="QR"
-                        className={`w-20 h-20 bg-white p-1 rounded ${(((row.status === 'expired') || String(row.status || '').toLowerCase() === 'refunded' || isExpiredDate(group?.event?.end_date || group?.event?.date) || String((row?.payment?.status || row?.payment?.payment_status) || '').toLowerCase() === 'refunded' || !group?.event) ? 'grayscale opacity-60' : '')}`}
+                        className={`w-20 h-20 bg-white p-1 rounded ${(((row.status === 'expired') || String(row.status || '').toLowerCase() === 'refunded' || String(row.status || '').toLowerCase() === 'deleted' || isExpiredDate(group?.event?.end_date || group?.event?.date) || String((row?.payment?.status || row?.payment?.payment_status) || '').toLowerCase() === 'refunded' || !group?.event) ? 'grayscale opacity-60' : '')}`}
                       />
                     ) : (
                       <div className="w-20 h-20 bg-gray-100 rounded" />
@@ -547,6 +559,9 @@ const MonQRCode = () => {
                     </div>
                   </div>
                 ))}
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </CardContent>
