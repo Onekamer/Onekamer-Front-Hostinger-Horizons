@@ -27,6 +27,7 @@ const MonQRCode = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [myQrs, setMyQrs] = useState([]);
+  const [includeDeleted, setIncludeDeleted] = useState(false);
   const myQrsGrouped = useMemo(() => {
     const groups = {};
     (Array.isArray(myQrs) ? myQrs : []).forEach((row) => {
@@ -240,7 +241,7 @@ const MonQRCode = () => {
     const run = async () => {
       if (!API_PREFIX || !session?.access_token) return;
       try {
-        const res = await fetch(`${API_PREFIX}/qrcode/my?withImage=1`, {
+        const res = await fetch(`${API_PREFIX}/qrcode/my?withImage=1${includeDeleted ? '&includeDeleted=1' : ''}` , {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         const data = await res.json();
@@ -248,7 +249,7 @@ const MonQRCode = () => {
       } catch {}
     };
     run();
-  }, [session]);
+  }, [session, includeDeleted]);
 
   const onPay = async (mode) => {
     if (!eventId) {
@@ -360,6 +361,7 @@ const MonQRCode = () => {
                   {paying ? 'Redirection…' : (hasMyQrForCurrent ? 'Payer un autre billet' : 'Payer maintenant')}
                 </Button>
                 <div className="text-xs text-gray-500">Billets non échangeables, non remboursables.</div>
+                <div className="text-xs text-gray-600">1 QR code = 1 billet</div>
               </div>
             )}
             {error && <div className="text-sm text-red-600">{error}</div>}
@@ -390,8 +392,9 @@ const MonQRCode = () => {
                   const isRefunded = String((selectedPayment?.status || selectedPayment?.payment_status) || '').toLowerCase() === 'refunded';
                   const refundedByStatus = String(status || '').toLowerCase() === 'refunded';
                   const expiredDetailed = (status === 'expired') || expiredByDate;
+                  const isDeleted = String(status || '').toLowerCase() === 'deleted';
                   const eventDeleted = !group?.event;
-                  const gray = isRefunded || refundedByStatus || expiredDetailed || eventDeleted;
+                  const gray = isRefunded || refundedByStatus || expiredDetailed || isDeleted || eventDeleted;
                   return (
                     <img
                       src={qrImage}
@@ -407,7 +410,7 @@ const MonQRCode = () => {
                   const expired = (status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
                   const s = String(status || '').toLowerCase();
                   const eventDeleted = !group?.event;
-                  const label = eventDeleted ? 'événement supprimé' : (s === 'refunded' ? 'remboursé' : (s === 'expired' || expired ? 'expiré' : status));
+                  const label = eventDeleted ? 'événement supprimé' : (s === 'deleted' ? 'supprimé' : (s === 'refunded' ? 'remboursé' : (s === 'expired' || expired ? 'expiré' : status)));
                   return (
                     <>
                       Statut: <span className={`font-medium ${expired ? 'text-red-600' : ''} capitalize`}>{label}</span>
@@ -450,6 +453,10 @@ const MonQRCode = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center gap-2">
+              <input id="ok-include-deleted" type="checkbox" checked={includeDeleted} onChange={(e) => setIncludeDeleted(e.target.checked)} />
+              <label htmlFor="ok-include-deleted" className="text-xs text-gray-600">Inclure les QR supprimés</label>
+            </div>
             <div className="text-xs text-gray-600">1 QR code = 1 billet</div>
             {myQrs.length === 0 && (
               <div className="text-sm text-gray-600">Aucun QR Code enregistré pour l'instant.</div>
@@ -477,7 +484,7 @@ const MonQRCode = () => {
                           const expired = (row.status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
                           const s = String(row.status || '').toLowerCase();
                           const eventDeleted = !group?.event;
-                          const label = eventDeleted ? 'événement supprimé' : (s === 'refunded' ? 'remboursé' : (expired ? 'expiré' : row.status));
+                          const label = eventDeleted ? 'événement supprimé' : (s === 'deleted' ? 'supprimé' : (s === 'refunded' ? 'remboursé' : (expired ? 'expiré' : row.status)));
                           return (
                             <>
                               Statut: <span className={`font-medium ${expired ? 'text-red-700' : ''} capitalize`}>{label}</span>
