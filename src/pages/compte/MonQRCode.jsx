@@ -390,7 +390,8 @@ const MonQRCode = () => {
                   const isRefunded = String((selectedPayment?.status || selectedPayment?.payment_status) || '').toLowerCase() === 'refunded';
                   const refundedByStatus = String(status || '').toLowerCase() === 'refunded';
                   const expiredDetailed = (status === 'expired') || expiredByDate;
-                  const gray = isRefunded || refundedByStatus || expiredDetailed;
+                  const eventDeleted = !group?.event;
+                  const gray = isRefunded || refundedByStatus || expiredDetailed || eventDeleted;
                   return (
                     <img
                       src={qrImage}
@@ -405,7 +406,8 @@ const MonQRCode = () => {
                   const group = myQrsGrouped?.[eventId] || null;
                   const expired = (status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
                   const s = String(status || '').toLowerCase();
-                  const label = s === 'refunded' ? 'remboursé' : (s === 'expired' || expired ? 'expiré' : status);
+                  const eventDeleted = !group?.event;
+                  const label = eventDeleted ? 'événement supprimé' : (s === 'refunded' ? 'remboursé' : (s === 'expired' || expired ? 'expiré' : status));
                   return (
                     <>
                       Statut: <span className={`font-medium ${expired ? 'text-red-600' : ''} capitalize`}>{label}</span>
@@ -455,16 +457,16 @@ const MonQRCode = () => {
             {Object.entries(myQrsGrouped).map(([eid, group]) => (
               <div key={eid} className="space-y-2">
                 <div className="text-sm font-semibold">
-                  {(group?.event?.title || 'Événement')} {Array.isArray(group?.items) ? `(${group.items.length})` : ''}
+                  {(group?.event ? group.event.title : 'Événement supprimé')} {Array.isArray(group?.items) ? `(${group.items.length})` : ''}
                 </div>
-                <div className="text-xs text-gray-500">{group?.event?.date} • {group?.event?.location}</div>
+                <div className="text-xs text-gray-500">{group?.event ? `${group.event.date} • ${group.event.location}` : '—'}</div>
                 {group.items.map((row) => (
                   <div key={row.id} className="flex flex-col md:flex-row md:items-center gap-3 border rounded-lg p-3">
                     {row.qrImage ? (
                       <img
                         src={row.qrImage}
                         alt="QR"
-                        className={`w-20 h-20 bg-white p-1 rounded ${(((row.status === 'expired') || String(row.status || '').toLowerCase() === 'refunded' || isExpiredDate(group?.event?.end_date || group?.event?.date) || String((row?.payment?.status || row?.payment?.payment_status) || '').toLowerCase() === 'refunded') ? 'grayscale opacity-60' : '')}`}
+                        className={`w-20 h-20 bg-white p-1 rounded ${(((row.status === 'expired') || String(row.status || '').toLowerCase() === 'refunded' || isExpiredDate(group?.event?.end_date || group?.event?.date) || String((row?.payment?.status || row?.payment?.payment_status) || '').toLowerCase() === 'refunded' || !group?.event) ? 'grayscale opacity-60' : '')}`}
                       />
                     ) : (
                       <div className="w-20 h-20 bg-gray-100 rounded" />
@@ -474,7 +476,8 @@ const MonQRCode = () => {
                         {(() => {
                           const expired = (row.status === 'expired') || isExpiredDate(group?.event?.end_date || group?.event?.date);
                           const s = String(row.status || '').toLowerCase();
-                          const label = s === 'refunded' ? 'remboursé' : (expired ? 'expiré' : row.status);
+                          const eventDeleted = !group?.event;
+                          const label = eventDeleted ? 'événement supprimé' : (s === 'refunded' ? 'remboursé' : (expired ? 'expiré' : row.status));
                           return (
                             <>
                               Statut: <span className={`font-medium ${expired ? 'text-red-700' : ''} capitalize`}>{label}</span>
